@@ -302,12 +302,34 @@ async function publishCatalog() {
     log('catalog: created ' + CATALOG_TAG);
   }
 
+  const lines = [];
+  const expected = [];
+  let missing = false;
+  for (const a of CPP_ASSETS) {
+    if (!fs.existsSync(a.file)) { done.push(a.name + ' -> missing file'); missing = true; continue; }
+    lines.push(a.catalogAsset);
+    expected.push({ name: a.name, size: fs.statSync(a.file).size });
+  }
+  const manifest = lines.join('\n') + '\n';
+
+  /*
+   * The page is rewritten only when it is not already the page we would write.
+   * Clearing it every sync would take the catalogue down for as long as the
+   * uploads take, and hand every asset a new id for no reason.
+   */
+  const have = rel.assets || [];
+  const same = !missing && expected.every(function (e) {
+    const a = have.find(function (x) { return x.name === e.name; });
+    return a && a.size === e.size;
+  }) && have.some(function (x) { return x.name === 'name.txt' && x.size === Buffer.byteLength(manifest); });
+  if (same) return ['catalogue already current'];
+
   /*
    * Clear the page before writing it. An asset cannot be replaced in place,
    * and a name.txt that outlives the files it names would advertise
    * downloads that 404.
    */
-  for (const a of (rel.assets || [])) {
+  for (const a of have) {
     const obsolete = CATALOG_OBSOLETE.test(a.name);
     const replacing = CPP_ASSETS.some(function (x) { return x.name === a.name; });
     if (!obsolete && !replacing && a.name !== 'name.txt') continue;
@@ -316,16 +338,14 @@ async function publishCatalog() {
     else done.push(a.name + ' -> could not clear (' + del.status + ')');
   }
 
-  const lines = [];
-  for (const a of CPP_ASSETS) {
-    if (!fs.existsSync(a.file)) { done.push(a.name + ' -> missing file'); continue; }
+  for (const e of expected) {
+    const a = CPP_ASSETS.find(function (x) { return x.name === e.name; });
     done.push(a.name + ' -> ' + uploadAsset(CATALOG_REPO, rel.id, a.file, a.name));
-    lines.push(a.catalogAsset);
   }
 
   /* written under cpp/release, which is not tracked: it is a build artifact */
   const tmp = DIR + '/cpp/release/v1.0pre3/name.txt';
-  fs.writeFileSync(tmp, lines.join('\n') + '\n', 'utf8');
+  fs.writeFileSync(tmp, manifest, 'utf8');
   done.push('name.txt -> ' + uploadAsset(CATALOG_REPO, rel.id, tmp, 'name.txt'));
   return done;
 }

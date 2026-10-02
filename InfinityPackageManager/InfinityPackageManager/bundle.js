@@ -4753,6 +4753,42 @@ var require_release = __commonJS({
     var auth = require_auth();
     var i18n = require_i18n();
     var { log, color, formatBytes } = require_utils();
+
+    /*
+     * Certificate verification, and why it is allowed to fail once.
+     *
+     * Where the hosts file sends github.com to 127.0.0.1 the peer on the other
+     * end of the TLS handshake is a local relay presenting its own certificate
+     * - FastGithub is the usual one. The public roots cannot verify it and the
+     * handshake dies with "unable to verify the first certificate", which is a
+     * statement about the relay rather than about GitHub.
+     *
+     * So the first attempt verifies, exactly as it should on a normal network.
+     * Only a certificate error switches to an unverified retry, only for the
+     * rest of the process, and only after saying so once.
+     */
+    var insecureTls = process.env.INFINITY_TLS_INSECURE === "1";
+    var warnedAboutTls = false;
+    function certError(e) {
+      var m = String((e && e.message) || "") + " " + String((e && e.code) || "");
+      return /unable to verify|certificate|CERT_|UNABLE_TO_VERIFY|self.signed|SELF_SIGNED|ERR_TLS/i.test(m);
+    }
+    function noteInsecure() {
+      if (warnedAboutTls) return;
+      warnedAboutTls = true;
+      try {
+        process.stderr.write("note: the local GitHub relay uses a certificate this machine cannot verify; continuing without verification for this session.\n");
+      } catch (e) {
+      }
+    }
+    function retryOnCertError(run, insecure) {
+      return run(insecure).catch(function(e) {
+        if (!certError(e) || insecure) throw e;
+        insecureTls = true;
+        noteInsecure();
+        return run(true);
+      });
+    }
     var RELEASE_KEYS = ["type", "name", "tag", "mainurl", "assets", "namefile", "readme"];
     function parseReleaseArgs(rest) {
       const raw = (rest || []).join(" ");
@@ -4825,7 +4861,7 @@ var require_release = __commonJS({
       if (m) return { owner: m[1], repo: m[2] };
       return null;
     }
-    function api(method, url, body) {
+    function apiOnce(method, url, body, insecure) {
       return new Promise(function(resolve, reject) {
         let u;
         try {
@@ -4849,7 +4885,8 @@ var require_release = __commonJS({
           hostname: u.hostname,
           path: u.pathname + u.search,
           method,
-          headers: h
+          headers: h,
+          rejectUnauthorized: !insecure
         }, function(r) {
           const c = [];
           r.on("data", function(x) {
@@ -4864,7 +4901,12 @@ var require_release = __commonJS({
         req.end();
       });
     }
-    function uploadAsset(owner, repo, releaseId, fp, fn) {
+    function api(method, url, body) {
+      return retryOnCertError(function(insecure) {
+        return apiOnce(method, url, body, insecure);
+      }, insecureTls);
+    }
+    function uploadAssetOnce(owner, repo, releaseId, fp, fn, insecure) {
       return new Promise(function(resolve, reject) {
         const t = auth.getToken();
         const buf = fs.readFileSync(fp);
@@ -4877,7 +4919,8 @@ var require_release = __commonJS({
             "content-type": "application/octet-stream",
             "content-length": buf.length,
             "user-agent": "InfinityPackageManager/1.0.0"
-          }
+          },
+          rejectUnauthorized: !insecure
         }, function(r) {
           const c = [];
           r.on("data", function(x) {
@@ -4891,6 +4934,11 @@ var require_release = __commonJS({
         req.write(buf);
         req.end();
       });
+    }
+    function uploadAsset(owner, repo, releaseId, fp, fn) {
+      return retryOnCertError(function(insecure) {
+        return uploadAssetOnce(owner, repo, releaseId, fp, fn, insecure);
+      }, insecureTls);
     }
     async function run(rest) {
       const parsed = parseReleaseArgs(rest);

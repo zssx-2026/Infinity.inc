@@ -20,11 +20,64 @@ const CRLF = String.fromCharCode(13, 10);
 const PROXY = { host: '127.0.0.1', port: 13799 };
 
 /*
+ * Certificate verification, and why it is allowed to fail once.
+ *
+ * Where the hosts file sends github.com to 127.0.0.1 the peer on the other end
+ * of the TLS handshake is a local relay presenting its own certificate -
+ * FastGithub is the usual one. Verifying that against the public roots cannot
+ * succeed and fails with "unable to verify the first certificate", and the
+ * failure is about the relay, not about GitHub.
+ *
+ * So the first attempt verifies, exactly as it should on a normal network.
+ * Only a certificate error switches to an unverified retry, only for the rest
+ * of the process, and only after saying so once. NODE_EXTRA_CA_CERTS still
+ * wins if it is set: a relay that ships its own CA should be trusted properly
+ * rather than waved through.
+ */
+const EXTRA_CA = (function () {
+  const p = process.env.NODE_EXTRA_CA_CERTS;
+  if (!p) return null;
+  try { return fs.readFileSync(p); } catch (e) { return null; }
+})();
+
+let insecureTls = process.env.INFINITY_TLS_INSECURE === '1';
+let warnedAboutTls = false;
+
+function certError(e) {
+  if (!e) return false;
+  const m = String(e.message || '') + ' ' + String(e.code || '');
+  return /unable to verify|certificate|CERT_|UNABLE_TO_VERIFY|self.signed|SELF_SIGNED|ERR_TLS/i.test(m);
+}
+
+function tlsOptions(target, insecure) {
+  const o = { servername: target };
+  if (EXTRA_CA) o.ca = EXTRA_CA;
+  if (insecure) o.rejectUnauthorized = false;
+  return o;
+}
+
+function noteInsecure() {
+  if (warnedAboutTls) return;
+  warnedAboutTls = true;
+  process.stderr.write('note: the local GitHub relay uses a certificate this machine cannot verify; ' +
+    'continuing without verification for this session.\n');
+}
+
+/*
  * One request. Returns { status, headers, body } with body as a Buffer.
  * proxyOn is decided once at start-up and reused, so a machine without the
  * tunnel does not pay a failed connect on every call.
  */
 export function request(target, method, path, headers, body, proxyOn) {
+  return attempt(target, method, path, headers, body, proxyOn, insecureTls).catch(function (e) {
+    if (!certError(e) || insecureTls) throw e;
+    insecureTls = true;
+    noteInsecure();
+    return attempt(target, method, path, headers, body, proxyOn, true);
+  });
+}
+
+function attempt(target, method, path, headers, body, proxyOn, insecure) {
   return new Promise(function (resolve, reject) {
     const head = [method + ' ' + path + ' HTTP/1.1', 'Host: ' + target];
     const keys = Object.keys(headers || {});
@@ -53,7 +106,7 @@ export function request(target, method, path, headers, body, proxyOn) {
       const req = http.request({ host: PROXY.host, port: PROXY.port, method: 'CONNECT', path: target + ':443', timeout: 60000 });
       req.on('connect', function (res, socket) {
         if (res.statusCode !== 200) { socket.destroy(); reject(new Error('CONNECT ' + res.statusCode)); return; }
-        const t = tls.connect({ socket: socket, servername: target });
+        const t = tls.connect(Object.assign({ socket: socket }, tlsOptions(target, insecure)));
         const chunks = [];
         t.on('data', function (d) { chunks.push(d); });
         t.on('end', function () { try { parse(Buffer.concat(chunks)); } catch (e) { reject(e); } });
@@ -68,7 +121,7 @@ export function request(target, method, path, headers, body, proxyOn) {
       return;
     }
 
-    const t = tls.connect({ host: target, port: 443, servername: target });
+    const t = tls.connect(Object.assign({ host: target, port: 443 }, tlsOptions(target, insecure)));
     const chunks = [];
     t.on('data', function (d) { chunks.push(d); });
     t.on('end', function () { try { parse(Buffer.concat(chunks)); } catch (e) { reject(e); } });
@@ -78,6 +131,8 @@ export function request(target, method, path, headers, body, proxyOn) {
     });
   });
 }
+
+export { certError, tlsOptions };
 
 /*
  * Is the local tunnel up? Asked once, remembered, and with a short timeout -

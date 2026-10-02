@@ -2641,3 +2641,48 @@ GUI：INC 已换成 Win32 直接文件列表，可 Up/New Folder/Refresh/Delete/
   6. applications 仓库的批量目录页上传：214 个包只上到 application-001 的 55 个资产
   7. 图标：inc/ifm/ipm.ico 已生成，尚未嵌入安装包与 exe 资源
 
+
+[2026-10-02] 修复：登录报 "unable to verify the first certificate"
+================================================================
+
+现象（用户报告，装机版）
+  C:\Users\REDMI>inc cli
+  Infinity Cloud [v1.0pre1]
+  local/C:/Users/REDMI> 未登录 (unable to verify the first certificate)
+  pull / cls 等命令一律回 "未登录"。
+
+一、根因
+  本机 FastGithub 在运行（fastgithub.exe 监听 127.0.0.1:443），它把 github.com
+  的流量劫持到自己并用自己的证书做 TLS 中间人。Node 走的是自带的 CA 列表，
+  验不过 → "unable to verify the first certificate"。
+  （WinHTTP / curl 走 schannel，用的是 Windows 证书库，FastGithub 的根证书已在其中，
+    所以 C++ 版和 curl 一直正常 —— 这也解释了为什么只有 Node 版报错。）
+
+  第二个问题：用户装的是 9 月 27 日的 v1.0pre1 产物。源码里其实已经有证书降级修复
+  （src/net/github.js：先正常校验，只有证书错误才降级重试一次并明确提示一次），
+  但那次修复之后没有重新构建、没有重新安装。所以是"修了但没发出去"。
+
+二、修复
+  INC：源码已含降级逻辑，重新构建并替换装机文件。
+  IFM：src/net/github.js 是修复前的版本，按 INC 的写法补上同一套降级
+       （EXTRA_CA / certError / tlsOptions / noteInsecure / 单次降级重试）。
+  IPM：bundle.js（源码树已丢失，bundle 即程序）用 https.request 且不带任何 TLS 选项，
+       同样会失败。补上 rejectUnauthorized 开关与 retryOnCertError 包装；
+       默认路径 rejectUnauthorized 仍为 true，行为与之前一致。
+
+三、验证
+  INC 源码直接跑：relay=false，me=zssx-2026，verifyIdentity=true，repos=10。
+  IFM 源码直接跑：me=zssx-2026，repos=10。
+  IPM bundle：--check 通过；改动前后跑 "bundle.js list" 输出逐字一致（默认行为不变）。
+  装机验证：把新构建的 win-x64 产物替换到 D:\program\Infinity Cloud\InfinityCloud.exe
+            （旧版备份在 C:/temp/inc-backup/），然后
+            inc --version -> Infinity Cloud [v1.0pre2]
+            inc listf     -> 已登录： zssx-2026
+            inc cli 交互  -> 提示符正常，settings list 正常
+  注意 D:\program\Infinity Cloud 在 PATH 上，inc.cmd 就是从这里解析的。
+
+四、附带
+  work/ghsync.mjs 的 publishCatalog 改成幂等：目录页内容与将要写入的一致时直接跳过，
+  不再每次同步都清空重传（清空期间目录是空的，且资产 id 会变）。
+
+
