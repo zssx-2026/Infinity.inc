@@ -1,0 +1,52 @@
+# Build outputs
+build/
+out/
+release-files/
+**/build/
+**/out/
+**/release-files/
+**/release/
+
+# Binaries and archives
+*.exe
+*.msi
+*.blob
+*.zip
+*.7z
+*.arc
+*.dll
+*.node
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Scratch and backups
+temp/
+**/temp/
+.download_temp/
+**/.download_temp/
+_recycle/
+recyle.bin/
+
+# Duplicate working copies
+InfinityPackageManager - 副本/
+dist/
+usertest/
+
+# Logs
+*.log
+!work/worklog.log
+
+# Task history logs: one 170 MB file of machine transcript, not source
+history.txt
+**/history.txt
+
+# Electron runtime and shell output
+shell/node_modules/
+shell/build/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.swp

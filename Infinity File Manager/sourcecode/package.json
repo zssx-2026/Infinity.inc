@@ -1,0 +1,19 @@
+{
+  "author": "Infinity.Inc",
+  "name": "infinity-file-manager",
+  "version": "1.0.0-pre1",
+  "description": "Infinity File Manager",
+  "type": "module",
+  "bin": {
+    "ifm": "bin/ifm.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "os": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
+  "license": "MIT"
+}

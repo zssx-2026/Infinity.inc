@@ -1,0 +1,38 @@
+{
+  "author": "Infinity.Inc",
+  "name": "infinity-package-manager",
+  "version": "1.0",
+  "description": "InfinityPackageManager (ipm)",
+  "main": "src/index.js",
+  "bin": {
+    "ipm": "bin/ipm.js",
+    "ipmx": "bin/ipmx.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "lang",
+    "update.js",
+    "settings.json",
+    "url.json",
+    "pak.json"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "os": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
+  "scripts": {
+    "start": "node bin/ipm.js",
+    "get": "node bin/ipm.js get",
+    "list": "node bin/ipm.js list"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "postject": "^1.0.0-alpha.6"
+  }
+}

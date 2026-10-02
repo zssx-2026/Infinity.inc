@@ -1,0 +1,12 @@
+{
+  "lang": "",
+  "network": {
+    "retries": 4,
+    "retryDelayMs": 800,
+    "timeoutMs": 30000
+  },
+  "github": {
+    "token": "",
+    "apiBase": "https://api.github.com"
+  }
+}

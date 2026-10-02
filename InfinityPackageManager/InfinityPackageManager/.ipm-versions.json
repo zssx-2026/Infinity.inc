@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "packages": {
+    "ARCHPRV": {
+      "version": "4.54",
+      "installedAt": "2026-09-19T02:19:07.470Z"
+    },
+    "lanzoud": {
+      "version": "0.6.1",
+      "installedAt": "2026-09-19T02:19:58.444Z"
+    },
+    "IDEA": {
+      "version": "2026.2.2",
+      "installedAt": "2026-09-19T02:40:34.017Z"
+    }
+  },
+  "updatedAt": "2026-09-19T02:40:34.017Z"
+}

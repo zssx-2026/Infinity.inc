@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "packages": {
+    "ARCHPRV": {
+      "name": "ARCHPRV",
+      "version": "4.54",
+      "company": "null",
+      "type": "setup",
+      "fileName": "archprv4.54_x64_setup.exe",
+      "source": "https://github.com/zssx-2026/applications/releases/tag/application1",
+      "path": "D:\\dev\\git\\applications\\InfinityPackageManager\\dist\\.download_temp\\archprv4.54_x64_setup.exe",
+      "installedAt": "2026-09-19T02:19:07.465Z"
+    },
+    "lanzoud": {
+      "name": "lanzoud",
+      "version": "0.6.1",
+      "company": "null",
+      "type": "setup",
+      "fileName": "LanzouDesktop_x64_Setup.exe",
+      "source": "https://github.com/zssx-2026/applications/releases/tag/application1",
+      "path": "D:\\dev\\git\\applications\\InfinityPackageManager\\dist\\.download_temp\\LanzouDesktop_x64_Setup.exe",
+      "installedAt": "2026-09-19T02:19:58.442Z"
+    },
+    "IDEA": {
+      "name": "IDEA",
+      "version": "2026.2.2",
+      "company": "JetBrains",
+      "type": "setup",
+      "fileName": "idea-2026.2.2.exe",
+      "source": "https://github.com/zssx-2026/applications/releases/tag/application1",
+      "path": "D:\\dev\\git\\applications\\InfinityPackageManager\\dist\\.download_temp\\idea-2026.2.2.exe",
+      "installedAt": "2026-09-19T02:40:34.010Z"
+    }
+  }
+}

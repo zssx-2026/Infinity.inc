@@ -1,0 +1,17 @@
+{
+  "name": "infinity-shell",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Infinity.Inc Electron shell - one window per application, wrapping the local UI the program already serves",
+  "main": "main.js",
+  "author": "Infinity.Inc",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "pack": "node build.mjs"
+  },
+  "devDependencies": {
+    "@electron/packager": "^18.3.6",
+    "electron": "^33.2.0"
+  }
+}

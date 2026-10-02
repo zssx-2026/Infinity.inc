@@ -1,0 +1,21 @@
+{
+  "author": "Infinity.Inc",
+  "name": "infinity-cloud",
+  "version": "1.0.0-pre1",
+  "description": "Infinity Cloud - a GitHub-backed cloud drive",
+  "type": "module",
+  "main": "src/main.js",
+  "bin": {
+    "inc": "bin/inc.js"
+  },
+  "scripts": {
+    "start": "node src/main.js",
+    "cli": "node src/main.js cli",
+    "tui": "node src/main.js tui"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "private": true
+}

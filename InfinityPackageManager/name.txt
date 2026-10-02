@@ -1,0 +1,19 @@
+InfinityPackageManager supported operating systems
+
+Release dir    Catalog platform key    Description
+win64          windows-x64            Windows 64-bit (x64)
+winx86         windows-x86            Windows 32-bit (x86)
+win-arm64      windows-arm64          Windows on ARM64
+linux          linux-x64              Linux 64-bit (x64)
+linux-arm64    linux-arm64            Linux on ARM64
+mac            macos-x64              macOS on Intel
+mac-arm64      macos-arm64            macOS on Apple silicon
+
+Build status for v1.0pre1
+  win64        binary, zip, setup.exe, setup.msi - all built
+  winx86       source only
+  win-arm64    source only
+  linux        source only
+  linux-arm64  source only
+  mac          source only
+  mac-arm64    source only

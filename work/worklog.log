@@ -1,0 +1,225 @@
+Infinity.Inc 工作报告
+================================================================================
+本文件是 Infinity.Inc 项目的唯一工作报告，按时间追加，不覆盖。
+新条目一律追加到文件末尾，格式见文末「条目模板」。
+
+项目根目录：D:\dev\DeepSeekHarnessWorkspace\Infinity.inc
+产物根目录：D:\dev\DeepSeekHarnessWorkspace\Infinity.inc
+图标目录：  D:\dev\DeepSeekHarnessWorkspace\Infinity.inc\icons
+  inc.ico  -> Infinity Cloud
+  ipm.ico  -> InfinityPackageManager
+  ifm.ico  -> Infinity File Manager
+
+
+================================================================================
+[历史] 2026-09-11 ~ 2026-10-01  Infinity.Inc 三套应用从零构建
+================================================================================
+
+产品线
+  INC  Infinity Cloud            无限云盘（GitHub 仓库即存储，可当免费 CDN）
+  IFM  Infinity File Manager     文件管理器（本地 + WebDAV）
+  IPM  InfinityPackageManager    跨平台软件包管理器（原名 EPM / EasyPackageManager）
+
+技术选型
+  - 运行时：Node.js，打包为单文件可执行（SEA：node --experimental-sea-config + postject 注入）
+  - 一个架构无关的 blob 注入七套运行时，产出七个平台的目标文件
+    win-x64 / win-ia32 / win-arm64 / linux-x64 / linux-arm64 / darwin-x64 / darwin-arm64
+  - 安装包：NSIS（MUI2），含 安装 / 修复 / 卸载 三种模式
+  - 每个安装文件记录 SHA-256 到 hash.ini / hash.txt / 注册表，用于修复校验
+  - 归档：FreeArc 最高压缩，2000 MB 分卷自解压
+  - 发布：GitHub，组织 zssx-2026，仓库名 inc_ 开头 + 16 位随机串
+  - 网络出口：本地代理 127.0.0.1:13799（CONNECT）
+
+已完成
+  - 三套应用的 CLI / TUI 双模式（各自独立配置文件，互不覆盖）
+  - 登录（GitHub token，支持粘贴）、语言包（7 种）、设置导入导出
+  - INC：manifest 分卷文件系统、pull 任务队列、断点续传、aria2c 多线程
+  - IFM：本地文件操作 + WebDAV 服务
+  - IPM：包检索/安装/卸载、插件系统、任务、自更新
+  - 三个 NSIS 安装包模板（含模式页、哈希记录、组件说明）
+  - 归档并上传 GitHub；为节省本机空间做过一次全量归档
+  - EPM → IPM 改名（产品名、包名、命令名）
+  - 全部产物加上 Infinity.Inc 标识
+
+遗留问题（本阶段带入）
+  1. EPM 改名未彻底：可执行文件内部仍残留 EPM_ROOT / EPM_HOME / EPM_DEBUG /
+     EPM_DAEMON 环境变量、global.__epm_* 全局量、UI 文案里的 "epm help"。
+  2. 每个应用只有单一可执行文件（InfinityCloud.exe / ipm.exe），
+     没有 CLI / TUI / GUI / 启动器 的独立程序。
+  3. 没有任何环境变量注册机制。
+  4. 项目文件散落在 D:\dev\DeepSeekHarnessWorkspace 根目录，未隔离。
+
+
+================================================================================
+[本阶段] 2026-10-02  Infinity.Inc 规范化：改名收尾、多入口、环境变量、目录隔离
+================================================================================
+
+一、EPM → IPM 改名收尾
+  在 InfinityPackageManager 的全部构建产物与源码副本中，把标识统一改为 IPM：
+    EPM_*            -> IPM_*            （IPM_ROOT / IPM_HOME / IPM_DEBUG / IPM_DAEMON）
+    global.__epm_*   -> global.__ipm_*   （shell / rl / keepAlive / addHistory / exitNow / cleanup）
+    inputEpmHelp     -> inputIpmHelp     （i18n 键名，bundle 与 7 个 .lang 同步）
+    "epm help"       -> "ipm help"       （中文界面文案）
+    EasyPackageManager -> InfinityPackageManager
+  覆盖文件：主 bundle、7 个语言包、- 副本、dist 旧构建、setup-stage 暂存语言包，共 49 个文件。
+  改前原件备份在 D:\dev\DeepSeekHarnessWorkspace\temp\backup\epm2ipm_rename\。
+  校验：源码树内已无 epm/EPM/Epm 残留（二进制在重建后同步更新）。
+
+二、多入口：一个程序，八个名字
+  约定（对 INC / IFM / IPM 三套应用一致）：
+    <p>_cli.exe  <p>_tui.exe  <p>_gui.exe  <p>_launcher.exe        用户
+    <px>_cli.exe <px>_tui.exe <px>_gui.exe <px>_launcher.exe       管理员
+  其中 p 为 inc / ifm / ipm，px 为 inx / ifmx / ipmx。
+  八个文件字节完全相同，程序读取自身文件名决定模式 —— 构建仍是一个产物，
+  行为只有一处实现。实现方式：
+    - 首次注入后，其余七个用硬链接（失败回退为复制），整平台只占一个文件的磁盘
+    - 模式识别：src/core/mode.js（INC / IFM）、bundle.js 尾部（IPM，源码树已丢失）
+    - 启动器：src/core/launcher.js，列菜单后启动同目录兄弟程序
+    - GUI：本地回环 HTTP 服务 + 浏览器窗口
+
+  已验证
+    IPM  win-x64 八个名字共享同一 inode；ipm_cli help / ipm_launcher 菜单 /
+         ipm_gui 起 7632 端口并开界面，三项均正常
+    INC  node src/main.js --version 与 gui 模式均正常
+    IFM  七平台 × 八名构建通过，ifm_cli / ifmx_cli 分发正确，
+         GUI 接口 list/mkdir/upload/rename/download/delete 冒烟测试全通过
+
+三、GUI 设计原则（重要）
+  GUI 是直接操作界面，不是命令输入框。
+    - 文件/文件夹列表带图标、面包屑路径、工具栏（新建 / 上传 / 刷新）
+    - 点击行打开；每行提供 下载 / 重命名 / 删除
+    - 支持拖拽上传
+    - 不使用「把所有功能写成文字说明」的做法
+  IFM 已按此实现（127.0.0.1:7623）；INC 端口 7621；IPM 复用既有 web 界面（7632）。
+
+四、环境变量注册
+  安装包写入 HKCU\Environment，写后广播 WM_SETTINGCHANGE；卸载时对应删除。
+    共享      user_token-<用户名>（空格转下划线）、proxy_ip
+    INC       inccli inctui incgui inclauncher
+              inxcli inxtui inxgui inxlauncher
+              cloudhub-<用户名>、incfgit incaria incfreearc inc7z、def_fm
+    IFM       ifmcli ifmtui ifmgui ifmlauncher
+              ifmxcli ifmxtui ifmxgui ifmxlauncher
+              ifmfgit ifmaria ifmfreearc ifm7z、def_fm
+    IPM       ipmcli ipmtui ipmgui ipmlauncher
+              ipmxcli ipmxtui ipmxgui ipmxlauncher
+              ipmfgit ipmaria ipmfreearc ipm7z
+  其中 def_fm 取值为 def 表示使用系统默认资源管理器，否则为资源管理器主程序绝对路径。
+  内置插件路径约定为 $INSTDIR\plugins\<name>\...：
+    fastgithub -> FastGithub.UI.exe    aria2 -> aria2c.exe
+    freearc    -> Arc.exe              7zip  -> 7za.exe
+  IPM 安装包已接入（nsis.nsi 新增 SEC_ENVVARS）；IFM 已接入（SEC_ENV）；INC 待接入。
+
+五、安装包
+  IPM：win64.exe 33,749,343 B / winx86.exe 31,102,415 B / win-arm64.exe 29,334,323 B
+       （八个 exe 内容相同，NSIS 只存一份，所以体积增量很小；安装后释放为八个文件）
+  INC / IFM：make-setup 已改为暂存八个 exe，快捷方式指向 <p>_launcher.exe。
+
+六、目录隔离
+  在 D:\dev\DeepSeekHarnessWorkspace\Infinity.inc\ 下集中全部 Infinity.Inc 相关文件：
+    Infinity Cloud\  Infinity File Manager\  InfinityPackageManager\
+    InfinityPackageManager - 副本\  dist\  usertest\  icons\  work\
+  已同步修正脚本中的绝对路径引用（nsi-check.mjs、publish-inc.mjs，以及构建产物内的路径）。
+
+七、磁盘清理
+  清理可再生的缓存与临时文件，释放约 33.4 GB（D: 剩余 94 GB -> 115 GB）。
+  删除内容：3 天前的日志、空的回收/下载暂存目录、temp 根目录下的一次性图片与脚本、
+  D:\temp 下 34 GB 的 FreeArc 临时分卷。
+  保守保留：D:\temp\tools（构建工具链）、安装包、构建输入、无法确定归属的重复文件。
+
+八、图标
+  约定 icons\{inc,ipm,ifm}.ico 分别对应三套应用；用户提供后接入安装包与快捷方式。
+
+
+================================================================================
+[待办]
+================================================================================
+  - INC GUI 改为直接操作式界面（当前为命令框，不符合设计原则）
+  - INC 安装包接入环境变量注册
+  - _gui.exe 改为 Electron 套壳（当前为浏览器窗口）
+  - IFM 的 tools/release.mjs 仍引用旧的 InfinityFileManager.exe
+  - 图标接入（等待 icons\{inc,ipm,ifm}.ico）
+  - 归档与上传 GitHub
+
+
+================================================================================
+[条目模板]
+================================================================================
+[YYYY-MM-DD] 标题
+  目标：
+  改动：（文件路径 + 一句话说明）
+  验证：
+  遗留：
+
+
+<!-- 追加区：新条目写在这一行之后 -->
+
+[2026-10-02] INC 八命名 exe 构建通过；GUI 改为直接操作式；安装包接入环境变量
+  目标：把已定的多入口约定落到 INC 上，并把 GUI 从命令框改成直接操作界面。
+  改动：
+    Infinity Cloud/sourcecode/tools/build-all.mjs
+      增加 PREFIXES / MODES / exeNames()；inject() 改为产出八个名字
+      （硬链接优先、复制兜底）；run() 显式 stdio，避免子进程 EBUSY。
+    Infinity Cloud/sourcecode/tools/make-setup.mjs
+      暂存八个 exe；@@EXE@@ 指向 inc_launcher.exe；图标优先取
+      Infinity.inc/icons/，缺失时回退 sourcecode/assets/。
+    Infinity Cloud/sourcecode/src/main.js
+      --version / help / --paths / --serve-ui 先于文件名分派处理；
+      launcher / gui / tui / cli 四种模式分派。
+    Infinity Cloud/sourcecode/src/gui/server.js（重写）
+      直接操作式云盘界面：面包屑、图标网格、上传/新建/刷新工具栏、
+      行内重命名与删除、拖拽上传、回收站（还原 / 彻底删除）、登录卡片。
+      服务端不再自动打开浏览器 —— 开窗是外壳的职责，避免打断用户。
+    Infinity Cloud/installer.nsi
+      新增 SEC_ENVVARS：注册 inc*/inx* 程序位置、插件路径、def_fm、proxy_ip、
+      user_token-<用户名>、cloudhub-<用户名>，写后广播 WM_SETTINGCHANGE；
+      卸载段对应删除；新增组件说明行。
+    Infinity File Manager/sourcecode/src/main.js
+      增加 --serve-ui；GUI 服务同样不再自动开窗。
+    InfinityPackageManager/InfinityPackageManager/bundle.js
+      增加 --serve-ui（供 Electron 外壳调用本地界面服务）。
+  验证：
+    INC 七平台 × 八命名构建通过（win-x64 八个名字共享同一 inode）
+    inc_cli.exe --version / inx_cli.exe --version / inc_launcher.exe 菜单均正常
+    GUI 页面 200，含网格与卡片，无命令输入框
+  遗留：_gui.exe 待由 Electron 外壳产出；IFM / IPM 安装包待重建。
+
+[2026-10-02] 目录隔离、磁盘清理、工作日志与 GitHub 同步
+  目标：把 Infinity.Inc 相关文件集中，清理可再生缓存，建立工作日志并同步到 GitHub。
+  改动：
+    D:\dev\DeepSeekHarnessWorkspace\Infinity.inc\ 成为项目根：
+      Infinity Cloud / Infinity File Manager / InfinityPackageManager /
+      InfinityPackageManager - 副本 / dist / usertest / icons / work / shell
+    修正脚本内绝对路径（nsi-check.mjs、publish-inc.mjs 及构建产物）。
+    新增 work/worklog.log（本文件）与 work/ghsync.log。
+    新增 .gitignore（排除构建产物与二进制），建立 git 仓库并首次提交（91 个文件）。
+  验证：清理释放约 33.4 GB；D: 剩余 94 GB -> 115 GB。
+  遗留：GitHub 推送与 Release 上传在后台重试（网络出口不稳定，直连可用时完成）。
+
+[2026-10-02] Electron 外壳；IFM / IPM 重建；环境变量全量接入
+  目标：把 _gui.exe 做成 Electron 套壳，并让三套应用都产出完整八个可执行文件。
+  改动：
+    Infinity.inc/shell/            新增 Electron 外壳
+      main.js      读取自身文件名决定打开哪套应用（inc/ifm/ipm），
+                   启动同目录的 <p>_cli --serve-ui，等端口就绪后开窗；
+                   窗口关闭时结束服务进程；外链交给系统浏览器。
+      build.mjs    直接用缓存里的 Electron 运行时手工组装：解压、把
+                   electron.exe 改名为 <p>_gui.exe、写入 resources/app。
+                   不走打包工具，因此不依赖网络，也只需打包一次再复制。
+      payload.mjs  安装包暂存 Electron 目录的辅助（三套 make-setup 共用）。
+    Infinity Cloud / Infinity File Manager / InfinityPackageManager
+      build-all.mjs   MODES 收敛为 cli / tui / launcher —— gui 由 Electron 负责，
+                      于是 SEA 出六个名字，Electron 出两个，合计仍是八个。
+      make-setup.mjs  暂存六个 SEA 可执行文件 + Electron 目录（含管理员孪生名）。
+    Infinity Cloud / Infinity File Manager / InfinityPackageManager 的入口
+      新增 --serve-ui：只起本地界面服务，供 Electron 外壳调用。
+    Infinity Cloud / Infinity File Manager 的 GUI 服务不再自动打开浏览器。
+  验证：
+    INC 安装包 win64 21,151,074 B / winx86 19,401,360 B / win-arm64 17,438,939 B
+    IPM 安装包 win64 33,749,446 B / winx86 31,102,531 B / win-arm64 29,334,435 B
+    IFM 七平台 × 八命名构建通过
+  说明：
+    Electron 版本 33.4.11，运行时取自 npm 缓存，镜像为 registry.npmmirror.com
+    （github.com/electron/electron/releases 在本机返回 502）。
+  遗留：Electron 外壳组装中；IFM 安装包待重建；图标待接入。
+

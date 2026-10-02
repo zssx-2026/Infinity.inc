@@ -1,0 +1,497 @@
+{
+  "version": 1,
+  "updatedAt": "2026-09-19T08:35:51.920Z",
+  "source": {
+    "owner": "zssx-2026",
+    "repo": "applications",
+    "api": "https://api.github.com/repos/zssx-2026/applications/releases",
+    "releases": "https://github.com/zssx-2026/applications/releases"
+  },
+  "releases": [
+    {
+      "id": 387565520,
+      "tag": "application2",
+      "name": "Applications",
+      "repo": "zssx-2026/applications",
+      "prerelease": false,
+      "draft": false,
+      "publishedAt": "2026-09-12T12:35:06Z",
+      "createdAt": "2026-09-12T11:53:59Z",
+      "htmlUrl": "https://github.com/zssx-2026/applications/releases/tag/application2",
+      "assets": [
+        {
+          "id": 573971621,
+          "name": "ente-auth-v4.4.25-installer.exe",
+          "size": 28606744,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 0,
+          "createdAt": "2026-09-19T03:19:31Z",
+          "updatedAt": "2026-09-19T03:19:37Z",
+          "type": "installer",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/ente-auth-v4.4.25-installer.exe"
+        },
+        {
+          "id": 573971762,
+          "name": "mcaselector-2.8-setup.exe",
+          "size": 55857064,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 2,
+          "createdAt": "2026-09-19T03:19:37Z",
+          "updatedAt": "2026-09-19T03:19:45Z",
+          "type": "installer",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/mcaselector-2.8-setup.exe"
+        },
+        {
+          "id": 573971921,
+          "name": "MCreator.2026.2.Windows.64bit.exe",
+          "size": 420464864,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 0,
+          "createdAt": "2026-09-19T03:19:45Z",
+          "updatedAt": "2026-09-19T03:20:43Z",
+          "type": "exe",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/MCreator.2026.2.Windows.64bit.exe"
+        },
+        {
+          "id": 573973071,
+          "name": "MCTier.exe",
+          "size": 53694464,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 0,
+          "createdAt": "2026-09-19T03:20:43Z",
+          "updatedAt": "2026-09-19T03:20:51Z",
+          "type": "exe",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/MCTier.exe"
+        },
+        {
+          "id": 574140056,
+          "name": "name.txt",
+          "size": 536,
+          "contentType": "text/plain",
+          "downloadCount": 3,
+          "createdAt": "2026-09-19T05:21:24Z",
+          "updatedAt": "2026-09-19T05:21:30Z",
+          "type": "unknown",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/name.txt"
+        },
+        {
+          "id": 573998838,
+          "name": "Steam._v3.1.0_win_x64.exe",
+          "size": 96754104,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 0,
+          "createdAt": "2026-09-19T03:40:31Z",
+          "updatedAt": "2026-09-19T03:40:46Z",
+          "type": "exe",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/Steam._v3.1.0_win_x64.exe"
+        },
+        {
+          "id": 573973329,
+          "name": "vlc-3.0.23-win64.exe",
+          "size": 45948080,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 0,
+          "createdAt": "2026-09-19T03:20:54Z",
+          "updatedAt": "2026-09-19T03:21:00Z",
+          "type": "exe",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/vlc-3.0.23-win64.exe"
+        },
+        {
+          "id": 574043403,
+          "name": "VMware-Workstation-Full-25H2u1-25219725.exe",
+          "size": 291831176,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 0,
+          "createdAt": "2026-09-19T04:12:54Z",
+          "updatedAt": "2026-09-19T04:13:36Z",
+          "type": "exe",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/VMware-Workstation-Full-25H2u1-25219725.exe"
+        },
+        {
+          "id": 574044430,
+          "name": "VMware-Workstation-Full-26H1u1-25688693.exe",
+          "size": 280609368,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 2,
+          "createdAt": "2026-09-19T04:13:36Z",
+          "updatedAt": "2026-09-19T04:14:29Z",
+          "type": "exe",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/VMware-Workstation-Full-26H1u1-25688693.exe"
+        },
+        {
+          "id": 559237836,
+          "name": "VMware.Workstation.Pro.26H1_Setup.exe",
+          "size": 289515688,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 0,
+          "createdAt": "2026-09-12T12:32:37Z",
+          "updatedAt": "2026-09-12T12:33:37Z",
+          "type": "installer",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/VMware.Workstation.Pro.26H1_Setup.exe"
+        }
+      ],
+      "kind": "app",
+      "nameTxt": {
+        "raw": "ente-auth-v4.4.25-installer.exe v4.4.25 EnAuth setup null\r\nmcaselector-2.8-setup.exe v2.8 MCASelector setup null\r\nMCreator.2026.2.Windows.64bit.exe v2026.2 MCreator setup null\r\nMCTier.exe v1.3.7 MCTier port null\r\nSteam._v3.1.0_win_x64.exe v3.1.0 Steam setup Steam\r\nvlc-3.0.23-win64.exe v3.0.23 VLC setup VLC\r\nVMware.Workstation.Pro.26H1_Setup.exe v26H1 VMware setup Boardcom.Inc\r\nVMware-Workstation-Full-25H2u1-25219725.exe v25H2u1 VMware setup Boardcom.Inc\r\nVMware-Workstation-Full-26H1u1-25688693.exe v26H1u1 VMware setup Boardcom.Inc",
+        "entries": [
+          {
+            "fileName": "ente-auth-v4.4.25-installer.exe",
+            "version": "4.4.25",
+            "name": "EnAuth",
+            "type": "setup",
+            "company": "null"
+          },
+          {
+            "fileName": "mcaselector-2.8-setup.exe",
+            "version": "2.8",
+            "name": "MCASelector",
+            "type": "setup",
+            "company": "null"
+          },
+          {
+            "fileName": "MCreator.2026.2.Windows.64bit.exe",
+            "version": "2026.2",
+            "name": "MCreator",
+            "type": "setup",
+            "company": "null"
+          },
+          {
+            "fileName": "MCTier.exe",
+            "version": "1.3.7",
+            "name": "MCTier",
+            "type": "port",
+            "company": "null"
+          },
+          {
+            "fileName": "Steam._v3.1.0_win_x64.exe",
+            "version": "3.1.0",
+            "name": "Steam",
+            "type": "setup",
+            "company": "Steam"
+          },
+          {
+            "fileName": "vlc-3.0.23-win64.exe",
+            "version": "3.0.23",
+            "name": "VLC",
+            "type": "setup",
+            "company": "VLC"
+          },
+          {
+            "fileName": "VMware.Workstation.Pro.26H1_Setup.exe",
+            "version": "26H1",
+            "name": "VMware",
+            "type": "setup",
+            "company": "Boardcom.Inc"
+          },
+          {
+            "fileName": "VMware-Workstation-Full-25H2u1-25219725.exe",
+            "version": "25H2u1",
+            "name": "VMware",
+            "type": "setup",
+            "company": "Boardcom.Inc"
+          },
+          {
+            "fileName": "VMware-Workstation-Full-26H1u1-25688693.exe",
+            "version": "26H1u1",
+            "name": "VMware",
+            "type": "setup",
+            "company": "Boardcom.Inc"
+          }
+        ]
+      }
+    },
+    {
+      "id": 387381250,
+      "tag": "application1",
+      "name": "Applications",
+      "repo": "zssx-2026/applications",
+      "prerelease": false,
+      "draft": false,
+      "publishedAt": "2026-09-11T23:18:09Z",
+      "createdAt": "2026-09-12T03:06:34Z",
+      "htmlUrl": "https://github.com/zssx-2026/applications/releases/tag/application1",
+      "assets": [
+        {
+          "id": 558178563,
+          "name": "archprv4.54_x64_setup.exe",
+          "size": 4527080,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 3,
+          "createdAt": "2026-09-11T23:11:32Z",
+          "updatedAt": "2026-09-12T02:22:04Z",
+          "type": "installer",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/archprv4.54_x64_setup.exe"
+        },
+        {
+          "id": 558178510,
+          "name": "BlurAutoClicker.exe",
+          "size": 19166720,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 3,
+          "createdAt": "2026-09-11T23:11:29Z",
+          "updatedAt": "2026-09-11T23:11:32Z",
+          "type": "exe",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/BlurAutoClicker.exe"
+        },
+        {
+          "id": 558175907,
+          "name": "DiskGeniusPro_x64_Setup.exe",
+          "size": 32787578,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 3,
+          "createdAt": "2026-09-11T23:09:22Z",
+          "updatedAt": "2026-09-12T02:22:04Z",
+          "type": "installer",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/DiskGeniusPro_x64_Setup.exe"
+        },
+        {
+          "id": 558171645,
+          "name": "DSH-Desktop-2.0.3-windows_x64_setup.exe",
+          "size": 121882517,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 1,
+          "createdAt": "2026-09-11T23:06:32Z",
+          "updatedAt": "2026-09-12T02:22:04Z",
+          "type": "installer",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/DSH-Desktop-2.0.3-windows_x64_setup.exe"
+        },
+        {
+          "id": 558178632,
+          "name": "FastCopy.Pro.5.11.3.exe",
+          "size": 1160512,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 2,
+          "createdAt": "2026-09-11T23:11:34Z",
+          "updatedAt": "2026-09-11T23:11:35Z",
+          "type": "exe",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/FastCopy.Pro.5.11.3.exe"
+        },
+        {
+          "id": 558176024,
+          "name": "Fastgithub_x64_Setup.exe",
+          "size": 22760609,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 3,
+          "createdAt": "2026-09-11T23:09:27Z",
+          "updatedAt": "2026-09-12T02:22:04Z",
+          "type": "installer",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/Fastgithub_x64_Setup.exe"
+        },
+        {
+          "id": 558176115,
+          "name": "FreeArc_x64_Setup.exe",
+          "size": 13665731,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 6,
+          "createdAt": "2026-09-11T23:09:31Z",
+          "updatedAt": "2026-09-12T02:22:04Z",
+          "type": "installer",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/FreeArc_x64_Setup.exe"
+        },
+        {
+          "id": 558173330,
+          "name": "GitHubDesktop-Windows-x64_setup.exe",
+          "size": 188492800,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 2,
+          "createdAt": "2026-09-11T23:07:48Z",
+          "updatedAt": "2026-09-12T02:22:04Z",
+          "type": "installer",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/GitHubDesktop-Windows-x64_setup.exe"
+        },
+        {
+          "id": 559118001,
+          "name": "idea-2026.2.2.exe",
+          "size": 1182846496,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 8,
+          "createdAt": "2026-09-12T11:03:12Z",
+          "updatedAt": "2026-09-12T11:05:56Z",
+          "type": "exe",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/idea-2026.2.2.exe"
+        },
+        {
+          "id": 558175623,
+          "name": "IDM.6.42_x64_setup.exe",
+          "size": 10174190,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 1,
+          "createdAt": "2026-09-11T23:09:09Z",
+          "updatedAt": "2026-09-12T02:22:04Z",
+          "type": "installer",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/IDM.6.42_x64_setup.exe"
+        },
+        {
+          "id": 558176177,
+          "name": "LanzouDesktop_x64_Setup.exe",
+          "size": 129636163,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 1,
+          "createdAt": "2026-09-11T23:09:34Z",
+          "updatedAt": "2026-09-12T02:22:04Z",
+          "type": "installer",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/LanzouDesktop_x64_Setup.exe"
+        },
+        {
+          "id": 558172099,
+          "name": "lmms-1.2.2-winx64_setup.exe",
+          "size": 36829951,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 4,
+          "createdAt": "2026-09-11T23:06:56Z",
+          "updatedAt": "2026-09-12T02:22:04Z",
+          "type": "installer",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/lmms-1.2.2-winx64_setup.exe"
+        },
+        {
+          "id": 574139511,
+          "name": "name.txt",
+          "size": 807,
+          "contentType": "text/plain",
+          "downloadCount": 3,
+          "createdAt": "2026-09-19T05:20:58Z",
+          "updatedAt": "2026-09-19T05:21:03Z",
+          "type": "unknown",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/name.txt"
+        },
+        {
+          "id": 558178604,
+          "name": "ResourceHacker.exe",
+          "size": 5436416,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 3,
+          "createdAt": "2026-09-11T23:11:33Z",
+          "updatedAt": "2026-09-11T23:11:34Z",
+          "type": "exe",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/ResourceHacker.exe"
+        },
+        {
+          "id": 558172019,
+          "name": "TieZ_0.3.3_x64-setup.exe",
+          "size": 4872596,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 4,
+          "createdAt": "2026-09-11T23:06:53Z",
+          "updatedAt": "2026-09-11T23:06:56Z",
+          "type": "installer",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/TieZ_0.3.3_x64-setup.exe"
+        },
+        {
+          "id": 558177748,
+          "name": "VMWare.Workstation.Pro.25H2_x64_Setup.exe",
+          "size": 236499220,
+          "contentType": "application/x-msdownload",
+          "downloadCount": 0,
+          "createdAt": "2026-09-11T23:10:55Z",
+          "updatedAt": "2026-09-12T02:22:04Z",
+          "type": "installer",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/VMWare.Workstation.Pro.25H2_x64_Setup.exe"
+        }
+      ],
+      "kind": "app",
+      "nameTxt": {
+        "raw": "archprv4.54_x64_setup.exe v4.54 ARCHPRV setup null\r\nBlurAutoClicker.exe v1.8.7 blurautoclicker port none\r\nDiskGeniusPro_x64_Setup.exe v6.0.0.1631 DiskGenius setup diskgenius\r\nFastCopy.Pro.5.11.3.exe v5.11.3 fastcopypro port null\r\nFastgithub_x64_Setup.exe v1.6.4 fastgithub setup fastgithub\r\nFreeArc_x64_Setup.exe v0.67 freearc setup Bulat\r\nGitHubDesktop-Windows-x64_setup.exe v3.5.8 githubdesktop setup null\r\nIDM.6.42_x64_setup.exe v6.42 idman setup InternetDownloadManager\r\nLanzouDesktop_x64_Setup.exe v0.6.1 lanzoud setup null\r\nlmms-1.2.2-winx64_setup.exe v1.2.2 LMMS setup LMMS\r\nResourceHacker.exe v5.67 resource_hacker port Angus\r\nTieZ_0.3.3_x64-setup.exe v0.3.3 tiez setup TieZ\r\nVMWare.Workstation.Pro.25H2_x64_Setup.exe v25H2 VMware setup Boardcom.Inc\r\nidea-2026.2.2.exe v2026.2.2 IDEA setup JetBrains",
+        "entries": [
+          {
+            "fileName": "archprv4.54_x64_setup.exe",
+            "version": "4.54",
+            "name": "ARCHPRV",
+            "type": "setup",
+            "company": "null"
+          },
+          {
+            "fileName": "BlurAutoClicker.exe",
+            "version": "1.8.7",
+            "name": "blurautoclicker",
+            "type": "port",
+            "company": "none"
+          },
+          {
+            "fileName": "DiskGeniusPro_x64_Setup.exe",
+            "version": "6.0.0.1631",
+            "name": "DiskGenius",
+            "type": "setup",
+            "company": "diskgenius"
+          },
+          {
+            "fileName": "FastCopy.Pro.5.11.3.exe",
+            "version": "5.11.3",
+            "name": "fastcopypro",
+            "type": "port",
+            "company": "null"
+          },
+          {
+            "fileName": "Fastgithub_x64_Setup.exe",
+            "version": "1.6.4",
+            "name": "fastgithub",
+            "type": "setup",
+            "company": "fastgithub"
+          },
+          {
+            "fileName": "FreeArc_x64_Setup.exe",
+            "version": "0.67",
+            "name": "freearc",
+            "type": "setup",
+            "company": "Bulat"
+          },
+          {
+            "fileName": "GitHubDesktop-Windows-x64_setup.exe",
+            "version": "3.5.8",
+            "name": "githubdesktop",
+            "type": "setup",
+            "company": "null"
+          },
+          {
+            "fileName": "IDM.6.42_x64_setup.exe",
+            "version": "6.42",
+            "name": "idman",
+            "type": "setup",
+            "company": "InternetDownloadManager"
+          },
+          {
+            "fileName": "LanzouDesktop_x64_Setup.exe",
+            "version": "0.6.1",
+            "name": "lanzoud",
+            "type": "setup",
+            "company": "null"
+          },
+          {
+            "fileName": "lmms-1.2.2-winx64_setup.exe",
+            "version": "1.2.2",
+            "name": "LMMS",
+            "type": "setup",
+            "company": "LMMS"
+          },
+          {
+            "fileName": "ResourceHacker.exe",
+            "version": "5.67",
+            "name": "resource_hacker",
+            "type": "port",
+            "company": "Angus"
+          },
+          {
+            "fileName": "TieZ_0.3.3_x64-setup.exe",
+            "version": "0.3.3",
+            "name": "tiez",
+            "type": "setup",
+            "company": "TieZ"
+          },
+          {
+            "fileName": "VMWare.Workstation.Pro.25H2_x64_Setup.exe",
+            "version": "25H2",
+            "name": "VMware",
+            "type": "setup",
+            "company": "Boardcom.Inc"
+          },
+          {
+            "fileName": "idea-2026.2.2.exe",
+            "version": "2026.2.2",
+            "name": "IDEA",
+            "type": "setup",
+            "company": "JetBrains"
+          }
+        ]
+      }
+    }
+  ]
+}
