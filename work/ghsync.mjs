@@ -322,7 +322,7 @@ async function publishCatalog() {
     const a = have.find(function (x) { return x.name === e.name; });
     return a && a.size === e.size;
   }) && have.some(function (x) { return x.name === 'name.txt' && x.size === Buffer.byteLength(manifest); });
-  if (same) return ['catalogue already current'];
+  if (same) return ['catalogue -> already current'];
 
   /*
    * Clear the page before writing it. An asset cannot be replaced in place,
@@ -362,7 +362,9 @@ async function attempt() {
   if (cppBad.length) return 'C++ assets pending: ' + cppBad.join(' | ');
 
   const catalog = await publishCatalog();
-  const catalogBad = catalog.filter(function (x) { return x.indexOf('-> ok') < 0; });
+  const catalogBad = catalog.filter(function (x) {
+    return x.indexOf('-> ok') < 0 && x.indexOf('-> already current') < 0;
+  });
   if (catalogBad.length) return 'catalog pending: ' + catalogBad.join(' | ');
 
   return 'ok: ' + p + '; all assets ' + assets.length + '; catalog ' + catalog.length;
