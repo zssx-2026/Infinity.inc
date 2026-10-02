@@ -278,3 +278,25 @@ Infinity.Inc 工作报告
     Electron 包结构校验通过（resources/app/{main.js,package.json} 齐备）
   遗留：图标待接入；安装包正在重新上传 GitHub。
 
+[2026-10-02] 发布到 GitHub：源码 + 九个安装包
+  目标：源码与安装包都上 GitHub，且 Release 里不留旧构建。
+  改动：
+    work/ghsync.mjs
+      资产清单补齐 IFM 仓库；同名资产先删后传（Release 资产无法覆盖，
+      否则下载页会继续提供旧安装包）；
+      新增 OBSOLETE 规则，清掉改名前的 EasyPackageManager_*_setup.exe；
+      curl 加 --ssl-no-revoke —— 本机 schannel 连不上吊销服务器，
+      否则上传会以 CRYPT_E_NO_REVOCATION_CHECK 失败；
+      日志与错误文本一律脱敏，不出现 token。
+  结果：
+    zssx-2026/Infinity.inc  源码 96 个文件（提交 "Infinity.Inc: sync (96 files)"）
+    Infinity-Cloud         InfinityCloud_{win64,winx86,win-arm64}_setup.exe
+                           100 MB / 94 MB / 92 MB
+    Infinity-File-Manager  InfinityFileManager_{win64,winx86,win-arm64}_setup.exe
+    InfinityPackageManager InfinityPackageManager_{win64,winx86,win-arm64}_setup.exe
+                           142 MB / 132 MB / 138 MB
+  说明：
+    git 的 HTTPS 端点在本机长期 502，推送一律走 Git Data API 回退路径；
+    api.github.com 正常，因此源码与资产上传都能完成。
+  遗留：图标待接入（icons/{inc,ifm,ipm}.ico）。
+

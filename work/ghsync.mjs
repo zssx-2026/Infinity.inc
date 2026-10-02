@@ -31,7 +31,17 @@ const ASSETS = [
   { repo: 'InfinityPackageManager', tag: 'v1.0pre1', file: DIR + '/InfinityPackageManager/build/setup/win-arm64.exe', name: 'InfinityPackageManager_win-arm64_setup.exe' },
   { repo: 'Infinity-Cloud', tag: 'v1.0pre1', file: DIR + '/Infinity Cloud/sourcecode/build/setup/win64.exe', name: 'InfinityCloud_win64_setup.exe' },
   { repo: 'Infinity-Cloud', tag: 'v1.0pre1', file: DIR + '/Infinity Cloud/sourcecode/build/setup/winx86.exe', name: 'InfinityCloud_winx86_setup.exe' },
-  { repo: 'Infinity-Cloud', tag: 'v1.0pre1', file: DIR + '/Infinity Cloud/sourcecode/build/setup/win-arm64.exe', name: 'InfinityCloud_win-arm64_setup.exe' }
+  { repo: 'Infinity-Cloud', tag: 'v1.0pre1', file: DIR + '/Infinity Cloud/sourcecode/build/setup/win-arm64.exe', name: 'InfinityCloud_win-arm64_setup.exe' },
+  { repo: 'Infinity-File-Manager', tag: 'v1.0pre1', file: DIR + '/Infinity File Manager/sourcecode/build/setup/win64.exe', name: 'InfinityFileManager_win64_setup.exe' },
+  { repo: 'Infinity-File-Manager', tag: 'v1.0pre1', file: DIR + '/Infinity File Manager/sourcecode/build/setup/winx86.exe', name: 'InfinityFileManager_winx86_setup.exe' },
+  { repo: 'Infinity-File-Manager', tag: 'v1.0pre1', file: DIR + '/Infinity File Manager/sourcecode/build/setup/win-arm64.exe', name: 'InfinityFileManager_win-arm64_setup.exe' }
+];
+
+/* Names from before the EPM -> IPM rename. They are the same installers under
+ * the old product name, and leaving them in the release means the download
+ * page offers a build that no longer exists anywhere else. */
+const OBSOLETE = [
+  { repo: 'InfinityPackageManager', pattern: /^EasyPackageManager_.*_setup\.(exe|msi)$/ }
 ];
 
 function stamp() { return new Date().toISOString(); }
@@ -231,6 +241,16 @@ async function publishAssets() {
       log('replaced ' + a.name + ' (' + existing.size + ' -> ' + local + ' B)');
     }
     done.push(a.name + ' -> ' + uploadAsset(a.repo, rel.id, a.file, a.name));
+  }
+
+  for (const o of OBSOLETE) {
+    const rel = await ensureRelease(o.repo, 'v1.0pre1');
+    if (!rel) continue;
+    for (const a of (rel.assets || [])) {
+      if (!o.pattern.test(a.name)) continue;
+      const del = await api('DELETE', '/repos/' + OWNER + '/' + o.repo + '/releases/assets/' + a.id);
+      if (del.status === 204 || del.status === 200) log('removed obsolete asset ' + a.name);
+    }
   }
   return done;
 }
