@@ -39,13 +39,13 @@ function electronVersion() {
 
 /* The cached runtime. @electron/get stores it under a hash-named folder, so
  * the file is found by name rather than by path. */
-function findRuntimeZip(version) {
+function findRuntimeZip(version, arch) {
   const roots = [
     path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'electron', 'Cache'),
     path.join(os.homedir(), '.cache', 'electron'),
     path.join(os.homedir(), 'AppData', 'Local', 'electron', 'Cache')
   ];
-  const want = 'electron-v' + version + '-win32-x64.zip';
+  const want = 'electron-v' + version + '-win32-' + arch + '.zip';
   for (const root of roots) {
     let entries = [];
     try { entries = fs.readdirSync(root); } catch (e) { continue; }
@@ -57,6 +57,29 @@ function findRuntimeZip(version) {
     }
   }
   return null;
+}
+
+/*
+ * The runtime for an architecture, downloaded if it is not cached.
+ *
+ * github.com/electron/electron/releases answers 502 on this machine, so the
+ * npmmirror copy is used instead - it serves the same file, and npm already
+ * pointed at it when the package was installed.
+ */
+function ensureRuntime(version, arch) {
+  const found = findRuntimeZip(version, arch);
+  if (found) return found;
+
+  const cacheRoot = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'electron', 'Cache', 'infinity');
+  fs.mkdirSync(cacheRoot, { recursive: true });
+  const dest = path.join(cacheRoot, 'electron-v' + version + '-win32-' + arch + '.zip');
+  const url = 'https://registry.npmmirror.com/-/binary/electron/v' + version + '/electron-v' + version + '-win32-' + arch + '.zip';
+  log('downloading ' + arch + ' runtime');
+  execFileSync('curl', ['-sSL', '--fail', '-o', dest, url], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const size = fs.statSync(dest).size;
+  if (size < 50 * 1024 * 1024) throw new Error('the downloaded runtime looks wrong: ' + size + ' B');
+  log('  ' + size + ' B');
+  return dest;
 }
 
 /* resources/app is the unpacked form Electron accepts, so no asar step is
@@ -75,8 +98,8 @@ function writeApp(dir, app) {
   }, null, 2), 'utf8');
 }
 
-function copyAs(srcDir, srcExe, newName) {
-  const dstDir = path.join(OUT, newName + '-win32-x64');
+function copyAs(srcDir, srcExe, newName, arch) {
+  const dstDir = path.join(OUT, newName + '-win32-' + arch);
   fs.rmSync(dstDir, { recursive: true, force: true });
   fs.cpSync(srcDir, dstDir, { recursive: true });
   const oldExe = path.join(dstDir, srcExe + '.exe');
@@ -86,37 +109,40 @@ function copyAs(srcDir, srcExe, newName) {
   return dstDir;
 }
 
+/* Windows on three architectures, the same three the installers target. */
+export const ARCHES = ['x64', 'ia32', 'arm64'];
+
 function main() {
   const version = electronVersion();
   if (!version) throw new Error('electron is not installed: run npm install in ' + HERE);
   log('electron ' + version);
 
-  const zip = findRuntimeZip(version);
-  if (!zip) throw new Error('the Electron runtime is not cached: run npm install in ' + HERE);
-  log('runtime  ' + zip);
-
   fs.rmSync(OUT, { recursive: true, force: true });
   fs.mkdirSync(OUT, { recursive: true });
 
-  const first = 'inc_gui';
-  const base = path.join(OUT, first + '-win32-x64');
-  fs.mkdirSync(base, { recursive: true });
-  execFileSync('unzip', ['-q', '-o', zip, '-d', base], { stdio: ['ignore', 'pipe', 'pipe'] });
-  fs.renameSync(path.join(base, 'electron.exe'), path.join(base, first + '.exe'));
-  writeApp(base, TARGETS[0].app);
-  log('unpacked ' + base);
-
   const made = [];
-  for (const t of TARGETS) {
-    for (const name of [t.prefix + '_gui', t.prefix + 'x_gui']) {
-      const dir = name === first ? base : copyAs(base, first, name);
-      const exe = path.join(dir, name + '.exe');
-      const size = fs.existsSync(exe) ? fs.statSync(exe).size : 0;
-      log(name.padEnd(12) + size + ' B  ' + dir);
-      made.push({ name: name, dir: dir, exe: exe, app: t.app });
+  for (const arch of ARCHES) {
+    const zip = ensureRuntime(version, arch);
+    log('runtime  ' + arch + '  ' + zip);
+
+    const first = 'inc_gui';
+    const base = path.join(OUT, first + '-win32-' + arch);
+    fs.mkdirSync(base, { recursive: true });
+    execFileSync('unzip', ['-q', '-o', zip, '-d', base], { stdio: ['ignore', 'pipe', 'pipe'] });
+    fs.renameSync(path.join(base, 'electron.exe'), path.join(base, first + '.exe'));
+    writeApp(base, TARGETS[0].app);
+
+    for (const t of TARGETS) {
+      for (const name of [t.prefix + '_gui', t.prefix + 'x_gui']) {
+        const dir = name === first ? base : copyAs(base, first, name, arch);
+        const exe = path.join(dir, name + '.exe');
+        const size = fs.existsSync(exe) ? fs.statSync(exe).size : 0;
+        log(name.padEnd(12) + arch.padEnd(6) + size + ' B');
+        made.push({ name: name, arch: arch, dir: dir, exe: exe, app: t.app });
+      }
     }
+    log('');
   }
-  log('');
   log('packaged ' + made.length + ' shells');
   return made;
 }

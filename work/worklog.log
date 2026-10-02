@@ -223,3 +223,58 @@ Infinity.Inc 工作报告
     （github.com/electron/electron/releases 在本机返回 502）。
   遗留：Electron 外壳组装中；IFM 安装包待重建；图标待接入。
 
+[2026-10-02] Electron 外壳落成；八命名闭环；同步 GitHub
+  目标：_gui.exe 变成真正的 Electron 套壳，并让源码与安装包上到 GitHub。
+  改动：
+    shell/build.mjs
+      不再依赖打包工具，直接用手工组装：解压缓存的 Electron 运行时、
+      把 electron.exe 改名为 <p>_gui.exe、写入 resources/app/{main.js,package.json}。
+      三种架构 x64 / ia32 / arm64，缺失的运行时从 registry.npmmirror.com 拉取
+      （github.com 的 electron 发布页在本机返回 502）。
+      一个架构只解压一次，其余名字靠目录复制 + 改名，避免六次全量复制。
+    shell/main.js
+      读自身文件名决定打开哪套应用；启动同目录的 <p>_cli --serve-ui；
+      轮询端口就绪后开窗；窗口关闭时结束服务进程；外链交给系统浏览器。
+    shell/payload.mjs
+      安装包暂存 Electron 目录的共用助手；管理员孪生名由主名复制而来。
+    三套应用的 build-all.mjs / make-setup.mjs / 入口
+      SEA 收敛为六个名字（cli/tui/launcher × 用户/管理员），gui 由 Electron 提供；
+      入口新增 --serve-ui。
+    work/ghsync.mjs（新增）
+      源码推送 + 安装包作为 Release 资产上传，两者都带重试。
+      git 的 HTTPS 端点在返回 502，因此推送回退到 GitHub Git Data API
+      （空仓库需先建一个初始提交，否则 blob 接口返回 409）；
+      同名资产先删除再上传，保证 Release 不会留着旧安装包。
+      history.txt 有 171 MB，超出 API 单文件上限，已加入 .gitignore。
+  验证：
+    仓库 zssx-2026/Infinity.inc 已建立，96 个文件推送成功
+    Release v1.0pre1 已挂上安装包资产
+    INC 安装包 win64 104,747,056 B（含 Electron 窗口）/ winx86 19,399,939 B / win-arm64 17,433,595 B
+    IFM 安装包 win64 104,722,530 B / winx86 19,398,245 B / win-arm64 17,445,283 B
+    IPM 安装包 win64 148,573,204 B / winx86 31,102,520 B / win-arm64 29,334,421 B
+  说明：
+    winx86 / win-arm64 此前未带 Electron 窗口（只做了 x64 运行时），
+    正在补齐 ia32 与 arm64 运行时后重建。
+  遗留：图标待接入（icons/{inc,ifm,ipm}.ico）；安装包补齐全架构后重新上传。
+
+[2026-10-02] 补齐三架构 Electron 窗口；九个安装包全部落成
+  目标：让 winx86 与 win-arm64 也带上图形界面，而不是只有 win64 有。
+  改动：
+    shell/build.mjs
+      新增 ensureRuntime()：运行时不在缓存时从
+      registry.npmmirror.com/-/binary/electron/v<版本>/ 拉取；
+      ARCHES = x64 / ia32 / arm64，一个架构解压一次、其余名字目录复制。
+  结果（三套应用 × 三架构，每个都含 Electron 窗口）：
+    INC  win64 104,743,076 B   winx86  98,259,845 B   win-arm64  95,986,106 B
+    IFM  win64 104,722,530 B   winx86  98,240,172 B   win-arm64  96,026,638 B
+    IPM  win64 148,573,204 B   winx86 137,940,717 B   win-arm64 144,996,543 B
+  说明：
+    每个安装目录含六个 SEA 可执行文件（cli / tui / launcher × 用户/管理员）
+    加 Electron 目录（gui × 用户/管理员），合计八个名字，与最初约定一致。
+    Electron 运行时：x64 188,784,128 B、ia32 159,897,088 B、arm64 175,995,904 B。
+  验证：
+    inc_cli --serve-ui 起 7621 并可关闭；IFM 界面 7623 返回 200，
+      含「新建文件夹 / 上传」工具栏，无命令输入框
+    Electron 包结构校验通过（resources/app/{main.js,package.json} 齐备）
+  遗留：图标待接入；安装包正在重新上传 GitHub。
+

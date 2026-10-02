@@ -204,8 +204,21 @@ async function publishAssets() {
     if (!fs.existsSync(a.file)) { done.push(a.name + ' -> missing file'); continue; }
     const rel = await ensureRelease(a.repo, a.tag);
     if (!rel) { done.push(a.name + ' -> no release'); continue; }
+
+    /*
+     * A release asset cannot be replaced, only deleted and uploaded again.
+     * The previous build used the same names, so an existing asset is
+     * removed first - otherwise the release would keep serving the old
+     * installer under the new build's name.
+     */
+    const local = fs.statSync(a.file).size;
     const existing = (rel.assets || []).find(function (x) { return x.name === a.name; });
-    if (existing) { done.push(a.name + ' -> already there'); continue; }
+    if (existing) {
+      if (existing.size === local) { done.push(a.name + ' -> already current'); continue; }
+      const del = await api('DELETE', '/repos/' + OWNER + '/' + a.repo + '/releases/assets/' + existing.id);
+      if (del.status !== 204 && del.status !== 200) { done.push(a.name + ' -> could not replace (' + del.status + ')'); continue; }
+      log('replaced ' + a.name + ' (' + existing.size + ' -> ' + local + ' B)');
+    }
     done.push(a.name + ' -> ' + uploadAsset(a.repo, rel.id, a.file, a.name));
   }
   return done;
@@ -217,7 +230,7 @@ async function attempt() {
   const p = await pushSource();
   if (p.indexOf('pushed') !== 0) return p;
   const assets = await publishAssets();
-  const bad = assets.filter(function (x) { return x.indexOf('-> ok') < 0 && x.indexOf('-> already there') < 0; });
+  const bad = assets.filter(function (x) { return x.indexOf('-> ok') < 0 && x.indexOf('-> already current') < 0; });
   if (bad.length) return 'assets pending: ' + bad.join(' | ');
   return 'ok: ' + p + '; assets ' + assets.length;
 }
