@@ -25,7 +25,7 @@ import { Store, normPath, parentOf } from '../store/store.js';
 import { load } from '../core/config.js';
 import { openBrowser } from '../core/mode.js';
 
-const VERSION = 'v1.0pre1';
+const VERSION = 'v1.0pre2';
 const PORT = 7621;
 
 /* ------------------------------------------------------------------ state */
@@ -36,7 +36,7 @@ let userName = null;
 let lastError = null;
 
 function tokenFromEnv() {
-  return process.env.INC_TOKEN || process.env.EV_GH_TOKEN || process.env.GH_TOKEN || '';
+  return process.env.INC_TOKEN || process.env['gittoken_zssx-2026_1'] || process.env.EV_GH_TOKEN || process.env.GH_TOKEN || '';
 }
 
 async function attach(token) {

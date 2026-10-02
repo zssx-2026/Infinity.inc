@@ -135,7 +135,7 @@ function compile(platform, payload, setupPath, version) {
 }
 
 function main() {
-  const version = process.argv[2] || 'v1.0pre1';
+  const version = process.argv[2] || 'v1.0pre2';
   const outDir = process.argv[3] || path.join(ROOT, 'build', 'setup');
   fs.mkdirSync(outDir, { recursive: true });
   fs.rmSync(STAGE, { recursive: true, force: true });

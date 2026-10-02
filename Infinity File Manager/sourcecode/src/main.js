@@ -33,7 +33,7 @@ import { detect } from './core/mode.js';
 import { runLauncher } from './core/launcher.js';
 import { runGui } from './gui/server.js';
 
-const VERSION = 'v1.0pre1';
+const VERSION = 'v1.0pre2';
 
 /* Where a mount writes down what it started, so unmount can stop it. */
 const MOUNT_FILE = path.join(PATHS.cache, 'mount.json');
@@ -69,7 +69,7 @@ function showPaths() {
  */
 async function makeStore(cfg) {
   const token = process.env.IFM_TOKEN || process.env.INC_TOKEN ||
-    process.env.EV_GH_TOKEN || process.env.GH_TOKEN || cfg.token || null;
+    process.env['gittoken_zssx-2026_1'] || process.env.EV_GH_TOKEN || process.env.GH_TOKEN || cfg.token || null;
   if (!token) throw new Error('no token: set IFM_TOKEN first');
   try { await probeProxy(); } catch (e) { }
   const gh = new GitHub(token);

@@ -18,11 +18,11 @@ ${UnStrStr}
 ${UnStrRep}
 
 !define PRODUCT_NAME    "Infinity Package Manager"
-!define PRODUCT_VERSION "v1.0pre1"
+!define PRODUCT_VERSION "v1.0pre2"
 !define UNINST_KEY      "Software\Microsoft\Windows\CurrentVersion\Uninstall\Infinity Package Manager"
 !define HASH_KEY        "Software\Infinity Package Manager\Hashes"
 
-OutFile "InfinityPackageManager_v1.0pre1_Setup.exe"
+OutFile "InfinityPackageManager_v1.0pre2_Setup.exe"
 Name "${PRODUCT_NAME}"
 
 CRCCheck off

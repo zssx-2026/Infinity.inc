@@ -26,7 +26,7 @@ import { detect } from './core/mode.js';
 import { runLauncher } from './core/launcher.js';
 import { runGui } from './gui/server.js';
 
-const VERSION = 'v1.0pre1';
+const VERSION = 'v1.0pre2';
 
 async function main() {
   ensureDirs();

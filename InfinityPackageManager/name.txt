@@ -9,7 +9,7 @@ linux-arm64    linux-arm64            Linux on ARM64
 mac            macos-x64              macOS on Intel
 mac-arm64      macos-arm64            macOS on Apple silicon
 
-Build status for v1.0pre1
+Build status for v1.0pre2
   win64        binary, zip, setup.exe, setup.msi - all built
   winx86       source only
   win-arm64    source only

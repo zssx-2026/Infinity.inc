@@ -122,7 +122,7 @@ function stageSource(dest, version) {
 }
 
 function main() {
-  const version = process.argv[2] || 'v1.0pre1';
+  const version = process.argv[2] || 'v1.0pre2';
   const outDir = path.join(RELEASE, version);
   fs.rmSync(STAGE, { recursive: true, force: true });
   fs.mkdirSync(STAGE, { recursive: true });

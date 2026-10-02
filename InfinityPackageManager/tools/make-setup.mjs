@@ -114,7 +114,7 @@ function compile(platform, payload, setupPath, version) {
 }
 
 function main() {
-  const version = process.argv[2] || 'v1.0pre1';
+  const version = process.argv[2] || 'v1.0pre2';
   fs.rmSync(STAGE, { recursive: true, force: true });
   fs.mkdirSync(STAGE, { recursive: true });
   fs.mkdirSync(SETUP, { recursive: true });

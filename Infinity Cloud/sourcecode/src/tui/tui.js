@@ -61,7 +61,7 @@ export class Tui {
   draw() {
     const s = this.size();
     const out = [CLR + HIDE];
-    const title = ' Infinity Cloud [v1.0pre1] ';
+    const title = ' Infinity Cloud [v1.0pre2] ';
     out.push(this.box(s.w, title));
     out.push(String.fromCharCode(9472).repeat(s.w));
     const left = 14;

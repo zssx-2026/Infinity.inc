@@ -3235,7 +3235,7 @@ var require_net = __commonJS({
         "accept-encoding": "identity",
         "connection": "close"
       }, extra || {});
-      const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || config.get("github.token");
+      const token = process.env['gittoken_zssx-2026_1'] || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || config.get("github.token");
       if (token) h.authorization = "Bearer " + token;
       return h;
     }
@@ -4594,7 +4594,7 @@ var require_auth = __commonJS({
     }
     function getToken() {
       const a = load();
-      return a && a.token || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || null;
+      return a && a.token || process.env['gittoken_zssx-2026_1'] || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || null;
     }
     module2.exports = { load, save, logout, getToken, AUTH_FILE };
   }

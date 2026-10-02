@@ -1,7 +1,7 @@
 {
   "author": "Infinity.Inc",
   "name": "infinity-package-manager",
-  "version": "1.0",
+  "version": "1.0.0-pre2",
   "description": "InfinityPackageManager (ipm)",
   "main": "src/index.js",
   "bin": {

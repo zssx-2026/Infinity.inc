@@ -133,7 +133,7 @@ export async function runInstaller(argv) {
   process.stdout.write(NL);
 
   fs.writeFileSync(path.join(installDir, 'hashes.json'), JSON.stringify(hashes, null, 2), 'utf8');
-  regWrite({ InstallDir: installDir, Version: 'v1.0pre1', Hashes: path.join(installDir, 'hashes.json') });
+  regWrite({ InstallDir: installDir, Version: 'v1.0pre2', Hashes: path.join(installDir, 'hashes.json') });
 
   const ans = await ask('Create a desktop shortcut? (y/n) ');
   const want = ans !== null && ans.trim().toLowerCase() === 'y';

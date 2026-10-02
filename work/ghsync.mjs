@@ -24,17 +24,26 @@ const REPO = 'Infinity.inc';
 const DIR = 'D:/dev/DeepSeekHarnessWorkspace/Infinity.inc';
 const LOG = DIR + '/work/ghsync.log';
 
+/* C++ v1.0.0-pre3 installers. These go to application Releases, never into
+ * the source repository. They are single-architecture win64 self-contained
+ * NSIS installers until the cross-architecture compiler targets are added. */
+const CPP_ASSETS = [
+  { repo: 'Infinity-Cloud', file: DIR + '/cpp/release/v1.0pre3/InfinityCloud_1.0.0-pre3_win64_setup.exe', name: 'InfinityCloud_1.0.0-pre3_win64_setup.exe', catalogAsset: 'InfinityCloud_1.0.0-pre3_win64_setup.exe Infinity.Inc InfinityCloud setup Infinity.Inc win64' },
+  { repo: 'Infinity-File-Manager', file: DIR + '/cpp/release/v1.0pre3/InfinityFileManager_1.0.0-pre3_win64_setup.exe', name: 'InfinityFileManager_1.0.0-pre3_win64_setup.exe', catalogAsset: 'InfinityFileManager_1.0.0-pre3_win64_setup.exe Infinity.Inc InfinityFileManager setup Infinity.Inc win64' },
+  { repo: 'InfinityPackageManager', file: DIR + '/cpp/release/v1.0pre3/InfinityPackageManager_1.0.0-pre3_win64_setup.exe', name: 'InfinityPackageManager_1.0.0-pre3_win64_setup.exe', catalogAsset: 'InfinityPackageManager_1.0.0-pre3_win64_setup.exe Infinity.Inc InfinityPackageManager setup Infinity.Inc win64' }
+];
+
 /* Installers to publish, and the repository each one belongs to. */
 const ASSETS = [
-  { repo: 'InfinityPackageManager', tag: 'v1.0pre1', file: DIR + '/InfinityPackageManager/build/setup/win64.exe', name: 'InfinityPackageManager_win64_setup.exe' },
-  { repo: 'InfinityPackageManager', tag: 'v1.0pre1', file: DIR + '/InfinityPackageManager/build/setup/winx86.exe', name: 'InfinityPackageManager_winx86_setup.exe' },
-  { repo: 'InfinityPackageManager', tag: 'v1.0pre1', file: DIR + '/InfinityPackageManager/build/setup/win-arm64.exe', name: 'InfinityPackageManager_win-arm64_setup.exe' },
-  { repo: 'Infinity-Cloud', tag: 'v1.0pre1', file: DIR + '/Infinity Cloud/sourcecode/build/setup/win64.exe', name: 'InfinityCloud_win64_setup.exe' },
-  { repo: 'Infinity-Cloud', tag: 'v1.0pre1', file: DIR + '/Infinity Cloud/sourcecode/build/setup/winx86.exe', name: 'InfinityCloud_winx86_setup.exe' },
-  { repo: 'Infinity-Cloud', tag: 'v1.0pre1', file: DIR + '/Infinity Cloud/sourcecode/build/setup/win-arm64.exe', name: 'InfinityCloud_win-arm64_setup.exe' },
-  { repo: 'Infinity-File-Manager', tag: 'v1.0pre1', file: DIR + '/Infinity File Manager/sourcecode/build/setup/win64.exe', name: 'InfinityFileManager_win64_setup.exe' },
-  { repo: 'Infinity-File-Manager', tag: 'v1.0pre1', file: DIR + '/Infinity File Manager/sourcecode/build/setup/winx86.exe', name: 'InfinityFileManager_winx86_setup.exe' },
-  { repo: 'Infinity-File-Manager', tag: 'v1.0pre1', file: DIR + '/Infinity File Manager/sourcecode/build/setup/win-arm64.exe', name: 'InfinityFileManager_win-arm64_setup.exe' }
+  { repo: 'InfinityPackageManager', tag: 'v1.0pre2', file: DIR + '/InfinityPackageManager/build/setup/win64.exe', name: 'InfinityPackageManager_win64_setup.exe' },
+  { repo: 'InfinityPackageManager', tag: 'v1.0pre2', file: DIR + '/InfinityPackageManager/build/setup/winx86.exe', name: 'InfinityPackageManager_winx86_setup.exe' },
+  { repo: 'InfinityPackageManager', tag: 'v1.0pre2', file: DIR + '/InfinityPackageManager/build/setup/win-arm64.exe', name: 'InfinityPackageManager_win-arm64_setup.exe' },
+  { repo: 'Infinity-Cloud', tag: 'v1.0pre2', file: DIR + '/Infinity Cloud/sourcecode/build/setup/win64.exe', name: 'InfinityCloud_win64_setup.exe' },
+  { repo: 'Infinity-Cloud', tag: 'v1.0pre2', file: DIR + '/Infinity Cloud/sourcecode/build/setup/winx86.exe', name: 'InfinityCloud_winx86_setup.exe' },
+  { repo: 'Infinity-Cloud', tag: 'v1.0pre2', file: DIR + '/Infinity Cloud/sourcecode/build/setup/win-arm64.exe', name: 'InfinityCloud_win-arm64_setup.exe' },
+  { repo: 'Infinity-File-Manager', tag: 'v1.0pre2', file: DIR + '/Infinity File Manager/sourcecode/build/setup/win64.exe', name: 'InfinityFileManager_win64_setup.exe' },
+  { repo: 'Infinity-File-Manager', tag: 'v1.0pre2', file: DIR + '/Infinity File Manager/sourcecode/build/setup/winx86.exe', name: 'InfinityFileManager_winx86_setup.exe' },
+  { repo: 'Infinity-File-Manager', tag: 'v1.0pre2', file: DIR + '/Infinity File Manager/sourcecode/build/setup/win-arm64.exe', name: 'InfinityFileManager_win-arm64_setup.exe' }
 ];
 
 /* Names from before the EPM -> IPM rename. They are the same installers under
@@ -43,6 +52,28 @@ const ASSETS = [
 const OBSOLETE = [
   { repo: 'InfinityPackageManager', pattern: /^EasyPackageManager_.*_setup\.(exe|msi)$/ }
 ];
+
+/*
+ * The IPM catalogue.
+ *
+ * ipm reads the `applications` repository, and every Release in it is one
+ * catalogue page. A page advertises builds through a `name.txt` asset whose
+ * lines read
+ *
+ *   <asset name> <version> <package> <install kind> <company> <platform>
+ *
+ * and a name that is not also an asset of that same Release is skipped - so
+ * the installers are attached to the catalogue page as well as to their own
+ * repository. The page keeps one copy of each installer, which is 870 KB for
+ * the whole suite.
+ *
+ * `application-inc` held the Node v0.1 build of Infinity Cloud. v1.0.0-pre3
+ * is the C++ rewrite of all three applications, so it takes the page over
+ * rather than sitting next to a build nothing else references any more.
+ */
+const CATALOG_REPO = 'applications';
+const CATALOG_TAG = 'application-inc';
+const CATALOG_OBSOLETE = /^InfinityCloud_v0\.1_.*\.(exe|msi)$/;
 
 function stamp() { return new Date().toISOString(); }
 
@@ -221,7 +252,9 @@ function scrub(s) {
 
 async function publishAssets() {
   const done = [];
-  for (const a of ASSETS) {
+  const allAssets = ASSETS.map(function (a) { return Object.assign({ tag: 'v1.0pre2', kind: 'node' }, a); })
+    .concat(CPP_ASSETS.map(function (a) { return Object.assign({ tag: 'v1.0.0-pre3', kind: 'cpp' }, a); }));
+  for (const a of allAssets) {
     if (!fs.existsSync(a.file)) { done.push(a.name + ' -> missing file'); continue; }
     const rel = await ensureRelease(a.repo, a.tag);
     if (!rel) { done.push(a.name + ' -> no release'); continue; }
@@ -244,7 +277,7 @@ async function publishAssets() {
   }
 
   for (const o of OBSOLETE) {
-    const rel = await ensureRelease(o.repo, 'v1.0pre1');
+    const rel = await ensureRelease(o.repo, 'v1.0pre2');
     if (!rel) continue;
     for (const a of (rel.assets || [])) {
       if (!o.pattern.test(a.name)) continue;
@@ -255,15 +288,64 @@ async function publishAssets() {
   return done;
 }
 
+async function publishCatalog() {
+  const done = [];
+  const g = await api('GET', '/repos/' + OWNER + '/' + CATALOG_REPO + '/releases/tags/' + CATALOG_TAG);
+  let rel = (g.status === 200 && g.data && g.data.id) ? g.data : null;
+  if (!rel) {
+    const c = await api('POST', '/repos/' + OWNER + '/' + CATALOG_REPO + '/releases', {
+      tag_name: CATALOG_TAG, name: CATALOG_TAG, draft: false, prerelease: false,
+      body: 'Infinity.Inc - Infinity Cloud / Infinity File Manager / InfinityPackageManager'
+    });
+    if (c.status !== 201) return ['catalog -> could not create ' + CATALOG_TAG + ' (' + c.status + ')'];
+    rel = c.data;
+    log('catalog: created ' + CATALOG_TAG);
+  }
+
+  /*
+   * Clear the page before writing it. An asset cannot be replaced in place,
+   * and a name.txt that outlives the files it names would advertise
+   * downloads that 404.
+   */
+  for (const a of (rel.assets || [])) {
+    const obsolete = CATALOG_OBSOLETE.test(a.name);
+    const replacing = CPP_ASSETS.some(function (x) { return x.name === a.name; });
+    if (!obsolete && !replacing && a.name !== 'name.txt') continue;
+    const del = await api('DELETE', '/repos/' + OWNER + '/' + CATALOG_REPO + '/releases/assets/' + a.id);
+    if (del.status === 204 || del.status === 200) log('catalog: removed ' + a.name);
+    else done.push(a.name + ' -> could not clear (' + del.status + ')');
+  }
+
+  const lines = [];
+  for (const a of CPP_ASSETS) {
+    if (!fs.existsSync(a.file)) { done.push(a.name + ' -> missing file'); continue; }
+    done.push(a.name + ' -> ' + uploadAsset(CATALOG_REPO, rel.id, a.file, a.name));
+    lines.push(a.catalogAsset);
+  }
+
+  /* written under cpp/release, which is not tracked: it is a build artifact */
+  const tmp = DIR + '/cpp/release/v1.0pre3/name.txt';
+  fs.writeFileSync(tmp, lines.join('\n') + '\n', 'utf8');
+  done.push('name.txt -> ' + uploadAsset(CATALOG_REPO, rel.id, tmp, 'name.txt'));
+  return done;
+}
+
 async function attempt() {
   const r = await ensureRepo();
   if (r.indexOf('failed') === 0) return r;
   const p = await pushSource();
   if (p.indexOf('pushed') !== 0) return p;
   const assets = await publishAssets();
-  const bad = assets.filter(function (x) { return x.indexOf('-> ok') < 0 && x.indexOf('-> already current') < 0; });
-  if (bad.length) return 'assets pending: ' + bad.join(' | ');
-  return 'ok: ' + p + '; assets ' + assets.length;
+  const cppBad = assets.filter(function (x) {
+    return x.indexOf('InfinityCloud_1.0.0-pre3') >= 0 || x.indexOf('InfinityFileManager_1.0.0-pre3') >= 0 || x.indexOf('InfinityPackageManager_1.0.0-pre3') >= 0;
+  }).filter(function (x) { return x.indexOf('-> ok') < 0 && x.indexOf('-> already current') < 0; });
+  if (cppBad.length) return 'C++ assets pending: ' + cppBad.join(' | ');
+
+  const catalog = await publishCatalog();
+  const catalogBad = catalog.filter(function (x) { return x.indexOf('-> ok') < 0; });
+  if (catalogBad.length) return 'catalog pending: ' + catalogBad.join(' | ');
+
+  return 'ok: ' + p + '; all assets ' + assets.length + '; catalog ' + catalog.length;
 }
 
 const max = Number(process.argv[2] || 30);

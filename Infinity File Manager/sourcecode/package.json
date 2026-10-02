@@ -1,7 +1,7 @@
 {
   "author": "Infinity.Inc",
   "name": "infinity-file-manager",
-  "version": "1.0.0-pre1",
+  "version": "1.0.0-pre2",
   "description": "Infinity File Manager",
   "type": "module",
   "bin": {

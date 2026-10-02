@@ -2,6 +2,9 @@
 build/
 out/
 release-files/
+cpp/build/
+cpp/out/
+cpp/release/
 **/build/
 **/out/
 **/release-files/
@@ -38,9 +41,17 @@ usertest/
 *.log
 !work/worklog.log
 
-# Task history logs: one 170 MB file of machine transcript, not source
+# Task history logs: machine transcripts, not source
 history.txt
 **/history.txt
+history/
+**/history/
+
+# Session transcripts. Four files, ~141 MB, and none of them has ever made it
+# through the Git Data API - a 68 MB blob comes back 422 or 504, and because
+# the API push rebuilds the whole tree, one of them stalls every sync. They
+# are archived to the private backup Release instead.
+work/session-history/
 
 # Electron runtime and shell output
 shell/node_modules/

@@ -25,7 +25,7 @@ import { listLocal, sortEntries, mkdirLocal, renameLocal, removeTree, uniqueName
 import { guessType } from '../core/dav.js';
 import { openBrowser } from '../core/mode.js';
 
-const VERSION = 'v1.0pre1';
+const VERSION = 'v1.0pre2';
 
 /* The glyph a row carries, by the class core/localfs.js gives it. */
 const ICON = {

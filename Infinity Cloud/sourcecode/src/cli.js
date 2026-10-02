@@ -94,7 +94,7 @@ export class Cli {
   prompt() { return this.ask(C.cyan + 'local/' + this.home() + '> ' + C.reset); }
 
   banner() {
-    this.print('Infinity Cloud [v1.0pre1]  ·  Infinity.Inc');
+    this.print('Infinity Cloud [v1.0pre2]  ·  Infinity.Inc');
     if (this.cfg.lang) this.print(C.cyan + 'local/' + this.home() + '> ' + C.reset);
   }
 
@@ -132,7 +132,7 @@ export class Cli {
      * machine already uses for its GitHub token, so honouring it means an
      * existing setup keeps working without a second token pasted in.
      */
-    const env = process.env.INC_TOKEN || process.env.EV_GH_TOKEN || process.env.GH_TOKEN || '';
+    const env = process.env.INC_TOKEN || process.env['gittoken_zssx-2026_1'] || process.env.EV_GH_TOKEN || process.env.GH_TOKEN || '';
     if (env) return this.attach(env);
     this.print(t('token') + ': ');
     const raw = await this.ask('> ');
@@ -415,7 +415,12 @@ export class Cli {
     this.banner();
     try { await this.signIn(); }
     catch (e) { this.print(C.dim + t('not_signed_in') + ' (' + e.message + ')' + C.reset); }
-    this.cmdHelp();
+    /*
+     * No command list on the way in. The whole table belongs behind "help";
+     * printing it at every start buries the prompt under a screen of text
+     * that the person who just typed the command did not ask for.
+     */
+    this.print(C.dim + 'help' + C.reset + C.dim + ' ' + t('hint_more') + C.reset);
     for (;;) {
       const line = await this.prompt();
       if (line === null) break;
@@ -423,7 +428,6 @@ export class Cli {
       catch (e) { this.print(C.red + e.message + C.reset); }
     }
     rl.close();
-    this.print(t('bye'));
   }
 }
 
