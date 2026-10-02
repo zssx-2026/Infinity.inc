@@ -183,8 +183,14 @@ async function ensureRelease(repo, tag) {
 
 function uploadAsset(repo, relId, file, name) {
   try {
+    /*
+     * --ssl-no-revoke: this machine's schannel cannot reach the revocation
+     * server, and the upload dies with CRYPT_E_NO_REVOCATION_CHECK before a
+     * single byte is sent. Skipping the revocation check is what makes the
+     * upload work here; it is not a general recommendation.
+     */
     const out = execFileSync('curl', [
-      '-sS', '-X', 'POST',
+      '-sS', '--ssl-no-revoke', '-X', 'POST',
       '-H', 'Authorization: Bearer ' + TOKEN,
       '-H', 'Content-Type: application/octet-stream',
       '--data-binary', '@' + file,
@@ -194,8 +200,13 @@ function uploadAsset(repo, relId, file, name) {
     if (j && j.state === 'uploaded') return 'ok ' + j.size + ' B';
     return 'bad: ' + (j && (j.message || j.error) ? (j.message || j.error) : out.slice(0, 160));
   } catch (e) {
-    return 'failed: ' + String((e.stderr || '') + (e.message || '')).slice(0, 200);
+    return 'failed: ' + scrub(String((e.stderr || '') + (e.message || '')).slice(0, 200));
   }
+}
+
+/* Nothing that reaches a log or a report may contain the token. */
+function scrub(s) {
+  return String(s).split(TOKEN).join('<token>');
 }
 
 async function publishAssets() {
