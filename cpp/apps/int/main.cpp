@@ -32,6 +32,7 @@
 #include "inc/mode.hpp"
 #include "inc/str.hpp"
 #include "inc/uiserver.hpp"
+#include "unblock.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -194,9 +195,9 @@ std::string readTextFile(const std::wstring& path) {
 // would silently disagree with the writer.
 //
 // A container is never trusted to stay inside its own directory. A path is
-// accepted only if it is relative, slash separated and free of "..", and a
-// container whose header, entry table or digests do not add up is rejected
-// before a byte is written.
+// accepted only if it is relative, slash separated and free of a '..'
+// component, and a container whose header, entry table or digests do not add
+// up is rejected before a byte is written.
 
 const uint16_t kItbtVersion = 1;
 const uint16_t kItbtFlagDeflate = 1;
@@ -223,7 +224,7 @@ struct ItbtArchive {
 };
 
 std::string baseName(const std::string& path) {
-  const size_t at = path.find_last_of("\/");
+  const size_t at = path.find_last_of("\\/");
   return at == std::string::npos ? path : path.substr(at + 1);
 }
 
@@ -231,58 +232,18 @@ bool readWholeFile(const std::wstring& path, std::string* bytes, std::string* er
   HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
                             FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
   if (file == INVALID_HANDLE_VALUE) { *error = "cannot open " + toUtf8(path); return false; }
+  // The size is known before the first read, so a 2 MB container is one
+  // allocation instead of a run of growth-and-copy steps.
+  LARGE_INTEGER size;
   bytes->clear();
-  char buffer[65536];
+  if (GetFileSizeEx(file, &size) && size.QuadPart > 0) {
+    bytes->reserve(static_cast<size_t>(size.QuadPart));
+  }
+  char buffer[1 << 16];
   DWORD read = 0;
   while (ReadFile(file, buffer, sizeof(buffer), &read, nullptr) && read) bytes->append(buffer, read);
   CloseHandle(file);
   return true;
-}
-
-// SHA-256 over bytes already in memory, through the same Windows CNG the file
-// hash uses. A container's digests are over the *raw* content, so an entry is
-// hashed as it is read, before it is written anywhere.
-std::string sha256Bytes(const std::string& bytes) {
-  BCRYPT_ALG_HANDLE algorithm = nullptr;
-  BCRYPT_HASH_HANDLE hash = nullptr;
-  std::string result;
-  const auto close = [&]() {
-    if (hash) BCryptDestroyHash(hash);
-    if (algorithm) BCryptCloseAlgorithmProvider(algorithm, 0);
-  };
-
-  if (!BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0))) {
-    close();
-    return result;
-  }
-  DWORD objectLength = 0, hashLength = 0, resultLength = 0;
-  if (!BCRYPT_SUCCESS(BCryptGetProperty(algorithm, BCRYPT_OBJECT_LENGTH,
-                                        reinterpret_cast<PUCHAR>(&objectLength), sizeof(objectLength),
-                                        &resultLength, 0)) ||
-      !BCRYPT_SUCCESS(BCryptGetProperty(algorithm, BCRYPT_HASH_LENGTH,
-                                        reinterpret_cast<PUCHAR>(&hashLength), sizeof(hashLength),
-                                        &resultLength, 0))) {
-    close();
-    return result;
-  }
-  std::vector<UCHAR> object(objectLength);
-  std::vector<UCHAR> digest(hashLength);
-  const PUCHAR data = reinterpret_cast<PUCHAR>(const_cast<char*>(bytes.data()));
-  if (!BCRYPT_SUCCESS(BCryptCreateHash(algorithm, &hash, object.data(), objectLength, nullptr, 0, 0)) ||
-      !BCRYPT_SUCCESS(BCryptHashData(hash, data, static_cast<ULONG>(bytes.size()), 0)) ||
-      !BCRYPT_SUCCESS(BCryptFinishHash(hash, digest.data(), hashLength, 0))) {
-    close();
-    return result;
-  }
-  close();
-
-  static const char hex[] = "0123456789abcdef";
-  result.reserve(digest.size() * 2);
-  for (UCHAR byte : digest) {
-    result.push_back(hex[byte >> 4]);
-    result.push_back(hex[byte & 0x0f]);
-  }
-  return result;
 }
 
 // Little endian, explicitly: each read checks its own bounds before it touches
@@ -330,11 +291,125 @@ std::string hexOf(const std::string& bytes) {
   return out;
 }
 
+// One SHA-256 provider, reused for every entry of a container. Opening the
+// provider is the expensive half of the setup, so a container that holds many
+// small files is verified by opening it once rather than once per file. A
+// digest is always over the *raw* content of an entry, as the writer recorded
+// it, so an entry is hashed where it already sits inside the container.
+class Sha256 {
+ public:
+  Sha256() {
+    if (!BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&algorithm_, BCRYPT_SHA256_ALGORITHM, nullptr, 0))) return;
+    DWORD ignored = 0;
+    if (!BCRYPT_SUCCESS(BCryptGetProperty(algorithm_, BCRYPT_OBJECT_LENGTH,
+                                          reinterpret_cast<PUCHAR>(&objectLength_), sizeof(objectLength_),
+                                          &ignored, 0)) ||
+        !BCRYPT_SUCCESS(BCryptGetProperty(algorithm_, BCRYPT_HASH_LENGTH,
+                                          reinterpret_cast<PUCHAR>(&hashLength_), sizeof(hashLength_),
+                                          &ignored, 0))) {
+      BCryptCloseAlgorithmProvider(algorithm_, 0);
+      algorithm_ = nullptr;
+    }
+  }
+  ~Sha256() { if (algorithm_) BCryptCloseAlgorithmProvider(algorithm_, 0); }
+  Sha256(const Sha256&) = delete;
+  Sha256& operator=(const Sha256&) = delete;
+
+  bool ok() const { return algorithm_ != nullptr; }
+
+  // Hex digest of `size` bytes at `data`, or an empty string when the
+  // provider could not be opened.
+  std::string hash(const char* data, size_t size) {
+    if (!algorithm_) return std::string();
+    BCRYPT_HASH_HANDLE handle = nullptr;
+    std::vector<UCHAR> object(objectLength_);
+    std::vector<UCHAR> digest(hashLength_);
+    std::string result;
+    if (BCRYPT_SUCCESS(BCryptCreateHash(algorithm_, &handle, object.data(), objectLength_, nullptr, 0, 0))) {
+      if (BCRYPT_SUCCESS(BCryptHashData(handle, reinterpret_cast<PUCHAR>(const_cast<char*>(data)),
+                                        static_cast<ULONG>(size), 0)) &&
+          BCRYPT_SUCCESS(BCryptFinishHash(handle, digest.data(), hashLength_, 0))) {
+        result = hexOf(std::string(reinterpret_cast<const char*>(digest.data()), digest.size()));
+      }
+      BCryptDestroyHash(handle);
+    }
+    return result;
+  }
+  std::string hash(const std::string& bytes) { return hash(bytes.data(), bytes.size()); }
+
+  // The digest of one entry inside a buffer, without copying it out first.
+  std::string range(const std::string& bytes, uint64_t offset, uint64_t size) {
+    if (offset > bytes.size() || size > bytes.size() - offset) return std::string();
+    return hash(bytes.data() + static_cast<size_t>(offset), static_cast<size_t>(size));
+  }
+
+ private:
+  BCRYPT_ALG_HANDLE algorithm_ = nullptr;
+  DWORD objectLength_ = 0;
+  DWORD hashLength_ = 0;
+};
+
+// SHA-256 over a whole buffer, for the callers that need one digest and no more.
+std::string sha256Bytes(const std::string& bytes) {
+  Sha256 hasher;
+  return hasher.hash(bytes);
+}
+
+// The header of a container, without its payload. The 20 byte prefix fixes the
+// header length, and the header alone carries the name, version, entry table
+// and executable. Enumerating a plugin reads only this much: a list of the
+// plugin's files never needs megabytes of executable it is not going to run.
+bool readItbtHead(const std::wstring& path, std::string* header, uint64_t* fileSize, std::string* error) {
+  HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                            FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+  if (file == INVALID_HANDLE_VALUE) { *error = "cannot open " + toUtf8(path); return false; }
+
+  LARGE_INTEGER size;
+  if (!GetFileSizeEx(file, &size) || size.QuadPart < 20) {
+    CloseHandle(file);
+    *error = "container is shorter than its header";
+    return false;
+  }
+
+  char prefix[20];
+  DWORD got = 0;
+  if (!ReadFile(file, prefix, sizeof(prefix), &got, nullptr) || got != sizeof(prefix)) {
+    CloseHandle(file);
+    *error = "container is shorter than its header";
+    return false;
+  }
+  uint32_t headerSize = 0;
+  if (!readU32(std::string(prefix, sizeof(prefix)), 8, &headerSize) || headerSize < 20 ||
+      static_cast<uint64_t>(headerSize) > static_cast<uint64_t>(size.QuadPart)) {
+    CloseHandle(file);
+    *error = "headerSize is out of range";
+    return false;
+  }
+
+  header->assign(prefix, sizeof(prefix));
+  header->resize(headerSize);
+  size_t remaining = headerSize - sizeof(prefix);
+  char* at = &(*header)[sizeof(prefix)];
+  while (remaining) {
+    DWORD read = 0;
+    if (!ReadFile(file, at, static_cast<DWORD>(remaining), &read, nullptr) || !read) {
+      CloseHandle(file);
+      *error = "container header is truncated";
+      return false;
+    }
+    at += read;
+    remaining -= read;
+  }
+  CloseHandle(file);
+  *fileSize = static_cast<uint64_t>(size.QuadPart);
+  return true;
+}
+
 // Rule 1, applied to a path coming *out* of a container: relative, slash
 // separated, no component that climbs. The writer checks the same thing.
 bool safeEntryPath(const std::string& path, std::string* why) {
   if (path.empty()) { *why = "empty path"; return false; }
-  if (path[0] == '/' || path[0] == '\') { *why = "absolute path: " + path; return false; }
+  if (path[0] == '/' || path[0] == '\\') { *why = "absolute path: " + path; return false; }
   if (path.find(':') != std::string::npos) { *why = "drive-qualified path: " + path; return false; }
   size_t start = 0;
   for (;;) {
@@ -355,7 +430,7 @@ bool safeEntryPath(const std::string& path, std::string* why) {
 // The plugin name also becomes a directory name, so it must be one component.
 bool safePluginName(const std::string& name, std::string* why) {
   if (name.empty()) { *why = "empty plugin name"; return false; }
-  if (name.find_first_of("\/:") != std::string::npos) {
+  if (name.find_first_of("\\/:") != std::string::npos) {
     *why = "plugin name has a path separator: " + name;
     return false;
   }
@@ -371,7 +446,12 @@ const ItbtEntry* findItbtEntry(const ItbtArchive& archive, const std::string& pa
 // The whole format, read strictly. headerSize is read first and used as the
 // boundary for the name and the entry table; anything that runs past it, or a
 // table that does not end exactly where headerSize says, is an error.
-bool parseItbt(const std::string& bytes, ItbtArchive* archive, std::string* error) {
+//
+// \`bytes\` is the whole file for parseItbt and only the header for
+// parseItbtHead; \`fileSize\` is always the real size on disk, so an entry that
+// points past the end is refused either way. The header checks are identical
+// because the header bytes are identical in both cases.
+bool parseItbtBuffer(const std::string& bytes, uint64_t fileSize, ItbtArchive* archive, std::string* error) {
   const auto bad = [&](const std::string& message) {
     *error = message;
     return false;
@@ -391,14 +471,14 @@ bool parseItbt(const std::string& bytes, ItbtArchive* archive, std::string* erro
   if (flags & ~static_cast<uint16_t>(kItbtFlagDeflate)) {
     return bad("unknown container flags " + std::to_string(flags));
   }
-  if (totalSize != bytes.size()) {
+  if (totalSize != fileSize) {
     return bad("totalSize " + std::to_string(totalSize) + " does not match the file size " +
-               std::to_string(bytes.size()));
+               std::to_string(fileSize));
   }
   if (headerSize < 20 || headerSize > bytes.size()) return bad("headerSize is out of range");
   if (entryCount > headerSize) return bad("entryCount " + std::to_string(entryCount) + " is impossible");
 
-  const auto string = [&](uint64_t* at, std::string* out) {
+  const auto readString = [&](uint64_t* at, std::string* out) {
     uint16_t length = 0;
     if (!readU16(bytes, *at, &length)) return false;
     *at += 2;
@@ -414,7 +494,8 @@ bool parseItbt(const std::string& bytes, ItbtArchive* archive, std::string* erro
   archive->entries.clear();
 
   uint64_t at = 20;
-  if (!string(&at, &archive->name) || !string(&at, &archive->version) || !string(&at, &archive->exe)) {
+  if (!readString(&at, &archive->name) || !readString(&at, &archive->version) ||
+      !readString(&at, &archive->exe)) {
     return bad("container name/version/exe run past the header");
   }
   if (archive->name.empty()) return bad("container has no plugin name");
@@ -451,7 +532,9 @@ bool parseItbt(const std::string& bytes, ItbtArchive* archive, std::string* erro
       return bad("entry '" + entry.path + "' has unknown compression " +
                  std::to_string(entry.compression));
     }
-    if (entry.offset < headerSize || entry.offset + entry.storedSize > bytes.size()) {
+    // offset + storedSize is checked without adding them: a hostile container
+    // could otherwise wrap the sum and pass the bounds test.
+    if (entry.offset > fileSize || entry.storedSize > fileSize - entry.offset) {
       return bad("entry '" + entry.path + "' lies outside the file");
     }
     if (entry.storedSize != entry.rawSize) {
@@ -465,12 +548,14 @@ bool parseItbt(const std::string& bytes, ItbtArchive* archive, std::string* erro
     return bad("the entry table ends at " + std::to_string(at) + " but headerSize says " +
                std::to_string(headerSize));
   }
-  for (size_t i = 0; i < archive->entries.size(); i++) {
-    for (size_t j = i + 1; j < archive->entries.size(); j++) {
-      if (archive->entries[i].path == archive->entries[j].path) {
-        return bad("entry '" + archive->entries[i].path + "' appears twice");
-      }
-    }
+  // Sorting the paths finds a repeat in n log n comparisons instead of the
+  // n squared scan a container with thousands of small entries would pay for.
+  std::vector<std::string> paths;
+  paths.reserve(archive->entries.size());
+  for (const ItbtEntry& entry : archive->entries) paths.push_back(entry.path);
+  std::sort(paths.begin(), paths.end());
+  for (size_t i = 1; i < paths.size(); i++) {
+    if (paths[i] == paths[i - 1]) return bad("entry '" + paths[i] + "' appears twice");
   }
   if (archive->exe.empty()) return bad("container names no executable");
   if (!findItbtEntry(*archive, archive->exe)) {
@@ -479,6 +564,16 @@ bool parseItbt(const std::string& bytes, ItbtArchive* archive, std::string* erro
   std::string nameWhy;
   if (!safePluginName(archive->name, &nameWhy)) return bad(nameWhy);
   return true;
+}
+
+// The whole container, and the head alone. Both go through the same reader so
+// the header cannot mean one thing to a verify and another to a list.
+bool parseItbt(const std::string& bytes, ItbtArchive* archive, std::string* error) {
+  return parseItbtBuffer(bytes, bytes.size(), archive, error);
+}
+
+bool parseItbtHead(const std::string& header, uint64_t fileSize, ItbtArchive* archive, std::string* error) {
+  return parseItbtBuffer(header, fileSize, archive, error);
 }
 
 struct ItbtCheck {
@@ -490,18 +585,23 @@ struct ItbtCheck {
 };
 
 // Every entry's raw content, hashed and compared with what the writer recorded.
-// The whole list is returned so the caller can name the first entry that failed
-// rather than only saying the container is bad.
-bool verifyItbt(const std::string& bytes, const ItbtArchive& archive, std::vector<ItbtCheck>* checks) {
+// The whole list is returned so the caller can name the entry that failed
+// rather than only saying the container is bad. A caller that already opened a
+// provider - a scan that also wants the container's own digest - passes it in
+// so the entries do not each pay for one.
+bool verifyItbt(const std::string& bytes, const ItbtArchive& archive, std::vector<ItbtCheck>* checks,
+                Sha256* provider = nullptr) {
   checks->clear();
+  Sha256 local;
+  Sha256& hasher = provider ? *provider : local;
   bool all = true;
   for (const ItbtEntry& entry : archive.entries) {
     ItbtCheck check;
     check.path = entry.path;
     check.rawSize = entry.rawSize;
     check.expected = entry.sha256;
-    check.actual = sha256Bytes(bytes.substr(static_cast<size_t>(entry.offset),
-                                            static_cast<size_t>(entry.storedSize)));
+    // Hashed where it lies, without copying the entry out of the container.
+    check.actual = hasher.range(bytes, entry.offset, entry.storedSize);
     check.ok = check.actual == check.expected;
     if (!check.ok) all = false;
     checks->push_back(check);
@@ -514,7 +614,7 @@ bool verifyItbt(const std::string& bytes, const ItbtArchive& archive, std::vecto
 bool createDirectories(const std::wstring& path) {
   if (path.empty()) return false;
   if (GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES) return true;
-  const size_t slash = path.find_last_of(L"\/");
+  const size_t slash = path.find_last_of(L"\\/");
   if (slash != std::wstring::npos && slash > 0 && path.size() > 3) {
     if (!createDirectories(path.substr(0, slash))) return false;
   }
@@ -528,12 +628,12 @@ bool removeTree(const std::wstring& path) {
   if (!(attributes & FILE_ATTRIBUTE_DIRECTORY)) return DeleteFileW(path.c_str()) != 0;
 
   WIN32_FIND_DATAW entry;
-  HANDLE search = FindFirstFileW((path + L"\*").c_str(), &entry);
+  HANDLE search = FindFirstFileW((path + L"\\*").c_str(), &entry);
   if (search != INVALID_HANDLE_VALUE) {
     do {
       const std::wstring name(entry.cFileName);
       if (name == L"." || name == L"..") continue;
-      removeTree(path + L"\" + name);
+      removeTree(path + L"\\" + name);
     } while (FindNextFileW(search, &entry));
     FindClose(search);
   }
@@ -565,7 +665,7 @@ bool writeBytesFile(const std::wstring& path, const std::string& bytes, std::str
 // Re-installing an unchanged plugin is then a no-op instead of a rewrite.
 bool extractedMatches(const std::wstring& directory, const ItbtArchive& archive) {
   for (const ItbtEntry& entry : archive.entries) {
-    const std::wstring file = directory + L"\" + toWide(replaceAll(entry.path, "/", "\"));
+    const std::wstring file = directory + L"\\" + toWide(replaceAll(entry.path, "/", "\\"));
     std::string bytes, error;
     if (!readWholeFile(file, &bytes, &error)) return false;
     if (bytes.size() != entry.rawSize) return false;
@@ -574,7 +674,7 @@ bool extractedMatches(const std::wstring& directory, const ItbtArchive& archive)
   return true;
 }
 
-// Unpack into <root><name>.tmp, verify every entry, then rename the directory
+// Unpack into <root>\<name>.tmp, verify every entry, then rename the directory
 // into place. Nothing half-written is ever visible under the plugin's own name:
 // a crash leaves a .tmp that the next run removes.
 bool extractItbt(const std::string& bytes, const ItbtArchive& archive, const std::wstring& root,
@@ -583,22 +683,20 @@ bool extractItbt(const std::string& bytes, const ItbtArchive& archive, const std
   if (!verifyItbt(bytes, archive, &checks)) {
     for (const ItbtCheck& check : checks) {
       if (check.ok) continue;
-      *error = "entry '" + check.path + "' failed SHA-256
-  expected " + check.expected +
-               "
-  actual   " + check.actual;
+      *error = "entry '" + check.path + "' failed SHA-256\n  expected " + check.expected +
+               "\n  actual   " + check.actual;
       return false;
     }
   }
 
-  const std::wstring target = root + L"\" + toWide(archive.name);
+  const std::wstring target = root + L"\\" + toWide(archive.name);
   const std::wstring temporary = target + L".tmp";
   removeTree(temporary);
   if (!createDirectories(temporary)) { *error = "cannot create " + toUtf8(temporary); return false; }
 
   for (const ItbtEntry& entry : archive.entries) {
-    const std::wstring file = temporary + L"\" + toWide(replaceAll(entry.path, "/", "\"));
-    const size_t slash = file.find_last_of(L"\/");
+    const std::wstring file = temporary + L"\\" + toWide(replaceAll(entry.path, "/", "\\"));
+    const size_t slash = file.find_last_of(L"\\/");
     if (slash != std::wstring::npos && !createDirectories(file.substr(0, slash))) {
       removeTree(temporary);
       *error = "cannot create the directory for " + entry.path;
@@ -651,12 +749,12 @@ bool extractItbt(const std::string& bytes, const ItbtArchive& archive, const std
 
 void collectFiles(const std::wstring& directory, std::vector<std::wstring>* files) {
   WIN32_FIND_DATAW entry;
-  HANDLE search = FindFirstFileW((directory + L"\*").c_str(), &entry);
+  HANDLE search = FindFirstFileW((directory + L"\\*").c_str(), &entry);
   if (search == INVALID_HANDLE_VALUE) return;
   do {
     const std::wstring name(entry.cFileName);
     if (name == L"." || name == L"..") continue;
-    const std::wstring path = directory + L"\" + name;
+    const std::wstring path = directory + L"\\" + name;
     if (entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) collectFiles(path, files);
     else files->push_back(path);
   } while (FindNextFileW(search, &entry));
@@ -680,9 +778,16 @@ struct Plugin {
   std::string note;            // why a container was refused, when it was
 };
 
+// How much of each container a scan has to read. A name, a version and an
+// "is it unpacked" answer come from the header alone; a digest needs the whole
+// file; only a verdict on the contents needs every entry hashed, and only
+// plugin list, info and verify ask for one. Enumerating for the window or for
+// int list must not pay for a hash nobody is going to read.
+enum class Scan { Names, Digests, Verified };
+
 // The list of plugins is read off the disk, not remembered: the installer
 // writes a folder, and a folder cannot disagree with itself.
-std::vector<Plugin> scanPlugins() {
+std::vector<Plugin> scanPlugins(Scan detail) {
   std::vector<Plugin> found;
   const std::wstring root = pluginRoot();
   if (root.empty()) return found;
@@ -737,21 +842,35 @@ std::vector<Plugin> scanPlugins() {
       plugin.fromContainer = true;
       plugin.containerFile = toUtf8(file);
 
-      std::string bytes, error;
-      if (!readWholeFile(file, &bytes, &error)) {
-        plugin.name = toUtf8(packed.cFileName);
-        plugin.note = error;
-        found.push_back(plugin);
-        continue;
-      }
-      plugin.containerSha = sha256Bytes(bytes);
-
+      // Fast path: a well formed container is described from its header, with
+      // no byte of payload read. Anything the header parse refuses falls back
+      // to the whole-file read, so a broken container is still reported with
+      // the message - and the digest - it has always produced.
       ItbtArchive archive;
-      if (!parseItbt(bytes, &archive, &error)) {
-        plugin.name = toUtf8(packed.cFileName);
-        plugin.note = error;
-        found.push_back(plugin);
-        continue;
+      std::string error;
+      bool archiveOk = false;
+      {
+        std::string header;
+        uint64_t fileSize = 0;
+        if (readItbtHead(file, &header, &fileSize, &error)) {
+          archiveOk = parseItbtHead(header, fileSize, &archive, &error);
+        }
+      }
+      if (!archiveOk) {
+        std::string bytes;
+        if (!readWholeFile(file, &bytes, &error)) {
+          plugin.name = toUtf8(packed.cFileName);
+          plugin.note = error;
+          found.push_back(plugin);
+          continue;
+        }
+        plugin.containerSha = sha256Bytes(bytes);
+        if (!parseItbt(bytes, &archive, &error)) {
+          plugin.name = toUtf8(packed.cFileName);
+          plugin.note = error;
+          found.push_back(plugin);
+          continue;
+        }
       }
 
       plugin.name = archive.name;
@@ -759,24 +878,58 @@ std::vector<Plugin> scanPlugins() {
       plugin.filename = archive.exe;
       plugin.containerEntries = archive.entries.size();
       plugin.directory = toUtf8(root + L"\\" + toWide(archive.name));
-
-      std::vector<ItbtCheck> checks;
-      plugin.containerValid = verifyItbt(bytes, archive, &checks);
-      if (!plugin.containerValid) {
-        for (const ItbtCheck& check : checks) {
-          if (check.ok) continue;
-          plugin.note = "entry '" + check.path + "' failed SHA-256";
-          break;
-        }
-      }
       plugin.present = !plugin.filename.empty() &&
           GetFileAttributesW((root + L"\\" + toWide(archive.name) + L"\\" +
                               toWide(replaceAll(plugin.filename, "/", "\\"))).c_str()) !=
               INVALID_FILE_ATTRIBUTES;
+
+      // The digest and the per-entry verdict are separate questions, and only
+      // a caller that displays one reads the payload at all.
+      if (detail != Scan::Names) {
+        std::string bytes;
+        if (!readWholeFile(file, &bytes, &error)) {
+          plugin.note = error;
+          found.push_back(plugin);
+          continue;
+        }
+        Sha256 hasher;
+        plugin.containerSha = hasher.hash(bytes);
+        if (detail == Scan::Verified) {
+          std::vector<ItbtCheck> checks;
+          plugin.containerValid = verifyItbt(bytes, archive, &checks, &hasher);
+          if (!plugin.containerValid) {
+            for (const ItbtCheck& check : checks) {
+              if (check.ok) continue;
+              plugin.note = "entry '" + check.path + "' failed SHA-256";
+              break;
+            }
+          }
+        }
+      }
       found.push_back(plugin);
     } while (FindNextFileW(containers, &packed));
     FindClose(containers);
   }
+
+  // A container and the directory it unpacked are one plugin, not two. The
+  // directory is scanned first, so the container row - which also knows the
+  // source file and its digest - replaces it. Merging on the directory path
+  // (not just the name) keeps a directory whose item.json renames it visible.
+  std::vector<Plugin> merged;
+  for (const Plugin& plugin : found) {
+    bool swallowed = false;
+    if (plugin.fromContainer) {
+      for (Plugin& kept : merged) {
+        if (kept.fromContainer || !iequals(kept.name, plugin.name)) continue;
+        if (!iequals(kept.directory, plugin.directory)) continue;
+        kept = plugin;
+        swallowed = true;
+        break;
+      }
+    }
+    if (!swallowed) merged.push_back(plugin);
+  }
+  found.swap(merged);
 
   std::sort(found.begin(), found.end(), [](const Plugin& a, const Plugin& b) {
     return lower(a.name) < lower(b.name);
@@ -1192,7 +1345,7 @@ void listTools() {
     const Tool& tool = kTools[i];
     out(padRight(tool.name, 14) + padRight(kindName(tool.kind), 9) + padRight("yes", 7) + tool.summary);
   }
-  for (const Plugin& plugin : scanPlugins()) {
+  for (const Plugin& plugin : scanPlugins(Scan::Names)) {
     out(padRight(plugin.name, 14) + padRight("plugin", 9) + padRight(plugin.present ? "yes" : "no", 7) +
         (plugin.present ? "plugin: " + plugin.filename : std::string("plugin: file missing")));
   }
@@ -1207,7 +1360,7 @@ int infoTool(const std::string& name) {
     out("summary  " + std::string(tool->summary));
     return 0;
   }
-  for (const Plugin& plugin : scanPlugins()) {
+  for (const Plugin& plugin : scanPlugins(Scan::Verified)) {
     if (!iequals(plugin.name, name)) continue;
     out("name     " + plugin.name);
     out("kind     plugin");
@@ -1228,7 +1381,9 @@ int infoTool(const std::string& name) {
 }
 
 void listPlugins() {
-  const std::vector<Plugin> plugins = scanPlugins();
+  // The one list that prints the container's digest and verdict, so it is the
+  // one list that reads and hashes the payload.
+  const std::vector<Plugin> plugins = scanPlugins(Scan::Verified);
   if (plugins.empty()) {
     out(color(C_DIM, "no plugins installed"));
     const std::wstring root = pluginRoot();
@@ -1248,7 +1403,7 @@ void listPlugins() {
         status = color(C_RED, "invalid");
         source += "  " + plugin.note;
       } else if (!plugin.present) {
-        source += "  (not unpacked)";
+        status = color(C_YELLOW, "packed");
       }
     }
     out(padRight(plugin.name, 18) +
@@ -1296,7 +1451,7 @@ int verifyPlugin(const std::string& target) {
       GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES;
   if (asFile) return verifyContainerFile(path, target);
 
-  for (const Plugin& plugin : scanPlugins()) {
+  for (const Plugin& plugin : scanPlugins(Scan::Names)) {
     if (!iequals(plugin.name, target)) continue;
     if (plugin.fromContainer) {
       return verifyContainerFile(toWide(plugin.containerFile), plugin.containerFile);
@@ -1388,7 +1543,7 @@ int runTool(const std::vector<std::string>& args) {
     return code;
   }
 
-  for (const Plugin& plugin : scanPlugins()) {
+  for (const Plugin& plugin : scanPlugins(Scan::Names)) {
     if (!iequals(plugin.name, name)) continue;
 
     // First use of a container unpacks it, atomically, exactly as install
@@ -1490,7 +1645,7 @@ int cliMain(const std::vector<std::string>& args) {
 
 std::string stateJson() {
   size_t plugins = 0, ready = kToolCount;
-  for (const Plugin& plugin : scanPlugins()) {
+  for (const Plugin& plugin : scanPlugins(Scan::Names)) {
     plugins++;
     if (plugin.present) ready++;
   }
@@ -1518,7 +1673,9 @@ std::string toolsJson() {
     tool.set("ready", true);
     tools.push(tool);
   }
-  for (const Plugin& plugin : scanPlugins()) {
+  // The window shows the source digest but never a verdict on the contents, so
+  // the payload is read once for its digest and never entry by entry.
+  for (const Plugin& plugin : scanPlugins(Scan::Digests)) {
     Json tool = Json::object();
     tool.set("name", plugin.name);
     tool.set("summary", plugin.present ? "plugin: " + plugin.filename : std::string("plugin: file missing"));
@@ -1794,6 +1951,13 @@ int serveUi(int port) {
 // ---------------------------------------------------------------- entry
 
 int main(int argc, char** argv) {
+  // The file unblocks itself before anything else runs: the browser marks a
+  // download with a Zone.Identifier stream, and Windows then questions the
+  // program it just let the user download. Only that stream is removed; the
+  // file's contents are never touched.
+  inc::unblockSelf();
+  inc::unblockSelfDirectory(2);
+
   // The console has to be asked for UTF-8 before anything is printed, or the
   // Chinese in the interface arrives as mojibake on a code page 936 machine.
   SetConsoleOutputCP(CP_UTF8);

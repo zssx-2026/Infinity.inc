@@ -27,6 +27,7 @@
 #include "inc/ansi.hpp"
 #include "inc/str.hpp"
 #include "inc/uiserver.hpp"
+#include "unblock.hpp"
 
 #include "ui.hpp"
 
@@ -59,6 +60,90 @@ const char* kRepo = "applications";
 void out(const std::string& text) {
   fwrite(text.data(), 1, text.size(), stdout);
   fputc('\n', stdout);
+}
+
+// ---------------------------------------------------------------- profile
+
+// `--profile` makes the catalogue load say where its wall time went, on
+// stderr. The expensive part of this program is a set of network round trips
+// that no local measurement can see, so the split comes before the change
+// rather than after it.
+bool gProfile = false;
+
+double nowMs() {
+  static const double frequency = [] {
+    LARGE_INTEGER value;
+    QueryPerformanceFrequency(&value);
+    return static_cast<double>(value.QuadPart);
+  }();
+  LARGE_INTEGER counter;
+  QueryPerformanceCounter(&counter);
+  return static_cast<double>(counter.QuadPart) * 1000.0 / frequency;
+}
+
+void profileMark(const std::string& label, double ms) {
+  if (!gProfile) return;
+  fprintf(stderr, "ipm-profile  %-34s %9.1f ms\n", label.c_str(), ms);
+}
+
+void profileCount(const std::string& label, long long value) {
+  if (!gProfile) return;
+  fprintf(stderr, "ipm-profile  %-34s %9lld\n", label.c_str(), value);
+}
+
+// Runs body(i) for every i in [0, count) and returns when they all have.
+// CreateThread rather than std::thread: the suite links -static and this keeps
+// the thread model out of the link flags, and the work here is HTTP and string
+// building, not anything that needs a C++ runtime thread.
+void parallelFor(size_t count, unsigned workers, const std::function<void(size_t)>& body) {
+  if (count == 0) return;
+  if (count == 1 || workers <= 1) {
+    for (size_t i = 0; i < count; ++i) body(i);
+    return;
+  }
+  if (static_cast<size_t>(workers) > count) workers = static_cast<unsigned>(count);
+
+  struct Shared {
+    size_t count;
+    const std::function<void(size_t)>* body;
+    volatile LONG next;
+  } shared = { count, &body, 0 };
+
+  std::vector<HANDLE> threads;
+  threads.reserve(workers);
+  for (unsigned w = 0; w < workers; ++w) {
+    HANDLE thread = CreateThread(nullptr, 0, [](LPVOID parameter) -> DWORD {
+      Shared* s = static_cast<Shared*>(parameter);
+      for (;;) {
+        const LONG index = InterlockedIncrement(&s->next) - 1;
+        if (static_cast<size_t>(index) >= s->count) break;
+        (*s->body)(static_cast<size_t>(index));
+      }
+      return 0;
+    }, &shared, 0, nullptr);
+    if (thread) threads.push_back(thread);
+  }
+  if (threads.empty()) {
+    for (size_t i = 0; i < count; ++i) body(i);
+    return;
+  }
+  WaitForMultipleObjects(static_cast<DWORD>(threads.size()), threads.data(), TRUE, INFINITE);
+  for (HANDLE thread : threads) CloseHandle(thread);
+}
+
+// How many manifests are in flight at once. The GitHub API is the limit here,
+// not the machine, and eight keeps the burst inside an ordinary page load.
+const unsigned kCatalogWorkers = 8;
+
+// The same number, overridable so a measurement can reproduce the old
+// sequential order on the same binary: IPM_CATALOG_WORKERS=1.
+unsigned catalogWorkers() {
+  const std::string asked = getEnv("IPM_CATALOG_WORKERS");
+  if (!asked.empty()) {
+    const int value = atoi(asked.c_str());
+    if (value > 0 && value <= 32) return static_cast<unsigned>(value);
+  }
+  return kCatalogWorkers;
 }
 
 // ---------------------------------------------------------------- model
@@ -101,6 +186,7 @@ void help() {
   out("  ipm install <name> <platform>   download, verify, run");
   out("  ipm --version             print the version");
   out("  ipm --paths               where this program keeps things");
+  out("  ipm --profile <command>   where the catalogue load spent its time");
 }
 
 std::string canonicalPlatform(std::string value) {
@@ -192,7 +278,7 @@ std::string fetchNameTxt(GitHub& github, const Asset& asset) {
   return response.ok() ? response.body : std::string();
 }
 
-std::vector<Build> buildsForRelease(GitHub& github, const Release& release) {
+std::vector<Asset> releaseAssets(const Release& release) {
   std::vector<Asset> assets;
   if (release.assets.isArray()) {
     for (const Json& value : release.assets.items()) {
@@ -206,14 +292,27 @@ std::vector<Build> buildsForRelease(GitHub& github, const Release& release) {
       if (!asset.name.empty()) assets.push_back(asset);
     }
   }
+  return assets;
+}
+
+// One release and the manifest text once it has been fetched. Splitting the
+// fetch out of the parse is what lets the fetches run together: parsing is
+// pure, and nothing in it needs another release to have finished.
+struct ReleaseUnit {
+  const Release* release = nullptr;
+  std::vector<Asset> assets;
+  size_t manifest = 0;
+  bool hasManifest = false;
+  std::string manifestText;
+};
+
+std::vector<Build> buildsFromUnit(const ReleaseUnit& unit) {
+  const std::vector<Asset>& assets = unit.assets;
+  const Release& release = *unit.release;
 
   std::vector<Build> builds;
-  auto manifest = std::find_if(assets.begin(), assets.end(), [](const Asset& asset) {
-    return iequals(asset.name, "name.txt");
-  });
-  if (manifest != assets.end()) {
-    const std::string text = fetchNameTxt(github, *manifest);
-    for (const std::string& rawLine : split(text, '\n')) {
+  if (unit.hasManifest) {
+    for (const std::string& rawLine : split(unit.manifestText, '\n')) {
       const std::string line = trim(rawLine);
       if (line.empty() || line[0] == '#') continue;
       const std::vector<std::string> columns = words(line);
@@ -249,14 +348,51 @@ std::vector<Build> buildsForRelease(GitHub& github, const Release& release) {
 }
 
 bool loadBuilds(const std::string& token, std::vector<Build>* builds, std::string* error) {
+  const double startedAt = nowMs();
   GitHub github(token);
   std::vector<Release> releases = github.listReleases(kOwner, kRepo, 100, error);
+  const double listedAt = nowMs();
   if (releases.empty()) return false;
+
+  std::vector<ReleaseUnit> units;
+  units.reserve(releases.size());
   for (const Release& release : releases) {
     if (release.draft) continue;
-    std::vector<Build> releaseBuilds = buildsForRelease(github, release);
+    ReleaseUnit unit;
+    unit.release = &release;
+    unit.assets = releaseAssets(release);
+    for (size_t i = 0; i < unit.assets.size(); ++i) {
+      if (iequals(unit.assets[i].name, "name.txt")) { unit.manifest = i; unit.hasManifest = true; break; }
+    }
+    units.push_back(std::move(unit));
+  }
+
+  // One manifest per release, each an independent request. Sequentially the
+  // catalogue cost the SUM of a round trip per release; together it costs the
+  // slowest one.
+  std::vector<size_t> pending;
+  for (size_t i = 0; i < units.size(); ++i) {
+    if (units[i].hasManifest && units[i].assets[units[i].manifest].id > 0) pending.push_back(i);
+  }
+  parallelFor(pending.size(), catalogWorkers(), [&](size_t index) {
+    ReleaseUnit& unit = units[pending[index]];
+    unit.manifestText = fetchNameTxt(github, unit.assets[unit.manifest]);
+  });
+  const double fetchedAt = nowMs();
+
+  for (const ReleaseUnit& unit : units) {
+    std::vector<Build> releaseBuilds = buildsFromUnit(unit);
     builds->insert(builds->end(), releaseBuilds.begin(), releaseBuilds.end());
   }
+  const double parsedAt = nowMs();
+
+  profileMark("listReleases (1 request)", listedAt - startedAt);
+  profileMark("name.txt (" + std::to_string(pending.size()) + " requests)", fetchedAt - listedAt);
+  profileMark("parse assets+manifest", parsedAt - fetchedAt);
+  profileMark("loadBuilds total", parsedAt - startedAt);
+  profileCount("http requests", static_cast<long long>(1 + pending.size()));
+  profileCount("releases / manifests", static_cast<long long>(units.size()));
+  profileCount("builds", static_cast<long long>(builds->size()));
   return true;
 }
 
@@ -519,8 +655,19 @@ struct Session {
   explicit Session(const std::string& token) : gh(token) {}
 
   bool signIn(std::string* error) {
-    if (!gh.me(error)) return false;
-    if (!gh.verifyIdentity(error)) return false;
+    // Two requests that do not depend on each other: one round trip each, and
+    // no reason for the second to wait for the first. The error order is the
+    // same as the sequential form's, so a failure reads as it always did.
+    std::string meError;
+    std::string identityError;
+    bool meOk = false;
+    bool identityOk = false;
+    parallelFor(2, 2, [&](size_t index) {
+      if (index == 0) meOk = gh.me(&meError);
+      else identityOk = gh.verifyIdentity(&identityError);
+    });
+    if (!meOk) { if (error) *error = meError; return false; }
+    if (!identityOk) { if (error) *error = identityError; return false; }
     ready = true;
     return true;
   }
@@ -789,14 +936,23 @@ int serveUi(int port) {
   }
   Session session(token);
   session.tokenSourceName = tokenSource();
+
+  // Signing in and reading the catalogue are independent and both are waits on
+  // the network, so they run together and the interface is ready when the
+  // slower one is instead of when both have been. A failure to sign in still
+  // stops the program exactly as it did, and a catalogue that fails to load is
+  // still reported by the page rather than by the exit code.
   std::string error;
-  if (!session.signIn(&error)) {
+  Catalog catalog;
+  bool signedIn = false;
+  parallelFor(2, 2, [&](size_t index) {
+    if (index == 0) signedIn = session.signIn(&error);
+    else catalog.refresh(token);
+  });
+  if (!signedIn) {
     out(color(C_RED, "not signed in") + " (" + error + ")");
     return 1;
   }
-
-  Catalog catalog;
-  catalog.refresh(token);
 
   UiServer server;
   server.route("GET", "/", [](const UiRequest&) { return UiResponse::html(uiHtml()); });
@@ -1177,8 +1333,10 @@ int guiMain() {
   std::string error;
   if (!session.signIn(&error)) { out("not signed in (" + error + ")"); return 1; }
 
+  // The catalogue is not fetched here any more. The window is what the user
+  // asked for, and it does not need the index to exist: it is created and
+  // painted first, and the load happens with it already on screen.
   Catalog catalog;
-  catalog.refresh(token);  // an empty catalogue is still a usable window
 
   INITCOMMONCONTROLSEX controls = { sizeof(controls), ICC_LISTVIEW_CLASSES };
   InitCommonControlsEx(&controls);
@@ -1200,8 +1358,14 @@ int guiMain() {
                               WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
                               1000, 700, nullptr, nullptr, wc.hInstance, &state);
   if (!hwnd) { out("cannot create the window"); return 1; }
+  setGuiStatus(&state, "loading the catalogue…");
   ShowWindow(hwnd, SW_SHOW);
-  UpdateWindow(hwnd);
+  UpdateWindow(hwnd);  // the first frame is drawn before the first request is sent
+
+  catalog.refresh(token);  // an empty catalogue is still a usable window
+  refreshGui(&state);
+  setGuiStatus(&state, catalog.error);
+
   MSG msg;
   while (GetMessageW(&msg, nullptr, 0, 0) > 0) { TranslateMessage(&msg); DispatchMessageW(&msg); }
   return 0;
@@ -1258,6 +1422,13 @@ int launcherMain(const Mode& m) {
 // ---------------------------------------------------------------- entry
 
 int main(int argc, char** argv) {
+  // The file unblocks itself before anything else runs: the browser marks a
+  // download with a Zone.Identifier stream, and Windows then questions the
+  // program it just let the user download. Only that stream is removed; the
+  // file's contents are never touched.
+  inc::unblockSelf();
+  inc::unblockSelfDirectory(2);
+
   // The console has to be asked for UTF-8 before anything is printed, or the
   // Chinese in the interface arrives as mojibake on a code page 936 machine.
   SetConsoleOutputCP(CP_UTF8);
@@ -1279,6 +1450,7 @@ int main(int argc, char** argv) {
     std::vector<std::string> rest;
     for (const std::string& a : args) {
       if (a == "--serve-ui") { serveUiRequested = true; continue; }
+      if (a == "--profile") { gProfile = true; continue; }
       if (startsWith(a, "--port=")) {
         const int asked = atoi(a.substr(7).c_str());
         if (asked > 0 && asked < 65536) uiPort = asked;

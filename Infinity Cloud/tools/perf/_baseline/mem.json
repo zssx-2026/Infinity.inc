@@ -1,0 +1,9 @@
+﻿{
+    "exe":  "D:\\dev\\DeepSeekHarnessWorkspace\\Infinity.inc\\cpp\\build\\inc.exe",
+    "label":  "",
+    "token":  "present(len=93)",
+    "childArgs":  "gui",
+    "mem_privateWorkingSetMB":  3.37,
+    "mem_privateBytes64MB":  4.66,
+    "mem_workingSet64MB":  18.15
+}

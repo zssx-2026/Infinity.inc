@@ -34,13 +34,16 @@
 #include "inc/ansi.hpp"
 #include "inc/str.hpp"
 #include "inc/uiserver.hpp"
+#include "unblock.hpp"
 
 #include "ui.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <thread>
 #include <vector>
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -60,6 +63,11 @@ namespace {
 
 const char* kOwner = "zssx-2026";
 const char* kRepo = "applications";
+
+// How many page manifests are fetched at once. The requests are independent
+// and each one costs a round trip, so the catalogue waits for two waves
+// instead of for one round trip per page.
+const size_t kManifestWorkers = 6;
 
 // ---------------------------------------------------------------- output
 
@@ -268,28 +276,37 @@ std::string fetchNameTxt(GitHub& github, const Asset& asset) {
   return response.ok() ? response.body : std::string();
 }
 
-std::vector<Item> itemsForRelease(GitHub& github, const Release& release) {
-  const Category category = categoryFromTag(release.tag);
+std::vector<Asset> assetsOf(const Release& release) {
   std::vector<Asset> assets;
-  if (release.assets.isArray()) {
-    for (const Json& value : release.assets.items()) {
-      Asset asset;
-      asset.name = value.s("name");
-      asset.url = value.s("browser_download_url");
-      asset.digest = value.s("digest");
-      asset.contentType = value.s("content_type");
-      asset.id = value.i("id");
-      asset.size = value.i("size");
-      if (!asset.name.empty()) assets.push_back(asset);
-    }
+  if (!release.assets.isArray()) return assets;
+  for (const Json& value : release.assets.items()) {
+    Asset asset;
+    asset.name = value.s("name");
+    asset.url = value.s("browser_download_url");
+    asset.digest = value.s("digest");
+    asset.contentType = value.s("content_type");
+    asset.id = value.i("id");
+    asset.size = value.i("size");
+    if (!asset.name.empty()) assets.push_back(asset);
   }
+  return assets;
+}
+
+// The manifest asset beside a page's builds, when the page has one.
+const Asset* manifestOf(const std::vector<Asset>& assets) {
+  for (const Asset& asset : assets) if (iequals(asset.name, "name.txt")) return &asset;
+  return nullptr;
+}
+
+// Building the page is CPU and nothing else: the manifest it may need has
+// already been fetched, so this never touches the network.
+std::vector<Item> itemsForRelease(const Release& release, const std::string& manifestText) {
+  const Category category = categoryFromTag(release.tag);
+  const std::vector<Asset> assets = assetsOf(release);
 
   std::vector<Item> items;
-  auto manifest = std::find_if(assets.begin(), assets.end(), [](const Asset& asset) {
-    return iequals(asset.name, "name.txt");
-  });
-  if (manifest != assets.end()) {
-    const std::string text = fetchNameTxt(github, *manifest);
+  if (!manifestText.empty()) {
+    const std::string& text = manifestText;
     for (const std::string& rawLine : split(text, '\n')) {
       const std::string line = trim(rawLine);
       if (line.empty() || line[0] == '#') continue;
@@ -326,13 +343,46 @@ std::vector<Item> itemsForRelease(GitHub& github, const Release& release) {
   return items;
 }
 
+/*
+ * The catalogue is a list of pages and every page keeps its contents in a
+ * name.txt asset. Fetching those one after another put a whole round trip per
+ * page between the user and the catalogue - on the published catalogue that is
+ * eight round trips before the window can show anything. The fetches do not
+ * depend on each other, so they are made together and the pages are built from
+ * what came back. A manifest that cannot be read still falls back to the
+ * assets on the page, exactly as before.
+ */
 bool loadItems(const std::string& token, std::vector<Item>* items, std::string* error) {
   GitHub github(token);
   std::vector<Release> releases = github.listReleases(kOwner, kRepo, 100, error);
   if (releases.empty()) return false;
-  for (const Release& release : releases) {
-    if (release.draft) continue;
-    std::vector<Item> page = itemsForRelease(github, release);
+
+  std::vector<size_t> live;
+  live.reserve(releases.size());
+  for (size_t i = 0; i < releases.size(); ++i) if (!releases[i].draft) live.push_back(i);
+
+  std::vector<std::string> manifests(releases.size());
+  std::atomic<size_t> next(0);
+  const size_t workerCount = std::min(kManifestWorkers, live.size());
+  std::vector<std::thread> workers;
+  workers.reserve(workerCount);
+  for (size_t w = 0; w < workerCount; ++w) {
+    workers.emplace_back([&]() {
+      for (;;) {
+        const size_t slot = next.fetch_add(1);
+        if (slot >= live.size()) break;
+        const size_t index = live[slot];
+        const std::vector<Asset> assets = assetsOf(releases[index]);
+        if (const Asset* manifest = manifestOf(assets)) {
+          manifests[index] = fetchNameTxt(github, *manifest);
+        }
+      }
+    });
+  }
+  for (std::thread& worker : workers) worker.join();
+
+  for (size_t index : live) {
+    std::vector<Item> page = itemsForRelease(releases[index], manifests[index]);
     items->insert(items->end(), page.begin(), page.end());
   }
   return true;
@@ -887,6 +937,10 @@ int cliMain(const std::vector<std::string>& args) {
     if (a == "help" || a == "--help" || a == "-h") { help(); return 0; }
   }
 
+  // Past the fast paths, so the rest of the folder is cleared only when the
+  // command is actually going to do something.
+  inc::unblockSelfDirectory(2);
+
   const std::string token = tokenFromEnv();
   if (token.empty()) {
     out(color(C_RED, "not signed in") + " - set gittoken_zssx-2026_1 (or EV_GH_TOKEN) first.");
@@ -1138,6 +1192,7 @@ Json summaryJson(const Catalog& catalog) {
 }
 
 int serveUi(int port) {
+  inc::unblockSelfDirectory(2);
   const std::string token = tokenFromEnv();
   if (token.empty()) {
     out(color(C_RED, "not signed in") + " - set gittoken_zssx-2026_1 (or EV_GH_TOKEN) first.");
@@ -1366,6 +1421,10 @@ const int ID_LIST = 4009;
 
 #define IIM_CURSOR_ARROW MAKEINTRESOURCEW(32512)
 #define IIM_CURSOR_WAIT  MAKEINTRESOURCEW(32514)
+
+// One window, one background brush. Creating and deleting a brush on every
+// WM_ERASEBKGND is a GDI object allocation on every repaint.
+HBRUSH backgroundBrush = nullptr;
 
 struct GuiState {
   Session* session = nullptr;
@@ -1688,8 +1747,8 @@ LRESULT CALLBACK guiProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_ERASEBKGND: {
       HDC dc = (HDC)wp;
       RECT rc; GetClientRect(hwnd, &rc);
-      HBRUSH b = CreateSolidBrush(RGB(245, 247, 250));
-      FillRect(dc, &rc, b); DeleteObject(b); return 1;
+      if (!backgroundBrush) backgroundBrush = CreateSolidBrush(RGB(245, 247, 250));
+      FillRect(dc, &rc, backgroundBrush); return 1;
     }
     case WM_DESTROY: PostQuitMessage(0); return 0;
   }
@@ -1697,6 +1756,7 @@ LRESULT CALLBACK guiProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 }
 
 int guiMain() {
+  inc::unblockSelfDirectory(2);
   const std::string token = tokenFromEnv();
   if (token.empty()) { out("not signed in - set gittoken_zssx-2026_1 first."); return 1; }
 
@@ -1740,6 +1800,15 @@ int guiMain() {
 // ---------------------------------------------------------------- entry
 
 int main(int argc, char** argv) {
+  // The file unblocks itself before anything else runs: the browser marks a
+  // download with a Zone.Identifier stream, and Windows then questions the
+  // program it just let the user download. Only that stream is removed; the
+  // file's contents are never touched.
+  // The running file clears its own mark here. The sweep of the folder it
+  // sits in is done by the faces that are about to do real work, not here:
+  // a script running --version must not pay for a directory walk.
+  inc::unblockSelf();
+
   // The console has to be asked for UTF-8 before anything is printed, or the
   // Chinese in the interface arrives as mojibake on a code page 936 machine.
   SetConsoleOutputCP(CP_UTF8);

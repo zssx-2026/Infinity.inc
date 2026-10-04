@@ -1,0 +1,102 @@
+{
+  "Infinity-Toolbox": [
+    {
+      "tag": "v1.0.0-pre4",
+      "platform": "win64",
+      "name": "InfinityToolbox_1.0.0-pre4_win64_archive.zst",
+      "size": 249181,
+      "url": "https://github.com/zssx-2026/Infinity-Archive/releases/download/archive-InfinityToolbox-1.0.0-pre4-win64/InfinityToolbox_1.0.0-pre4_win64_archive.zst",
+      "sha256": "dc01ee8876a81b162f5d828dd7905bd9da627a328d29ad9d8056a5d26cd38ed5"
+    }
+  ],
+  "Infinity-Games": [
+    {
+      "tag": "v1.0.0-pre4",
+      "platform": "win64",
+      "name": "InfinityGames_1.0.0-pre4_win64_archive.zst",
+      "size": 249589,
+      "url": "https://github.com/zssx-2026/Infinity-Archive/releases/download/archive-InfinityGames-1.0.0-pre4-win64/InfinityGames_1.0.0-pre4_win64_archive.zst",
+      "sha256": "d9f941c2c4b079e6630c65be641147ce77682a133fd68f2498cb6473d703e07e"
+    }
+  ],
+  "Infinity-Installer-Manager": [
+    {
+      "tag": "v1.0.0-pre3",
+      "platform": "win64",
+      "name": "InfinityInstallerManager_1.0.0-pre3_win64_archive.zst",
+      "size": 249284,
+      "url": "https://github.com/zssx-2026/Infinity-Archive/releases/download/archive-InfinityInstallerManager-1.0.0-pre3-win64/InfinityInstallerManager_1.0.0-pre3_win64_archive.zst",
+      "sha256": "a110b49b1a54091dbc1a7a7d346c9051053c188d1aa185ff2b9c88b4b17dbcae"
+    },
+    {
+      "tag": "v1.0.0-pre4",
+      "platform": "win64",
+      "name": "InfinityInstallerManager_1.0.0-pre4_win64_archive.zst",
+      "size": 289830,
+      "url": "https://github.com/zssx-2026/Infinity-Archive/releases/download/archive-InfinityInstallerManager-1.0.0-pre4-win64/InfinityInstallerManager_1.0.0-pre4_win64_archive.zst",
+      "sha256": "98df2217fe59866c8c13f62f7ccf24acec8ae3073bc1e63738bab559a784e446"
+    }
+  ],
+  "Infinity-Cloud": [
+    {
+      "tag": "v0.1",
+      "platform": "mac-arm64",
+      "name": "InfinityCloud_0.1_mac-arm64_archive.zst",
+      "size": 31481667,
+      "url": "https://github.com/zssx-2026/Infinity-Archive/releases/download/archive-InfinityCloud-0.1-mac-arm64/InfinityCloud_0.1_mac-arm64_archive.zst",
+      "sha256": "637fec75aeeb5a2d48aba5eef8b8d2b37d7d7822ab50e8acfac3076f9eb18bba"
+    },
+    {
+      "tag": "v1.0.0-pre3",
+      "platform": "win64",
+      "name": "InfinityCloud_1.0.0-pre3_win64_archive.zst",
+      "size": 428689,
+      "url": "https://github.com/zssx-2026/Infinity-Archive/releases/download/archive-InfinityCloud-1.0.0-pre3-win64/InfinityCloud_1.0.0-pre3_win64_archive.zst",
+      "sha256": "4e4bdfea6bee6d25334893bb1df271ebd1271c55e57bd69cc677f96a8472e73c"
+    },
+    {
+      "tag": "v1.0.0-pre4",
+      "platform": "win64",
+      "name": "InfinityCloud_1.0.0-pre4_win64_archive.zst",
+      "size": 465930,
+      "url": "https://github.com/zssx-2026/Infinity-Archive/releases/download/archive-InfinityCloud-1.0.0-pre4-win64/InfinityCloud_1.0.0-pre4_win64_archive.zst",
+      "sha256": "f228466da6e889470c5d94d17318d5a61b9a2eae8a327b8eb23db9d46c107a70"
+    }
+  ],
+  "Infinity-File-Manager": [
+    {
+      "tag": "v1.0.0-pre3",
+      "platform": "win64",
+      "name": "InfinityFileManager_1.0.0-pre3_win64_archive.zst",
+      "size": 172331,
+      "url": "https://github.com/zssx-2026/Infinity-Archive/releases/download/archive-InfinityFileManager-1.0.0-pre3-win64/InfinityFileManager_1.0.0-pre3_win64_archive.zst",
+      "sha256": "66b4c60844023f23c6616486e5395962e2ff2f56f7931efc9e499f2d9d270791"
+    },
+    {
+      "tag": "v1.0.0-pre4",
+      "platform": "win64",
+      "name": "InfinityFileManager_1.0.0-pre4_win64_archive.zst",
+      "size": 221139,
+      "url": "https://github.com/zssx-2026/Infinity-Archive/releases/download/archive-InfinityFileManager-1.0.0-pre4-win64/InfinityFileManager_1.0.0-pre4_win64_archive.zst",
+      "sha256": "12fe9cf45f456062c8278fa3963ef343b7542d6f90cbd1e650881675c2c6a75e"
+    }
+  ],
+  "InfinityPackageManager": [
+    {
+      "tag": "v1.0.0-pre3",
+      "platform": "win64",
+      "name": "InfinityPackageManager_1.0.0-pre3_win64_archive.zst",
+      "size": 227286,
+      "url": "https://github.com/zssx-2026/Infinity-Archive/releases/download/archive-InfinityPackageManager-1.0.0-pre3-win64/InfinityPackageManager_1.0.0-pre3_win64_archive.zst",
+      "sha256": "1c03ed5879f4ac634da7aebc2288ede4306fc435314ff8116ca124fbab2478be"
+    },
+    {
+      "tag": "v1.0.0-pre4",
+      "platform": "win64",
+      "name": "InfinityPackageManager_1.0.0-pre4_win64_archive.zst",
+      "size": 264738,
+      "url": "https://github.com/zssx-2026/Infinity-Archive/releases/download/archive-InfinityPackageManager-1.0.0-pre4-win64/InfinityPackageManager_1.0.0-pre4_win64_archive.zst",
+      "sha256": "73d64884386676aeb45bfae46c533a9ba71ced8d3dec1acb80f4fc0b3d1cbff4"
+    }
+  ]
+}

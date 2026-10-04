@@ -1,0 +1,102 @@
+﻿{
+    "exe":  "D:\\dev\\DeepSeekHarnessWorkspace\\Infinity.inc\\cpp\\build\\inc.exe",
+    "label":  "",
+    "token":  "present(len=93)",
+    "childArgs":  "gui",
+    "cli_version":  [
+                        {
+                            "run":  1,
+                            "ms":  76,
+                            "exit":  0,
+                            "chars":  30
+                        },
+                        {
+                            "run":  2,
+                            "ms":  21,
+                            "exit":  0,
+                            "chars":  30
+                        },
+                        {
+                            "run":  3,
+                            "ms":  22,
+                            "exit":  0,
+                            "chars":  30
+                        },
+                        {
+                            "run":  4,
+                            "ms":  20,
+                            "exit":  0,
+                            "chars":  30
+                        },
+                        {
+                            "run":  5,
+                            "ms":  19,
+                            "exit":  0,
+                            "chars":  30
+                        }
+                    ],
+    "cli_get":  [
+                    {
+                        "run":  1,
+                        "ms":  7465,
+                        "exit":  0,
+                        "chars":  39
+                    },
+                    {
+                        "run":  2,
+                        "ms":  6747,
+                        "exit":  0,
+                        "chars":  39
+                    },
+                    {
+                        "run":  3,
+                        "ms":  6256,
+                        "exit":  0,
+                        "chars":  39
+                    },
+                    {
+                        "run":  4,
+                        "ms":  6135,
+                        "exit":  0,
+                        "chars":  39
+                    },
+                    {
+                        "run":  5,
+                        "ms":  5797,
+                        "exit":  0,
+                        "chars":  39
+                    }
+                ],
+    "cli_listf":  [
+                      {
+                          "run":  1,
+                          "ms":  4898,
+                          "exit":  0,
+                          "chars":  30
+                      },
+                      {
+                          "run":  2,
+                          "ms":  5189,
+                          "exit":  0,
+                          "chars":  30
+                      },
+                      {
+                          "run":  3,
+                          "ms":  6434,
+                          "exit":  0,
+                          "chars":  30
+                      },
+                      {
+                          "run":  4,
+                          "ms":  4529,
+                          "exit":  0,
+                          "chars":  30
+                      },
+                      {
+                          "run":  5,
+                          "ms":  5488,
+                          "exit":  0,
+                          "chars":  30
+                      }
+                  ]
+}

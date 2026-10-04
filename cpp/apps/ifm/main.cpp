@@ -3,6 +3,7 @@
 #include "inc/mode.hpp"
 #include "inc/str.hpp"
 #include "inc/uiserver.hpp"
+#include "unblock.hpp"
 
 #include "ui.hpp"
 
@@ -590,6 +591,13 @@ int launcherMain(bool admin) {
 }  // namespace
 
 int main(int, char**) {
+  // The file unblocks itself before anything else runs: the browser marks a
+  // download with a Zone.Identifier stream, and Windows then questions the
+  // program it just let the user download. Only that stream is removed; the
+  // file's contents are never touched.
+  inc::unblockSelf();
+  inc::unblockSelfDirectory(2);
+
   SetConsoleOutputCP(CP_UTF8);
   SetConsoleCP(CP_UTF8);
 

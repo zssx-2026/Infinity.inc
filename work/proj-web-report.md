@@ -196,4 +196,161 @@ curl.exe -sS --ssl-no-revoke -o NUL -w "%{http_code}" "https://api.github.com/re
 说明：首轮 curl 时本机 github.com 出口出现瞬时 502（6 条中 3 条），30 秒后重试全部 200，且 `api.github.com` 的 `/releases/tags/v1.0.0-pre4` 对六个仓库均为 200 —— 502 是本机代理抖动，不是标签缺失。线上 `download/` 与 `cn/download/` 均确认调用 `I.cards(...)`。
 
 第七节第 1 条（`releases/latest` 会拿到旧稳定版）至此已按本方案关闭。
+## 九、task-16：访问门 + “响应时间过长”（2026-10-04）
+
+发布说明：本任务的站点文件**由 Lead 发布**，commit `58b9accabc4c`（50 blobs）；我未执行发布，仅做线上验证与截图。
+
+### 实现（纯前端，无外部 CDN）
+
+- 新增 `web/infinity/assets/verify.js`、`verify.css`、`verify-worker.js`；`web/infinity/index.html` 与 `web/infinity/cn/index.html` 的 `<head>` 中同步引入（`verify.css` 在 `site.css` 之后、`verify.js` 在其它脚本之前），因此首屏不会闪现正文。
+- 遮罩只有“加载中”：产品标识 + 转圈 + `正在加载…` / `Loading…` + 进度条，**没有任何复选、长按、算式等交互控件**。`html.infinity-gate body{visibility:hidden}` 保证 3 秒内正文不可见。
+- 后台静默挑战：`verify-worker.js` 在 Worker 里做 hashcash（自写 SHA-256，已与 `node:crypto` 逐例比对一致，含多字节 UTF-8），找 `SHA-256(prefix+nonce)` 前导十六进制 0。目标初始 5 个 0，每 800ms 降一级（最低 3 个 0），保证任何机器都能在窗口内成功 —— 这道门是“总是成功”的仪式，真正的等待来自时长下限。
+- 时长常量单点：`MIN_MS=3000`（正文不早于 3s）、`MAX_MS=5000`（页面 5s 内必然有结果）、`SHORT_MS=700`（已通过者只做短延迟，保持一致观感）。
+- 通过后写 `localStorage['infinity.verify']={v,ts,zeros}`，后续访问走 `mode=remembered`；`?verify=reset` 清除并重跑。
+- 失败分支（均不弹错误、不跳 /404，整页替换为仿 ERR_TIMED_OUT 页：标题 + 一句话 + 无错误码/无诊断）：① `Worker` 不可用或构造异常；② `worker.onerror`；③ 搜索到 `MAX_MS` 仍未完成（`reason=max-time`）。为可复现失败保留只增不减的 QA 钩子 `?verify=difficulty=N`（N≥5，`N=64` 永不可能命中）。运行状态见 `window.__INFINITY_GATE`。
+- 这两个入口页原先的 `guard.js` 已移除（改由这道更强的静默门接管，避免两层遮罩与旧门的 `/error/` 跳转）；其它页面仍保留 `guard.js`。
+
+### 线上验证（curl）
+
+```powershell
+curl.exe -sS --ssl-no-revoke "https://zssx-2026.github.io/infinity/index.html?v=<ts>"     # verify.js/verify.css 引用有；guard.js 无
+curl.exe -sS --ssl-no-revoke "https://zssx-2026.github.io/infinity/cn/index.html?v=<ts>"  # 同上
+curl.exe -sS --ssl-no-revoke -o NUL -w "%{http_code}" "https://zssx-2026.github.io/infinity/assets/verify.js"        # 200
+curl.exe -sS --ssl-no-revoke -o NUL -w "%{http_code}" "https://zssx-2026.github.io/infinity/assets/verify.css"       # 200
+curl.exe -sS --ssl-no-revoke -o NUL -w "%{http_code}" "https://zssx-2026.github.io/infinity/assets/verify-worker.js" # 200
+```
+
+结果：en/cn 入口页均引用 `verify.js`/`verify.css` 且不再引用 `guard.js`；三个新资源全部 HTTP 200；线上 `verify.js` 含 `MIN_MS = 3000` 与 `difficulty` 钩子。
+
+### Edge headless 时间证据（CDP 精确计时，计时起点 = 门自身开始）
+
+工具：`work/_verify-shots/cdp-shots.mjs`（Edge 154 headless + DevTools Protocol，按门的 `startedAt` 定时截图）、`remembered-check.mjs`、本地调试用 `serve.mjs`。
+
+| 截图 | 距门开始 | `result` | 遮罩存在 | body 可见性 | 可见文本 |
+| --- | --- | --- | --- | --- | --- |
+| live-en-01-t0.5s.png | 590 ms | pending | 是 | hidden | （空，只有遮罩） |
+| live-en-02-t2.9s.png | 2976 ms | pending | 是 | hidden | （空，只有遮罩） |
+| live-en-03-t3.5s.png | 3548 ms | shown | 否 | visible | `Infinity.Inc Overview Download … The Infinity suite …` |
+| live-cn-01-t0.5s.png | 550 ms | pending | 是 | hidden | （空，只有遮罩） |
+| live-cn-02-t2.9s.png | 2966 ms | pending | 是 | hidden | （空，只有遮罩） |
+| live-cn-03-t3.5s.png | 3541 ms | shown | 否 | visible | `Infinity.Inc 概览 下载 文档 … Infinity 套件 …` |
+| live-en-05-timed-out.png | ~5016 ms | timeout(max-time) | — | — | `This page took too long to respond / The page is temporarily unavailable. Please try again later.` |
+| live-cn-05-timed-out.png | ~5008 ms | timeout(max-time) | — | — | `响应时间过长 / 该网页暂时无法访问，请稍后重试。` |
+
+门自身计时（线上）：en `elapsedMs=3002`（3.002s 放行，`solvedAt` 905ms，实际用 4 个 0），cn `elapsedMs=3005`；两者正文可见时间正好卡在 `MIN_MS`，5s 上限用于兜底。导航到门开始仅 33/36ms（Pages 很快，不计入门时长）。
+
+超时页由真实失败路径产生（`?verify=reset&difficulty=64` 使 PoW 不可能完成，5s 兜底触发），页面为整文档替换，**没有任何导航**，因此不会出现 /404、也没有弹窗。
+
+已通过者的短路径（同一 profile 先完整通过一次，再访问 `/infinity/`）：`mode=remembered`，500ms 时仍是遮罩（pending），`elapsedMs=702` 放行 —— 符合 `SHORT_MS`。
+
+### 交付物与残留
+
+- 截图与逐张 JSON 证据：`work/_verify-shots/live-en-*.png`、`live-cn-*.png`、`live-en-report.json`、`live-cn-report.json`、`live-en-remembered.json`（本地副本 `local-*` 与各 profile 目录已清理）。
+- 残留 1：纯前端门，禁用 JS 的访问者不会看到遮罩（无后端可用，属固有限制）。
+- 残留 2：门只挂在两个入口页（`/infinity/`、`/infinity/cn/`），按需求未覆盖其它路由。
+- 残留 3：PoW 难度是仪式性的（目标约 1.6s 内降到 3 个 0），因为需求要求验证“总是成功”且总时长落在 3–5 秒。
+## 十、task-18：Token Key 页面（`/myself/token` 中英，2026-10-04）
+
+### 交付物
+
+- 新增 `web/infinity/assets/token.js`（19,043 B，sha256 前缀 `b48b65a20c8066c9`）与 `web/infinity/assets/token.css`（1,933 B，`d7d8b6f8835a2ced`）；逻辑没有写进 site.js。
+- 新增 `web/infinity/myself/token/index.html`、`web/infinity/cn/myself/token/index.html`（各自 `<title>`/说明/资源路径独立，zh 页用 `../../../assets/*`，en 页用 `../../assets/*`）。
+- `/infinity/myself/` 与 `/infinity/cn/myself/` 各加一行链接指向 `./token/`；两页均由 Lead 的 `work/apply-verify.mjs` 注入绝对路径的 `/infinity/assets/verify.css` 与 `/infinity/assets/verify.js`。
+
+### 功能（方案 A：本地保险库；无后端）
+
+- 密钥格式 `inc_<32 hex>`（`crypto.getRandomValues`），保存在 `localStorage['inc.tokens.v1']`：`{id, label, secret, createdAt, rotatedAt, lastUsedAt, scopes[]}`。
+- 列表默认**打码**（`inc_••••••••••••••••••••`），可显示/隐藏、一键复制（`navigator.clipboard`，失败时回退到临时 textarea）；显示/复制/重新生成/删除每次操作后都有页内状态行。
+- 创建：备注（必填）+ 权限范围（读取/写入/删除，默认读取）；重新生成：换新 secret 并记录 `rotatedAt`，旧值在本站立即失效；删除：**按钮内二次确认**（点一次进入“再点一次确认/click again to confirm”，6 秒后自动解除，不使用原生 `window.confirm`）。
+- 导出 JSON（下载 `infinity-tokens.json`）与导入 JSON（按 ID 合并，已存在 ID 不覆盖，报告新增/跳过数量）。
+- “如何接入”：两段示例（curl 与 `fetch`），均为 `Authorization: Bearer inc_<32 hex>`，并说明把主机/端口换成本地产品实际监听地址。
+- 双语：本页自己的字符串表按 `<html lang>` 选择（site.js 未改动）；页面无需登录，与 GitHub 账户无关。
+- 方案 B（可选 GitHub PAT 后端写 `tokens.json` 跨设备）**未实现**：它需要用户额外提供 PAT 并对“写到哪个仓库”做决定，属于用户级选择而非站点默认；方案 A 的导出/导入已覆盖“换机器”需求。
+
+### 线上验证与发布
+
+```powershell
+$env:EV_GH_TOKEN = [Environment]::GetEnvironmentVariable('EV_GH_TOKEN','User'); node work/publish-site.mjs   # 60 blobs, pushed 19e39a9be000
+curl.exe -sS --ssl-no-revoke -o NUL -w "%{http_code}" "https://zssx-2026.github.io/infinity/myself/token/"          # 200
+curl.exe -sS --ssl-no-revoke -o NUL -w "%{http_code}" "https://zssx-2026.github.io/infinity/cn/myself/token/"       # 200
+curl.exe -sS --ssl-no-revoke -o NUL -w "%{http_code}" "https://zssx-2026.github.io/infinity/assets/token.js"         # 200
+curl.exe -sS --ssl-no-revoke -o NUL -w "%{http_code}" "https://zssx-2026.github.io/infinity/assets/token.css"        # 200
+curl.exe -sS --ssl-no-revoke -o NUL -w "%{http_code}" "https://zssx-2026.github.io/infinity/assets/verify.js"        # 200
+```
+
+发布：`node work/publish-site.mjs` → 60 blobs，**`pushed 19e39a9be000 to main`**（此前 Lead 的 `0c983f221ca3`）。线上两个页面均 200，且引用 `token.js`/`token.css`（相对路径）、`/infinity/assets/verify.js` 与 `guard.js`；线上 `token.js`、`token.css` 与磁盘内容 sha256 一致（前缀 `b48b65a20c8066c9` / `d7d8b6f8835a2ced`）。
+
+### Edge headless 三态截图（线上站点，Edge 154 + CDP）
+
+工具 `work/_token-shots/token-shots.mjs`：先等人机验证门放行（`#infinity-gate` 消失且 body 可见）再截图，然后驱动真实指针/键盘事件走完流程并逐态读取 `localStorage` 断言。
+
+| 截图 | 状态断言 |
+| --- | --- |
+| live-en-01-empty.png | `inc.tokens.v1` 无密钥，列表文案 `No keys yet. Create one above…` |
+| live-en-02-created.png | 1 个密钥，密钥显示为 `inc_••••••••••••••••••••`（默认打码），状态行含备注 |
+| live-en-03-regenerated.png | 同一 ID 的 secret 与创建时不同（`rotated: true`），本轮自动展开以便复制 |
+| live-cn-01-empty.png | `还没有密钥。在上面创建一个，就能复制进产品里用了。` |
+| live-cn-02-created.png | 1 个密钥，`inc_••••••••••••••••••••` |
+| live-cn-03-regenerated.png | secret 已变化（`rotated: true`） |
+
+流程断言（线上，逐态 JSON 见 `live-en-report.json` / `live-cn-report.json`）：空态 → 创建（count 1，打码）→ 重新生成（`rotated: true`，旋转后状态行 `Regenerated…` / `已重新生成…`）→ 删除二次确认（按钮文案 `click again to confirm` / `再点一次确认`）→ count 归零（`Deleted.` / `已删除。`）；两页均存在导出按钮、导入文件输入、2 段代码示例与每个密钥 4 个操作按钮。
+
+### 残留
+
+- 无后端：无法做服务端签发/校验/吊销，也无法统计真实调用次数，`lastUsedAt` 只显示“从未（本站无后端）”而非编造数据。
+- 密钥按浏览器隔离，跨设备只能靠导出/导入；清除站点数据会一并删除密钥。
+- 方案 B 未实现（见上）。
+
+### 后记：Lead 在本任务期间对验证/守卫的调整（记录事实）
+
+- `verify.js` 的失败分支已由 Lead 改为**强制跳转** `https://zssx-2026.github.io/404`（不再是第九节所述的整页替换式 ERR_TIMED_OUT）；`verify.css` 同步精简。
+- `guard.js` 去掉了全屏 `#guard` 遮罩与跳 `/error/` 的行为；`web/infinity/error/` 与 `cn/error/` 已删除。
+- 人机验证（`verify.css`/`verify.js`，绝对路径）已由 `work/apply-verify.mjs` 注入除 404 外的全部页面。
+## 十一、task-28：token 页复验（创建后可反复查看/复制、仅本浏览器、INC 专属，2026-10-04）
+
+线上产物指纹：`https://zssx-2026.github.io/infinity/assets/token.js` = **19956 B，sha256 `b7cbb770498e4673b48a7bc6c7151676609f3e3fdbe2a90cc53dd5ff9e40344c`**（已下载留档 `work/_token-shots/live-token.js`），与磁盘 `web/infinity/assets/token.js` 完全一致（byte 相同、sha256 相同）。
+
+### 复验方法
+
+工具 `work/_token-shots/verify-task28.mjs`：Edge 154 headless + CDP，先等人机验证门放行（`#infinity-gate` 消失、body 可见）再操作；全部操作用真实指针/键盘事件；每一步读取 DOM 与 `localStorage`，最后写 `task28-<lang>-report.json`。命令：
+
+```powershell
+node work/_token-shots/verify-task28.mjs "https://zssx-2026.github.io/infinity/cn/myself/token/" cn work/_token-shots 9252 zh "我的笔记本"
+node work/_token-shots/verify-task28.mjs "https://zssx-2026.github.io/infinity/myself/token/"    en work/_token-shots 9253 en "my laptop"
+```
+
+### 结果：中文 12/12 PASS、英文 12/12 PASS
+
+| # | 验收项 | 检查 | 结果 |
+| --- | --- | --- | --- |
+| 1 | 空态 | 0 个 `.token-item`，localStorage 无 `inc.tokens.v1`，显示空态文案 | PASS |
+| 1 | 创建后 | 1 个密钥，`inc_<32hex>` **明文**（无 `•`），状态行含备注 | PASS |
+| 1 | 刷新页面 | 仍 1 个、**同一 ID**、**同一明文密钥** | PASS |
+| 1 | 复制 | 点击复制后状态行含 `已复制到剪贴板。` / `Copied to the clipboard.`，**不含** copyFailed 文案 | PASS |
+| 2 | 隐藏 | 点“隐藏”后密钥为 `inc_••••••••••••••••••••`，按钮变为“显示” | PASS |
+| 2 | 显示 | 再点“显示”后恢复原文，ID 不变，按钮变回“隐藏” | PASS |
+| 3 | 重新生成 | 明文变化、仍为明文、ID 不变 | PASS |
+| 3 | 复制（生成后） | 状态行再次 `已复制`，无 copyFailed | PASS |
+| 3 | 删除 | 第一次点击仅进入 `再点一次确认` / `click again to confirm`（条目仍在），第二次点击后条目为 0、vault 为 0 | PASS |
+| 4 | INC 专属文案 | 含 `权限范围（仅限 INC）` / `Scopes (INC only)` | PASS |
+| 4 | 仅本浏览器 | 含 `本浏览器中我自己创建的密钥` / `Keys I created in this browser` | PASS |
+| 4 | 示例端口 | 两段示例（curl 与 fetch）均为 `127.0.0.1:7621/v1/ping` | PASS |
+
+逐项 DOM/localStorage 证据见 `work/_token-shots/task28-cn-report.json`、`task28-en-report.json`（含每一步的 `secrets`、`ids`、`rowButtons`、`actionButtons`、`status`、`h3`、`scopesLabel`、`pre`）。
+
+### 截图（线上，Edge headless，work/_token-shots/）
+
+`task28-cn-01-empty.png`、`-02-created.png`、`-03-after-reload.png`、`-04-copied.png`、`-05-hidden.png`、`-06-shown.png`、`-07-regenerated.png`、`-08-delete-armed.png`、`-09-deleted.png`；英文同名 `task28-en-01…09`。
+
+### 观察项（不影响上述 5 项结论，但建议修）
+
+- 创建后的状态行文案仍是旧行为的说法：中文 `已创建：我的笔记本。 密钥默认打码，点“显示”再复制。`，英文 `Created: my laptop。 The secret is masked by default; press Show, then Copy.`。而实现已经改为**默认明文**（`revealed[id] === false` 才打码），这条提示与事实矛盾，正是用户上一次报障（“创建后不可查看”）会再次困惑的地方。证据：`task28-*-report.json` 的 `observations`。（token.js 不在本任务写作用域内，未擅改。）
+- 复核脚本自身的一个统计口径已修正并重跑：`counts()` 在 localStorage 完全没有键时返回 `-1`（正确语义是 0），首次运行时把“空态无密钥”误判为 FAIL；修正后中英文均 12/12。截图与 JSON 为修正后重跑结果。
+
+### 结论
+
+用户报障的两点（创建后不可查看/再次复制、只显示本浏览器自己创建的密钥）在当前线上版本均**已修复且可复现通过**；剩余问题只有创建提示的过期措辞。
+
+
+
 

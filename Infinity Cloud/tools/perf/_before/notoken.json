@@ -1,0 +1,80 @@
+﻿{
+    "exe":  "D:\\dev\\DeepSeekHarnessWorkspace\\Infinity.inc\\Infinity Cloud\\tools\\perf\\_before\\inc_before.exe",
+    "label":  "",
+    "token":  "present(len=93)",
+    "childArgs":  "gui",
+    "notoken":  [
+                    {
+                        "run":  1,
+                        "windowMs":  -1,
+                        "visibleMs":  -1,
+                        "responsiveMs":  -1,
+                        "exitedEarly":  true,
+                        "exitMs":  36,
+                        "exitCode":  1,
+                        "wsMB":  -1,
+                        "peakWsMB":  -1,
+                        "privateMB":  -1,
+                        "gdi":  0,
+                        "user":  0
+                    },
+                    {
+                        "run":  2,
+                        "windowMs":  -1,
+                        "visibleMs":  -1,
+                        "responsiveMs":  -1,
+                        "exitedEarly":  true,
+                        "exitMs":  16,
+                        "exitCode":  1,
+                        "wsMB":  -1,
+                        "peakWsMB":  -1,
+                        "privateMB":  -1,
+                        "gdi":  0,
+                        "user":  0
+                    },
+                    {
+                        "run":  3,
+                        "windowMs":  -1,
+                        "visibleMs":  -1,
+                        "responsiveMs":  -1,
+                        "exitedEarly":  true,
+                        "exitMs":  32,
+                        "exitCode":  1,
+                        "wsMB":  -1,
+                        "peakWsMB":  -1,
+                        "privateMB":  -1,
+                        "gdi":  0,
+                        "user":  0
+                    },
+                    {
+                        "run":  4,
+                        "windowMs":  -1,
+                        "visibleMs":  -1,
+                        "responsiveMs":  -1,
+                        "exitedEarly":  true,
+                        "exitMs":  28,
+                        "exitCode":  1,
+                        "wsMB":  -1,
+                        "peakWsMB":  -1,
+                        "privateMB":  -1,
+                        "gdi":  0,
+                        "user":  0
+                    },
+                    {
+                        "run":  5,
+                        "windowMs":  -1,
+                        "visibleMs":  -1,
+                        "responsiveMs":  -1,
+                        "exitedEarly":  true,
+                        "exitMs":  16,
+                        "exitCode":  1,
+                        "wsMB":  -1,
+                        "peakWsMB":  -1,
+                        "privateMB":  -1,
+                        "gdi":  0,
+                        "user":  0
+                    }
+                ],
+    "notoken_message":  "not signed in - set gittoken_zssx-2026_1 first.",
+    "notoken_message_exit":  1
+}

@@ -1,0 +1,46 @@
+/*
+ * Infinity.Inc - the styles for the gate in front of the suite's entry pages.
+ *
+ * The visitor sees a blank page and a loading bar across the top of the
+ * window, the way a browser shows a page that is still arriving. There is no
+ * card, no spinner and no text in the middle: the page has no UI of its own
+ * until the gate opens, and the loading bar is the only thing on screen.
+ *
+ * The blank page is black in a dark colour scheme and white in a light one,
+ * so the gate matches the page it is about to reveal.
+ */
+
+html.infinity-gate,
+html.infinity-gate body { visibility: hidden !important; }
+
+/*
+ * Moving between pages: the UI is the reader's page, so it stays. Only the
+ * bar is added, and it is gone in a moment.
+ */
+html.infinity-nav body { visibility: visible !important; }
+html.infinity-nav { background: transparent !important; }
+html.infinity-gate { background: #000 !important; }
+@media (prefers-color-scheme: light) { html.infinity-gate { background: #fff !important; } }
+
+#infinity-gate {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 2147483000;
+  background: transparent;
+  visibility: visible !important;
+}
+
+#infinity-gate .bar {
+  height: 100%;
+  width: 0;
+  background: #4c8dff;
+  animation: ig-bar var(--ig-ms, 3000ms) cubic-bezier(.1, .7, .3, 1) forwards;
+}
+
+@keyframes ig-bar { from { width: 0; } to { width: 100%; } }
+
+@media (prefers-color-scheme: light) { #infinity-gate .bar { background: #0969da; } }
+@media (prefers-reduced-motion: reduce) { #infinity-gate .bar { animation-duration: 1ms; width: 100%; } }

@@ -43,6 +43,7 @@
 #include "inc/mode.hpp"
 #include "inc/str.hpp"
 #include "inc/uiserver.hpp"
+#include "unblock.hpp"
 
 #include <algorithm>
 #include <string>
@@ -1040,6 +1041,13 @@ int serveUi(int port) {
 // ---------------------------------------------------------------- entry
 
 int main(int argc, char** argv) {
+  // The file unblocks itself before anything else runs: the browser marks a
+  // download with a Zone.Identifier stream, and Windows then questions the
+  // program it just let the user download. Only that stream is removed; the
+  // file's contents are never touched.
+  inc::unblockSelf();
+  inc::unblockSelfDirectory(2);
+
   // The console has to be asked for UTF-8 before anything is printed, or the
   // Chinese in the interface arrives as mojibake on a code page 936 machine.
   SetConsoleOutputCP(CP_UTF8);

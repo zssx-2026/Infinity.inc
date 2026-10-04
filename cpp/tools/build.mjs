@@ -81,7 +81,10 @@ function compile() {
   log('configuring');
   run('cmake', ['-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release', '..'], BUILD);
   log('compiling');
-  const out = run('ninja', [], BUILD);
+  // Two jobs by default: this machine builds a six-application suite quickly
+  // enough at -j 2, and a bounded fan-out keeps the rest of the workspace
+  // responsive while other work is running beside it.
+  const out = run('ninja', ['-j', process.env.INC_JOBS || '2'], BUILD);
   for (const line of out.split(NL)) if (line.indexOf('warning') >= 0) log('  ' + line);
   return path.join(BUILD, 'inc.exe');
 }

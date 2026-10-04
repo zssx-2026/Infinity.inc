@@ -1,0 +1,78 @@
+﻿{
+    "exe":  "D:\\dev\\DeepSeekHarnessWorkspace\\Infinity.inc\\Infinity Cloud\\tools\\perf\\_before\\inc_before.exe",
+    "label":  "",
+    "token":  "present(len=93)",
+    "childArgs":  "gui",
+    "window":  [
+                   {
+                       "run":  1,
+                       "windowMs":  7357,
+                       "visibleMs":  7385,
+                       "responsiveMs":  7422,
+                       "exitedEarly":  false,
+                       "exitMs":  -1,
+                       "exitCode":  -999,
+                       "wsMB":  26.15,
+                       "peakWsMB":  26.15,
+                       "privateMB":  6.28,
+                       "gdi":  51,
+                       "user":  22
+                   },
+                   {
+                       "run":  2,
+                       "windowMs":  5196,
+                       "visibleMs":  5232,
+                       "responsiveMs":  5296,
+                       "exitedEarly":  false,
+                       "exitMs":  -1,
+                       "exitCode":  -999,
+                       "wsMB":  25.43,
+                       "peakWsMB":  25.43,
+                       "privateMB":  6.49,
+                       "gdi":  51,
+                       "user":  22
+                   },
+                   {
+                       "run":  3,
+                       "windowMs":  5663,
+                       "visibleMs":  5699,
+                       "responsiveMs":  5733,
+                       "exitedEarly":  false,
+                       "exitMs":  -1,
+                       "exitCode":  -999,
+                       "wsMB":  24.67,
+                       "peakWsMB":  24.67,
+                       "privateMB":  6.31,
+                       "gdi":  51,
+                       "user":  22
+                   },
+                   {
+                       "run":  4,
+                       "windowMs":  6218,
+                       "visibleMs":  6234,
+                       "responsiveMs":  6264,
+                       "exitedEarly":  false,
+                       "exitMs":  -1,
+                       "exitCode":  -999,
+                       "wsMB":  36.01,
+                       "peakWsMB":  36.01,
+                       "privateMB":  12.61,
+                       "gdi":  55,
+                       "user":  30
+                   },
+                   {
+                       "run":  5,
+                       "windowMs":  5724,
+                       "visibleMs":  5742,
+                       "responsiveMs":  5779,
+                       "exitedEarly":  false,
+                       "exitMs":  -1,
+                       "exitCode":  -999,
+                       "wsMB":  24.69,
+                       "peakWsMB":  24.69,
+                       "privateMB":  6.23,
+                       "gdi":  51,
+                       "user":  22
+                   }
+               ]
+}

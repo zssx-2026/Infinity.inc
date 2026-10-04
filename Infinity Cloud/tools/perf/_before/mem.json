@@ -1,0 +1,9 @@
+﻿{
+    "exe":  "D:\\dev\\DeepSeekHarnessWorkspace\\Infinity.inc\\Infinity Cloud\\tools\\perf\\_before\\inc_before.exe",
+    "label":  "",
+    "token":  "present(len=93)",
+    "childArgs":  "gui",
+    "mem_privateWorkingSetMB":  3.03,
+    "mem_privateBytes64MB":  4.16,
+    "mem_workingSet64MB":  15.42
+}

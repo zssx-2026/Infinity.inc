@@ -41,6 +41,14 @@ add_library(inc_core STATIC ${CORE_SRC})
 target_include_directories(inc_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/core/include)
 target_link_libraries(inc_core PUBLIC winhttp bcrypt shell32 comctl32 ws2_32)
 
+# ---------------------------------------------------------------- common
+
+# "The file unblocks itself" lives here, once. Every application links it and
+# the NSIS installers clear the same stream on the files they drop, so the
+# behaviour is defined in one place instead of six.
+add_library(inc_common STATIC ${CMAKE_CURRENT_SOURCE_DIR}/common/unblock.cpp)
+target_include_directories(inc_common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/common)
+
 # ---------------------------------------------------------------- apps
 
 # Each application produces ONE executable. The eight names are copies of it,
@@ -51,7 +59,7 @@ set(INC_APPS inc ifm ipm iim int ing)
 foreach(app ${INC_APPS})
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/apps/${app}/main.cpp)
     add_executable(${app} apps/${app}/main.cpp)
-    target_link_libraries(${app} PRIVATE inc_core)
+    target_link_libraries(${app} PRIVATE inc_core inc_common)
     set_target_properties(${app} PROPERTIES OUTPUT_NAME ${app})
   endif()
 endforeach()

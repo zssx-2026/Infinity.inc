@@ -23,13 +23,17 @@
 #include "inc/ansi.hpp"
 #include "inc/str.hpp"
 #include "inc/uiserver.hpp"
+#include "unblock.hpp"
 
 #include "ui.hpp"
+#include "perflog.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <utility>
 #include <vector>
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -460,15 +464,50 @@ const int ID_NAME = 2009;
 struct GuiState {
   Session* session = nullptr;
   Store* store = nullptr;
+  std::string token;
   std::string cloudPath = "/";
   std::string status;
   std::vector<Json> entries;
+  bool loading = false;   // a background load owns the store right now
+  bool ready = false;     // a load has finished at least once
+  bool signedIn = false;
   HWND pathLabel = nullptr;
   HWND list = nullptr;
   HWND nameEdit = nullptr;
   HWND createButton = nullptr;
   HWND cancelButton = nullptr;
+  std::vector<HWND> gated;                    // controls that touch the store
+  HIMAGELIST images = nullptr;
+  std::vector<std::pair<std::string, int>> iconByExtension;
+  int folderIcon = 0;
+  int genericIcon = 0;
 };
+
+void setGuiStatus(HWND hwnd, GuiState* st, const std::string& status) {
+  st->status = status;
+  SetWindowTextW(GetDlgItem(hwnd, ID_PATH), toWide(st->cloudPath + "    " + status).c_str());
+}
+
+// The shell decides a file's icon from its extension, so it is asked once per
+// extension rather than once per row. The loop below used to call
+// SHGetFileInfoW for every entry, which is the most expensive thing in drawing
+// a directory.
+int iconIndexFor(GuiState* st, const std::string& name, bool folder) {
+  if (folder) return st->folderIcon;
+  const size_t dot = name.find_last_of('.');
+  const std::string ext = (dot == std::string::npos) ? std::string() : lower(name.substr(dot));
+  for (const auto& cached : st->iconByExtension) if (cached.first == ext) return cached.second;
+  const std::wstring probe = toWide(ext.empty() ? std::string("file") : ("file" + ext));
+  SHFILEINFOW info = {};
+  if (!SHGetFileInfoW(probe.c_str(), FILE_ATTRIBUTE_NORMAL, &info, sizeof(info),
+                      SHGFI_SYSICONINDEX | SHGFI_SMALLICON | SHGFI_USEFILEATTRIBUTES)) {
+    st->iconByExtension.push_back({ ext, st->genericIcon });
+    return st->genericIcon;
+  }
+  const int index = info.iIcon ? (int)info.iIcon : st->genericIcon;
+  st->iconByExtension.push_back({ ext, index });
+  return index;
+}
 
 void refreshGui(HWND hwnd, GuiState* st) {
   st->pathLabel = GetDlgItem(hwnd, ID_PATH);
@@ -480,22 +519,19 @@ void refreshGui(HWND hwnd, GuiState* st) {
 
   for (size_t i = 0; i < st->entries.size(); ++i) {
     const Json& entry = st->entries[i];
-    std::string name = entry.s("name");
-    std::wstring path = toWide(entry.s("path"));
-    DWORD attrs = entry.s("type") == "folder" ? FILE_ATTRIBUTE_DIRECTORY : FILE_ATTRIBUTE_NORMAL;
-    SHFILEINFOW info = {};
-    SHGetFileInfoW(path.c_str(), attrs, &info, sizeof(info), SHGFI_SYSICONINDEX | SHGFI_SMALLICON | SHGFI_USEFILEATTRIBUTES);
+    const bool folder = entry.s("type") == "folder";
+    const std::string name = entry.s("name");
+    std::wstring wname = toWide(name);
 
     LVITEMW item = {};
     item.mask = LVIF_TEXT | LVIF_PARAM | LVIF_IMAGE;
     item.iItem = (int)i;
-    item.iImage = info.iIcon;
+    item.iImage = iconIndexFor(st, name, folder);
     item.lParam = (LPARAM)i;
-    std::wstring wname = toWide(name);
     item.pszText = &wname[0];
     SendMessageW(st->list, LVM_INSERTITEMW, 0, (LPARAM)&item);
 
-    std::wstring size = entry.s("type") == "folder" ? L"Folder" : toWide(humanSize((uint64_t)std::max<long long>(0, entry.i("size"))));
+    std::wstring size = folder ? L"Folder" : toWide(humanSize((uint64_t)std::max<long long>(0, entry.i("size"))));
     LVITEMW sub = {};
     sub.mask = LVIF_TEXT;
     sub.iItem = (int)i;
@@ -503,23 +539,98 @@ void refreshGui(HWND hwnd, GuiState* st) {
     sub.pszText = &size[0];
     SendMessageW(st->list, LVM_SETITEMW, 0, (LPARAM)&sub);
   }
-
-  InvalidateRect(hwnd, nullptr, TRUE);
+  // The list view already repaints the rows it inserts. The full-window
+  // InvalidateRect that used to sit here only added a second erase and paint of
+  // everything, including the rows that had just been drawn.
 }
 
-void loadCloud(HWND hwnd, GuiState* st) {
-  std::string error;
-  const bool loaded = st->store->pull(&error);
-  st->status = loaded ? "" : error;
+// Browsing a folder re-reads the manifest already in memory. Going to the
+// network is what the Refresh button is for; walking the tree is not.
+void listCurrent(HWND hwnd, GuiState* st) {
   refreshGui(hwnd, st);
-  if (loaded) st->status = std::to_string(st->entries.size()) + " items  ·  " + humanSize(st->store->totalBytes());
-  const std::string location = st->cloudPath + (st->status.empty() ? "" : "    " + st->status);
-  SetWindowTextW(st->pathLabel, toWide(location).c_str());
+  st->status = std::to_string(st->entries.size()) + " items  ·  " + humanSize(st->store->totalBytes());
+  SetWindowTextW(GetDlgItem(hwnd, ID_PATH), toWide(st->cloudPath + "    " + st->status).c_str());
 }
 
-void setGuiStatus(HWND hwnd, GuiState* st, const std::string& status) {
-  st->status = status;
-  SetWindowTextW(GetDlgItem(hwnd, ID_PATH), toWide(st->cloudPath + "    " + status).c_str());
+// --------------------------------------------------------- background loading
+
+const UINT WM_APP_CLOUD_LOADED = WM_APP + 1;
+
+// The load result crosses from the loader thread to the window procedure as a
+// heap block owned by the receiver. The message queue is the handover point, so
+// there is no lock here and none is needed.
+struct LoadResult {
+  Store* store = nullptr;        // adopted by the window when it arrives
+  bool signedIn = false;
+  bool manifestLoaded = false;
+  std::string login;
+  std::string authError;
+  std::string manifestError;
+};
+
+struct LoadJob {
+  GuiState* state = nullptr;
+  HWND hwnd = nullptr;
+  Store* existing = nullptr;     // refresh in place instead of signing in again
+};
+
+DWORD WINAPI loadThreadProc(LPVOID raw) {
+  LoadJob* job = (LoadJob*)raw;
+  GuiState* st = job->state;
+  LoadResult* result = new LoadResult();
+  incperf::mark("cloud-load-start");
+
+  if (job->existing) {
+    result->signedIn = true;
+    result->store = job->existing;
+    result->manifestLoaded = job->existing->pull(&result->manifestError);
+  } else {
+    if (st->token.empty()) {
+      // No credential is not a reason to refuse to open the window: the window
+      // is where the reason belongs, and browsing what is left still works.
+      result->authError = "not signed in - set gittoken_zssx-2026_1 (or EV_GH_TOKEN)";
+    } else if (st->session->signIn(&result->authError)) {
+      result->signedIn = true;
+      result->login = st->session->gh.login();
+    }
+    result->store = new Store(st->session->gh, result->login);
+    if (result->signedIn) result->manifestLoaded = result->store->pull(&result->manifestError);
+  }
+
+  incperf::mark("cloud-load-end");
+  HWND hwnd = job->hwnd;
+  delete job;
+  std::atomic_thread_fence(std::memory_order_release);
+  PostMessageW(hwnd, WM_APP_CLOUD_LOADED, 0, (LPARAM)result);
+  return 0;
+}
+
+void setGated(GuiState* st, bool enabled) {
+  for (HWND control : st->gated) EnableWindow(control, enabled ? TRUE : FALSE);
+}
+
+// One load at a time. Every control that reads or writes the store is disabled
+// while the loader has it, which is what keeps the two threads apart without a
+// lock around the manifest.
+void startLoad(HWND hwnd, GuiState* st, bool refreshInPlace) {
+  if (st->loading) return;
+  st->loading = true;
+  setGated(st, false);
+  setGuiStatus(hwnd, st, refreshInPlace ? "Refreshing..." : "Signing in...");
+  incperf::mark(refreshInPlace ? "refresh-start" : "signin-start");
+  LoadJob* job = new LoadJob();
+  job->state = st;
+  job->hwnd = hwnd;
+  job->existing = refreshInPlace ? st->store : nullptr;
+  HANDLE thread = CreateThread(nullptr, 0, loadThreadProc, job, 0, nullptr);
+  if (!thread) {
+    delete job;
+    st->loading = false;
+    setGated(st, true);
+    setGuiStatus(hwnd, st, "cannot start the loader");
+    return;
+  }
+  CloseHandle(thread);
 }
 
 void setCreateMode(HWND hwnd, GuiState* st, bool on) {
@@ -545,7 +656,7 @@ void createFolder(HWND hwnd, GuiState* st) {
     return;
   }
   setCreateMode(hwnd, st, false);
-  loadCloud(hwnd, st);
+  listCurrent(hwnd, st);
   setGuiStatus(hwnd, st, "Folder created");
 }
 
@@ -560,7 +671,7 @@ void deleteSelected(HWND hwnd, GuiState* st) {
     setGuiStatus(hwnd, st, error);
     return;
   }
-  loadCloud(hwnd, st);
+  listCurrent(hwnd, st);
   setGuiStatus(hwnd, st, "Moved to recycle bin");
 }
 
@@ -569,7 +680,7 @@ void activateSelected(HWND hwnd, GuiState* st, int index) {
   const Json& entry = st->entries[index];
   if (entry.s("type") == "folder") {
     st->cloudPath = Store::normalizePath(st->cloudPath == "/" ? "/" + entry.s("name") : st->cloudPath + "/" + entry.s("name"));
-    loadCloud(hwnd, st);
+    listCurrent(hwnd, st);
     return;
   }
 
@@ -597,15 +708,15 @@ LRESULT CALLBACK guiProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
       SetWindowLongPtrW(hwnd, GWLP_USERDATA, (LONG_PTR)st);
       CreateWindowExW(0, L"STATIC", L"/", WS_CHILD | WS_VISIBLE | SS_LEFT,
                       12, 10, 850, 24, hwnd, (HMENU)(INT_PTR)ID_PATH, cs->hInstance, nullptr);
-      CreateWindowExW(0, L"BUTTON", L"Up", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+      const HWND up = CreateWindowExW(0, L"BUTTON", L"Up", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
                       12, 40, 64, 28, hwnd, (HMENU)(INT_PTR)ID_UP, cs->hInstance, nullptr);
-      CreateWindowExW(0, L"BUTTON", L"New folder", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+      const HWND newFolder = CreateWindowExW(0, L"BUTTON", L"New folder", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
                       84, 40, 104, 28, hwnd, (HMENU)(INT_PTR)ID_NEW, cs->hInstance, nullptr);
-      CreateWindowExW(0, L"BUTTON", L"Refresh", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+      const HWND refresh = CreateWindowExW(0, L"BUTTON", L"Refresh", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
                       196, 40, 82, 28, hwnd, (HMENU)(INT_PTR)ID_REFRESH, cs->hInstance, nullptr);
-      CreateWindowExW(0, L"BUTTON", L"Delete", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+      const HWND removeButton = CreateWindowExW(0, L"BUTTON", L"Delete", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
                       286, 40, 72, 28, hwnd, (HMENU)(INT_PTR)ID_DELETE, cs->hInstance, nullptr);
-      CreateWindowExW(0, L"BUTTON", L"Upload", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+      const HWND upload = CreateWindowExW(0, L"BUTTON", L"Upload", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
                       366, 40, 72, 28, hwnd, (HMENU)(INT_PTR)ID_UPLOAD, cs->hInstance, nullptr);
       st->nameEdit = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | ES_AUTOHSCROLL,
                       368, 42, 190, 24, hwnd, (HMENU)(INT_PTR)ID_NAME, cs->hInstance, nullptr);
@@ -614,21 +725,31 @@ LRESULT CALLBACK guiProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
       st->cancelButton = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | BS_PUSHBUTTON,
                       646, 40, 72, 28, hwnd, (HMENU)(INT_PTR)ID_CANCEL, cs->hInstance, nullptr);
       ShowWindow(st->nameEdit, SW_HIDE); ShowWindow(st->createButton, SW_HIDE); ShowWindow(st->cancelButton, SW_HIDE);
+      st->gated = { up, newFolder, refresh, removeButton, upload, st->nameEdit, st->createButton, st->cancelButton };
 
       st->list = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTVIEWW, L"",
                       WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS,
                       12, 78, 850, 450, hwnd, (HMENU)(INT_PTR)ID_LIST, cs->hInstance, nullptr);
       ListView_SetExtendedListViewStyle(st->list, LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_LABELTIP);
       SHFILEINFOW folderInfo = {};
-      HIMAGELIST images = (HIMAGELIST)SHGetFileInfoW(L"folder", FILE_ATTRIBUTE_DIRECTORY, &folderInfo,
+      st->images = (HIMAGELIST)SHGetFileInfoW(L"folder", FILE_ATTRIBUTE_DIRECTORY, &folderInfo,
                             sizeof(folderInfo), SHGFI_SYSICONINDEX | SHGFI_SMALLICON | SHGFI_USEFILEATTRIBUTES);
-      if (images) ListView_SetImageList(st->list, images, LVSIL_SMALL);
+      if (st->images) ListView_SetImageList(st->list, st->images, LVSIL_SMALL);
+      st->folderIcon = (int)folderInfo.iIcon;
+      SHFILEINFOW fileInfo = {};
+      SHGetFileInfoW(L"file", FILE_ATTRIBUTE_NORMAL, &fileInfo, sizeof(fileInfo),
+                     SHGFI_SYSICONINDEX | SHGFI_SMALLICON | SHGFI_USEFILEATTRIBUTES);
+      st->genericIcon = (int)fileInfo.iIcon;
       LVCOLUMNW col = {};
       col.mask = LVCF_TEXT | LVCF_WIDTH;
       col.pszText = const_cast<LPWSTR>(L"Name"); col.cx = 620; ListView_InsertColumn(st->list, 0, &col);
       col.pszText = const_cast<LPWSTR>(L"Size"); col.cx = 150; ListView_InsertColumn(st->list, 1, &col);
       st->pathLabel = GetDlgItem(hwnd, ID_PATH);
-      refreshGui(hwnd, st);
+      // Nothing is read from the cloud here. The window goes up first and the
+      // loader fills this list when it has an answer.
+      setGated(st, false);
+      setGuiStatus(hwnd, st, "Opening the cloud...");
+      incperf::mark("gui-first-paint");
       return 0;
     }
     case WM_SIZE: {
@@ -640,14 +761,20 @@ LRESULT CALLBACK guiProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     }
     case WM_COMMAND:
       if (!st) break;
+      // While the loader owns the store nothing else may touch it. The disabled
+      // controls say so to a person; this says so to the keyboard.
+      if (st->loading && LOWORD(wp) != ID_CANCEL) break;
       switch (LOWORD(wp)) {
         case ID_UP:
           if (st->cloudPath != "/") st->cloudPath = Store::parentPath(st->cloudPath);
-          loadCloud(hwnd, st); return 0;
+          listCurrent(hwnd, st); return 0;
         case ID_NEW: setCreateMode(hwnd, st, true); return 0;
         case ID_CREATE: createFolder(hwnd, st); return 0;
         case ID_CANCEL: setCreateMode(hwnd, st, false); return 0;
-        case ID_REFRESH: loadCloud(hwnd, st); return 0;
+        case ID_REFRESH:
+          if (!st->ready) break;
+          if (!st->signedIn) { setGuiStatus(hwnd, st, "not signed in"); break; }
+          startLoad(hwnd, st, true); return 0;
         case ID_DELETE: deleteSelected(hwnd, st); return 0;
         case ID_UPLOAD: {
           std::vector<wchar_t> path(32768, L'\0');
@@ -669,7 +796,7 @@ LRESULT CALLBACK guiProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             setGuiStatus(hwnd, st, error);
             return 0;
           }
-          loadCloud(hwnd, st);
+          listCurrent(hwnd, st);
           setGuiStatus(hwnd, st, "Uploaded " + base);
           return 0;
         }
@@ -686,10 +813,33 @@ LRESULT CALLBACK guiProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
       break;
     }
     case WM_ERASEBKGND: {
+      // One brush for the life of the window. The old code created and deleted
+      // a solid brush on every erase, which is a GDI allocation per repaint.
+      static HBRUSH background = CreateSolidBrush(RGB(245, 247, 250));
       HDC dc = (HDC)wp;
       RECT rc; GetClientRect(hwnd, &rc);
-      HBRUSH b = CreateSolidBrush(RGB(245, 247, 250));
-      FillRect(dc, &rc, b); DeleteObject(b); return 1;
+      FillRect(dc, &rc, background);
+      return 1;
+    }
+    case WM_APP_CLOUD_LOADED: {
+      if (!st) break;
+      LoadResult* result = (LoadResult*)lp;
+      st->loading = false;
+      st->ready = true;
+      st->signedIn = result->signedIn;
+      if (result->store) st->store = result->store;
+      if (!result->signedIn) st->status = result->authError;
+      else if (!result->manifestLoaded) st->status = result->manifestError.empty() ? "the manifest could not be read" : result->manifestError;
+      else st->status = "signed in as " + result->login;
+      refreshGui(hwnd, st);
+      if (result->signedIn && result->manifestLoaded) {
+        st->status = std::to_string(st->entries.size()) + " items  ·  " + humanSize(st->store->totalBytes());
+      }
+      SetWindowTextW(GetDlgItem(hwnd, ID_PATH), toWide(st->cloudPath + "    " + st->status).c_str());
+      setGated(st, true);
+      delete result;
+      incperf::markCount("gui-list-ready", (long long)st->entries.size());
+      return 0;
     }
     case WM_DESTROY: PostQuitMessage(0); return 0;
   }
@@ -697,21 +847,21 @@ LRESULT CALLBACK guiProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 }
 
 static int guiMain() {
-  std::string token = tokenFromEnv();
-  if (token.empty()) { out("not signed in - set gittoken_zssx-2026_1 first."); return 1; }
-  Session session(token);
-  session.tokenSourceName = tokenSource();
-  std::string error;
-  if (!session.signIn(&error)) { out("not signed in (" + error + ")"); return 1; }
-  Store store(session.gh, session.gh.login());
-  store.pull(&error);  // empty cloud is still a valid browseable view
+  incperf::mark("gui-enter");
+  // Everything before the window is local: read the token, register the class,
+  // create the window. Signing in and reading the manifest are network calls
+  // and they happen after it is on screen, in loadThreadProc, because the first
+  // frame must not wait for one.
+  const std::string token = tokenFromEnv();
+  Session* session = new Session(token);   // lives until the process does
+  session->tokenSourceName = tokenSource();
+  incperf::mark("gui-token");
 
   INITCOMMONCONTROLSEX controls = { sizeof(controls), ICC_LISTVIEW_CLASSES };
   InitCommonControlsEx(&controls);
   GuiState state;
-  state.session = &session;
-  state.store = &store;
-  state.status = error;
+  state.session = session;
+  state.token = token;
 
   WNDCLASSW wc = {};
   wc.lpfnWndProc = guiProc;
@@ -725,9 +875,15 @@ static int guiMain() {
                               WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
                               1000, 700, nullptr, nullptr, wc.hInstance, &state);
   if (!hwnd) { out("cannot create the window"); return 1; }
-  ShowWindow(hwnd, SW_SHOW); UpdateWindow(hwnd);
+  ShowWindow(hwnd, SW_SHOW);
+  UpdateWindow(hwnd);
+  incperf::mark("gui-window-shown");
+
+  startLoad(hwnd, &state, false);
+
   MSG msg;
   while (GetMessageW(&msg, nullptr, 0, 0) > 0) { TranslateMessage(&msg); DispatchMessageW(&msg); }
+  incperf::mark("gui-exit");
   return 0;
 }
 
@@ -783,6 +939,14 @@ static int launcherMain(const Mode& m) {
 // ---------------------------------------------------------------- entry
 
 int main(int argc, char** argv) {
+  incperf::mark("process-start");
+  // The file unblocks itself before anything else runs: the browser marks a
+  // download with a Zone.Identifier stream, and Windows then questions the
+  // program it just let the user download. Only that stream is removed; the
+  // file's contents are never touched.
+  inc::unblockSelf();
+  inc::unblockSelfDirectory(2);
+
   // The console has to be asked for UTF-8 before anything is printed, or the
   // Chinese in the interface arrives as mojibake on a code page 936 machine.
   SetConsoleOutputCP(CP_UTF8);

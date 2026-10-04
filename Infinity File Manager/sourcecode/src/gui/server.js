@@ -21,7 +21,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import { listLocal, sortEntries, mkdirLocal, renameLocal, removeTree, uniqueName, drives, homeDir, iconFor, fmtSize, fmtDate } from '../core/localfs.js';
+import { listLocal, listLocalFast, fillMeta, sortEntries, mkdirLocal, renameLocal, removeTree, uniqueName, drives, homeDir, iconFor, fmtSize, fmtDate } from '../core/localfs.js';
 import { guessType } from '../core/dav.js';
 import { openBrowser } from '../core/mode.js';
 
@@ -110,13 +110,30 @@ var cur="";
 function setStatus(s){$("status").textContent=s||""}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 async function api(u,o){var r=await fetch(u,o||{});return r.json()}
+var rows=[];
 async function load(p){
-  var j=await api("/api/list?path="+encodeURIComponent(p||""));
+  var j=await api("/api/list?lite=1&path="+encodeURIComponent(p||""));
   if(!j.ok){setStatus("无法打开："+(j.error||p));return}
   cur=j.path;
+  rows=j.entries||[];
   renderCrumbs(j.crumbs);
-  renderRows(j.entries);
-  setStatus(j.entries.length+" 项");
+  renderRows(rows);
+  setStatus(rows.length+" 项");
+  fillMeta(cur);
+}
+/* Sizes and times arrive after the rows are on screen and are written into the
+   cells already there, so a big folder is usable before it is fully measured. */
+async function fillMeta(p){
+  var j=await api("/api/meta?path="+encodeURIComponent(p));
+  if(!j.ok||cur!==p)return;
+  var m=j.meta||{},tr=$("rows").children;
+  for(var i=0;i<tr.length&&i<rows.length;i++){
+    var e=rows[i],v=m[e.name];
+    if(!v)continue;
+    var sz=tr[i].querySelector(".sz"),dt=tr[i].querySelector(".dt");
+    if(sz)sz.textContent=e.type==="folder"?"":v[0];
+    if(dt)dt.textContent=v[1];
+  }
 }
 function renderCrumbs(c){
   var h="";
@@ -135,8 +152,8 @@ function renderRows(rows){
       : '<button class="mini" data-act="download">下载</button><button class="mini" data-act="rename">重命名</button><button class="mini danger" data-act="delete">删除</button>';
     h+='<tr data-path="'+esc(e.path)+'" data-type="'+e.type+'">'
       +'<td><div class="nm"><span class="ic">'+(ICON[e.icon]||ICON.file)+'</span>'+esc(e.name)+'</div></td>'
-      +'<td class="sz">'+(e.type==="folder"?"":esc(e.sizeText))+'</td>'
-      +'<td class="dt">'+esc(e.dateText)+'</td>'
+      +'<td class="sz">'+(e.type==="folder"?"":"…")+'</td>'
+      +'<td class="dt">…</td>'
       +'<td class="ac">'+acts+'</td></tr>';
   }
   $("rows").innerHTML=h;
@@ -226,13 +243,25 @@ async function readJson(req) {
   try { return JSON.parse(raw || '{}') || {}; } catch (e) { return {}; }
 }
 
-/* One directory listing, shaped for the page and sorted by core/localfs.js. */
-function listDir(res, rawPath) {
+/*
+ * One directory listing, shaped for the page and sorted by core/localfs.js.
+ *
+ * With lite the answer carries names, kinds and paths and nothing else. That is
+ * every field a row needs to exist and every field the click handlers need, so
+ * the page can draw a five thousand entry folder in a few milliseconds instead
+ * of waiting a quarter of a second for one stat per entry. The sizes and times
+ * arrive from /api/meta and are written into the cells already on screen. A
+ * caller that does not ask for lite gets exactly what it always got.
+ */
+function listDir(res, rawPath, lite) {
   const dir = safePath(rawPath);
   let st;
   try { st = fs.statSync(dir); } catch (e) { json(res, 200, { ok: false, error: 'no such folder', path: dir }); return; }
   if (!st.isDirectory()) { json(res, 200, { ok: false, error: 'not a folder', path: dir }); return; }
-  const entries = sortEntries(listLocal(dir, {}), 'name', 1).map(function (e) {
+  const entries = sortEntries(lite ? listLocalFast(dir, {}) : listLocal(dir, {}), 'name', 1).map(function (e) {
+    if (lite) {
+      return { name: e.name, path: e.path, type: e.type, hidden: !!e.hidden, icon: iconFor(e) };
+    }
     return {
       name: e.name, path: e.path, type: e.type, size: e.size,
       mtime: e.mtime, ctime: e.ctime, hidden: !!e.hidden,
@@ -242,9 +271,31 @@ function listDir(res, rawPath) {
     };
   });
   json(res, 200, {
-    ok: true, path: dir, parent: parentOfDir(dir),
+    ok: true, path: dir, parent: parentOfDir(dir), lite: !!lite,
     crumbs: crumbsOf(dir), roots: drives(), entries: entries
   });
+}
+
+/*
+ * Size and time for every entry of one directory, keyed by name so the page can
+ * match them to rows it has already drawn whatever order either side used.
+ *
+ * The stat per entry is the one unavoidable cost of a real listing; core/localfs
+ * decides whether to pay it serially or across the pool, and the request stays
+ * asynchronous either way so the rest of the interface keeps answering.
+ */
+async function metaDir(res, rawPath) {
+  const dir = safePath(rawPath);
+  let st;
+  try { st = fs.statSync(dir); } catch (e) { json(res, 200, { ok: false, error: 'no such folder', path: dir }); return; }
+  if (!st.isDirectory()) { json(res, 200, { ok: false, error: 'not a folder', path: dir }); return; }
+  const entries = sortEntries(listLocalFast(dir, {}), 'name', 1);
+  fillMeta(entries);
+  const meta = {};
+  for (const e of entries) {
+    meta[e.name] = [e.type === 'folder' ? '' : fmtSize(e.size), fmtDate(e.mtime)];
+  }
+  json(res, 200, { ok: true, path: dir, meta: meta });
 }
 
 function download(res, rawPath) {
@@ -296,7 +347,8 @@ async function handle(req, res) {
     });
     return;
   }
-  if (method === 'GET' && p === '/api/list') { listDir(res, u.searchParams.get('path')); return; }
+  if (method === 'GET' && p === '/api/list') { listDir(res, u.searchParams.get('path'), u.searchParams.get('lite') === '1'); return; }
+  if (method === 'GET' && p === '/api/meta') { await metaDir(res, u.searchParams.get('path')); return; }
   if (method === 'GET' && p === '/api/download') { download(res, u.searchParams.get('path')); return; }
 
   if (method === 'POST' && p === '/api/mkdir') {
@@ -353,4 +405,4 @@ export async function runGui(opts) {
   return bound;
 }
 
-export { PAGE, listDir, crumbsOf };
+export { PAGE, listDir, metaDir, crumbsOf };

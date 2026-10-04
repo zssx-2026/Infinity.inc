@@ -76,6 +76,66 @@ export function listLocal(dir, opts) {
   return out;
 }
 
+/*
+ * Read one directory for its names and kinds alone.
+ *
+ * One readdir returns every entry and what it is, which is all a list needs to
+ * be drawn. Size and time are not in that answer, and asking for them costs one
+ * stat per entry: on the runtime this ships with that is roughly 50
+ * microseconds each, so a five thousand entry folder pays a quarter of a second
+ * before the first row can be painted. listLocalFast therefore answers at once
+ * and the caller fills the rest in afterwards through fillMeta.
+ */
+export function listLocalFast(dir, opts) {
+  const o = opts || {};
+  const out = [];
+  let ents;
+  try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { return out; }
+  for (const d of ents) {
+    const name = d.name;
+    if (!o.showHidden && isHidden(name)) continue;
+    const p = path.join(dir, name);
+    let type = d.isDirectory() ? 'folder' : 'file';
+    /* Only a link needs a stat to say what it points at, and there are few. */
+    if (d.isSymbolicLink()) {
+      try { type = fs.statSync(p).isDirectory() ? 'folder' : 'file'; } catch (e) { }
+    }
+    out.push({
+      name: name, path: p, type: type, size: 0, mtime: 0, ctime: 0,
+      hidden: isHidden(name), meta: false
+    });
+  }
+  return out;
+}
+
+/*
+ * Fill in size and time for entries from listLocalFast.
+ *
+ * One stat per entry cannot be avoided here, and spreading those stats over the
+ * libuv pool was measured twice and did not hold up: it won 28 per cent on an
+ * idle machine (344 ms to 247 ms for 5400 entries) and lost 27 per cent on a
+ * busy one (806 ms to 1021 ms, same directory, same code). A file manager that
+ * is sometimes faster and sometimes slower is not an optimisation, so the plain
+ * loop stays and the measurement is recorded in work/perf-ifm.md.
+ */
+function fillOne(e, s) {
+  if (!s) return;
+  e.size = s.isDirectory() ? 0 : s.size;
+  e.mtime = s.mtimeMs;
+  e.ctime = s.birthtimeMs || s.ctimeMs;
+  e.meta = true;
+}
+
+export function fillMeta(entries) {
+  for (const e of entries) {
+    let s;
+    try { s = fs.lstatSync(e.path); } catch (err) { continue; }
+    if (s.isSymbolicLink()) { try { s = fs.statSync(e.path); } catch (err) { } }
+    fillOne(e, s);
+  }
+  return entries;
+}
+
 /* Sorting is by key and direction, and folders always lead. */
 export function sortEntries(items, key, dir) {
   const k = key || 'name';

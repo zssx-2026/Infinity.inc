@@ -58,6 +58,18 @@ function nsiFor(app, payload, output) {
     paths.push({ env: app.admin + mode, file: app.admin + '_' + mode + '.exe' });
   }
   const copies = paths.map(function (x) { return '  File "' + x.file + '"'; }).join('\r\n');
+  /* A setup downloaded from a browser carries a Zone.Identifier stream, and a
+   * file the setup drops can carry one too. NSIS's own Delete cannot remove a
+   * named stream - it asks the filesystem about the path and an ADS path reads
+   * as absent - so the call goes straight to kernel32::DeleteFileW through
+   * System::Call. System.dll is part of NSIS itself: no file is carried beside
+   * the installer and nothing is downloaded. */
+  const unblock = paths.map(function (x) {
+    return "  System::Call 'kernel32::DeleteFileW(w \"$INSTDIR\\" + x.file + ":Zone.Identifier\") i .r2'";
+  }).concat([
+    "  System::Call 'kernel32::DeleteFileW(w \"$INSTDIR\\Uninstall.exe:Zone.Identifier\") i .r2'",
+    "  System::Call 'kernel32::DeleteFileW(w \"$EXEPATH:Zone.Identifier\") i .r2'"
+  ]).join('\r\n');
   const regWrite = paths.map(function (x) {
     return '  WriteRegStr HKCU "Environment" "' + x.env + '" "$INSTDIR\\' + x.file + '"';
   }).join('\r\n');
@@ -91,6 +103,7 @@ function nsiFor(app, payload, output) {
     '  SetShellVarContext current',
     '  SetOutPath "$INSTDIR"',
     copies,
+    unblock,
     '  WriteUninstaller "$INSTDIR\\Uninstall.exe"',
     '  CreateDirectory "$SMPROGRAMS\\Infinity.Inc\\${PRODUCT}"',
     '  CreateShortCut "$SMPROGRAMS\\Infinity.Inc\\${PRODUCT}\\Open.lnk" "$INSTDIR\\' + shortcut + '"',
