@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设置 — Infinity.Inc</title>
+<meta name="description" content="这些是这个网站在这个浏览器里的偏好。桌面程序各自保存自己的设置，两者不共享。">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/guard.js"></script>
+</head>
+<body>
+<main id="app" style="max-width:680px">
+  <h1 data-t="settings"></h1>
+  <p class="lede" data-t="settingsLede"></p>
+
+  <div class="card">
+    <h3 data-t="downloadsGroup"></h3>
+    <div class="field">
+      <label for="downloadPlatform" data-t="platformFirst"></label>
+      <select id="downloadPlatform">
+        <option value="win64" data-t="platformWin64"></option>
+        <option value="winx86" data-t="platformX86"></option>
+        <option value="win-arm64" data-t="platformArm"></option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="showPrerelease" data-t="showPrereleaseLabel"></label>
+      <select id="showPrerelease">
+        <option value="true" data-t="yesWord"></option>
+        <option value="false" data-t="noStableOnly"></option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 data-t="appearanceGroup"></h3>
+    <div class="field">
+      <label for="theme" data-t="themeLabel"></label>
+      <select id="theme">
+        <option value="dark" data-t="darkWord"></option>
+        <option value="light" data-t="lightWord"></option>
+      </select>
+      <p class="small faint" style="margin:6px 0 0" data-t="themeNote"></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 data-t="credentialGroup"></h3>
+    <div id="cred"></div>
+  </div>
+
+  <div class="card">
+    <h3 data-t="savedRequests"></h3>
+    <p class="muted small" data-t="savedRequestsText"></p>
+    <div id="pending"></div>
+  </div>
+
+  <div class="card">
+    <h3 data-t="resetGroup"></h3>
+    <p class="muted small" data-t="resetText"></p>
+    <button class="btn ghost" id="reset" data-t="resetButton"></button>
+    <div id="resetResult" style="margin-top:12px"></div>
+  </div>
+</main>
+
+<script src="../../assets/site.js"></script>
+<script>
+(function () {
+  var I = window.INFINITY;
+  I.applyTranslations();
+  I.nav('/settings/');
+  I.footer();
+
+  var s = I.settings();
+
+  function bind(id, key, transform) {
+    var node = document.getElementById(id);
+    if (!node) return;
+    node.value = String(s[key]);
+    node.addEventListener('change', function () {
+      var value = transform ? transform(node.value) : node.value;
+      s = I.saveSettings({});
+      var next = {};
+      next[key] = value;
+      I.saveSettings(next);
+      s = I.settings();
+    });
+  }
+
+  bind('downloadPlatform', 'downloadPlatform');
+  bind('showPrerelease', 'showPrerelease', function (v) { return v === 'true'; });
+  bind('theme', 'theme');
+
+  // ---------------------------------------------------------------- credential
+  var cred = document.getElementById('cred');
+  function renderCred() {
+    I.clear(cred);
+    if (!I.token()) {
+      cred.appendChild(I.el('p', { class: 'muted', text: I.t('noTokenHere') }));
+      cred.appendChild(I.link(I.page('/login/'), I.t('signIn'), 'btn ghost'));
+      return;
+    }
+    cred.appendChild(I.el('p', { class: 'muted', text: I.t('tokenStoredNote') }));
+    cred.appendChild(I.el('p', {
+      class: 'mono small faint',
+      text: '••••••••（' + I.token().length + ' ' + I.t('charactersWord') + '）'
+    }));
+    var row = I.el('div', { class: 'row' });
+    var check = I.el('button', { class: 'btn ghost small' }, [I.t('checkIt')]);
+    var result = I.el('span', { class: 'small muted' });
+    check.addEventListener('click', function () {
+      result.textContent = I.t('checkingWord');
+      I.verify().then(function (u) {
+        result.textContent = u
+          ? I.t('validAs') + ' ' + u.login
+          : I.t('noAccountReturned');
+      }).catch(function (e) {
+        result.textContent = I.t('rejectedWord') + e.message;
+      });
+    });
+    row.appendChild(check);
+    row.appendChild(result);
+    cred.appendChild(row);
+  }
+  renderCred();
+
+  // ---------------------------------------------------------------- pending
+  var pendingHost = document.getElementById('pending');
+  function renderPending() {
+    I.clear(pendingHost);
+    var list = [];
+    try { list = JSON.parse(localStorage.getItem('infinity.pending') || '[]'); } catch (e) { list = []; }
+    if (!list.length) {
+      pendingHost.appendChild(I.el('div', { class: 'empty', text: I.t('nothingSaved') }));
+      return;
+    }
+    var table = I.el('table');
+    table.appendChild(I.el('thead', null, [I.el('tr', null, [
+      I.el('th', { text: I.t('runIdLabel') }),
+      I.el('th', { text: I.t('savedWord') }),
+      I.el('th')
+    ])]));
+    var tb = I.el('tbody');
+    list.forEach(function (item, index) {
+      var row = I.el('tr');
+      row.appendChild(I.el('td', { class: 'mono small', text: item.id }));
+      row.appendChild(I.el('td', {
+        class: 'muted small', text: I.fmtDate(new Date(item.at).toISOString())
+      }));
+      var cell = I.el('td');
+      var del = I.el('button', { class: 'btn ghost small', text: I.t('forgetWord') });
+      del.addEventListener('click', function () {
+        list.splice(index, 1);
+        localStorage.setItem('infinity.pending', JSON.stringify(list));
+        renderPending();
+      });
+      cell.appendChild(del);
+      row.appendChild(cell);
+      tb.appendChild(row);
+    });
+    table.appendChild(tb);
+    pendingHost.appendChild(table);
+  }
+  renderPending();
+
+  // ---------------------------------------------------------------- reset
+  var resetResult = document.getElementById('resetResult');
+  document.getElementById('reset').addEventListener('click', function () {
+    try {
+      localStorage.removeItem('infinity.settings');
+      localStorage.removeItem('infinity.pending');
+    } catch (e) { /* nothing to do if the store is unavailable */ }
+    I.clear(resetResult);
+    resetResult.appendChild(I.el('div', { class: 'note', text: I.t('resetDone') }));
+    s = I.settings();
+    renderPending();
+  });
+})();
+</script>
+</body>
+</html>

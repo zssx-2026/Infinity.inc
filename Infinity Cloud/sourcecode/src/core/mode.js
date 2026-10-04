@@ -4,12 +4,13 @@
  * Infinity.Inc ships one program under several names, and the name is the
  * whole configuration:
  *
- *   inc_cli  inc_tui  inc_gui  inc_launcher        the user's copies
- *   inx_cli  inx_tui  inx_gui  inx_launcher        the administrator's copies
+ *   inc_cli  inc_tui  inc_launcher  inc_gui        the user's copies
+ *   inx_cli  inx_tui  inx_launcher  inx_gui        the administrator's copies
  *
- * The eight files are identical; only the file name carries meaning. Reading
- * it here means the build stays a single artifact and the behaviour lives in
- * one place instead of eight.
+ * The six command-line files are identical; only the file name carries
+ * meaning. Reading it here means the build stays a single artifact and the
+ * behaviour lives in one place instead of six. The two _gui names are the
+ * Electron shell, which also reads its own name and hands it to the server.
  *
  * When the program is started some other way - `node src/main.js`, or a name
  * that matches nothing - mode is null and the caller keeps its old default.

@@ -2,7 +2,7 @@
  * launcher.js - the face that only chooses.
  *
  * A user who double-clicks ifm_launcher.exe has not decided whether they
- * want the command line, the terminal UI or the window; the launcher asks,
+ * want the command line or the window; the launcher asks,
  * then hands over to the matching sibling executable and exits.
  *
  * The siblings are found beside this file, by name, which is exactly the
@@ -16,8 +16,7 @@ import { spawn } from 'node:child_process';
 
 const MENU = [
   { key: '1', mode: 'cli', label: 'CLI       命令行' },
-  { key: '2', mode: 'tui', label: 'TUI       终端界面' },
-  { key: '3', mode: 'gui', label: 'GUI       图形界面' }
+  { key: '2', mode: 'gui', label: 'GUI       图形界面' }
 ];
 
 export function siblingFor(prefix, mode) {

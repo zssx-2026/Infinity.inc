@@ -82,12 +82,10 @@ export function writeLauncher(dir, platform) {
       '@echo off',
       'rem Infinity Cloud',
       'cd /d "%~dp0"',
-      'if "%~1"=="" ( "%~dp0InfinityCloud.exe" tui ) else ( "%~dp0InfinityCloud.exe" %* )',
+      'if "%~1"=="" ( "%~dp0InfinityCloud.exe" gui ) else ( "%~dp0InfinityCloud.exe" %* )',
       ''
     ].join(CRLF);
     fs.writeFileSync(path.join(dir, 'inc.cmd'), inc, 'utf8');
-    fs.writeFileSync(path.join(dir, 'ifm.cmd'),
-      '@echo off' + CRLF + 'cd /d "%~dp0"' + CRLF + '"%~dp0InfinityCloud.exe" ifm' + CRLF, 'utf8');
     return;
   }
 
@@ -96,7 +94,7 @@ export function writeLauncher(dir, platform) {
     '# Infinity Cloud',
     'DIR=$(cd "$(dirname "$0")" && pwd)',
     'if [ $# -eq 0 ]; then',
-    '  exec "$DIR/InfinityCloud" tui',
+    '  exec "$DIR/InfinityCloud" gui',
     'else',
     '  exec "$DIR/InfinityCloud" "$@"',
     'fi',
@@ -105,11 +103,6 @@ export function writeLauncher(dir, platform) {
   const p1 = path.join(dir, 'inc');
   fs.writeFileSync(p1, inc, 'utf8');
   try { fs.chmodSync(p1, 0o755); } catch (e) { }
-
-  const p2 = path.join(dir, 'ifm');
-  fs.writeFileSync(p2, '#!/bin/sh' + NL + 'DIR=$(cd "$(dirname "$0")" && pwd)' + NL +
-    'exec "$DIR/InfinityCloud" ifm' + NL, 'utf8');
-  try { fs.chmodSync(p2, 0o755); } catch (e) { }
 }
 
 export function stageProgram(platform, dest) {
@@ -126,9 +119,8 @@ export function stageProgram(platform, dest) {
 
   fs.writeFileSync(path.join(dest, 'README.txt'),
     'Infinity Cloud' + NL + NL +
-    '  inc              the interface' + NL +
-    '  inc cli          the command line' + NL +
-    '  inc ifm          the file manager' + NL + NL +
+    '  inc              the window' + NL +
+    '  inc cli          the command line' + NL + NL +
     '  InfinityCloud --version' + NL +
     '  InfinityCloud install     install for this user' + NL +
     '  InfinityCloud repair      check every file against its hash' + NL +

@@ -26,6 +26,12 @@ ${UnStrRep}
 OutFile "@@OUTFILE@@"
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
 
+; 安装器、卸载器与所有快捷方式共用同一枚图标：make-setup.mjs 把
+; Infinity.inc/icons/inc.ico（Infinity Cloud）复制进载荷，这里直接引用
+; 载荷里的那一份，安装后它落在 $INSTDIR\inc.ico。
+!define MUI_ICON   "@@APP_DIR@@\inc.ico"
+!define MUI_UNICON "@@APP_DIR@@\inc.ico"
+
 CRCCheck off
 RequestExecutionLevel admin
 SetCompressor /SOLID lzma
@@ -360,7 +366,7 @@ Section "主程序" SEC_MAIN
   WriteRegStr HKLM "$UNINST_KEY_THIS" "DisplayVersion"  "${PRODUCT_VERSION}"
   WriteRegStr HKLM "$UNINST_KEY_THIS" "UninstallString" '"$INSTDIR\Uninstall.exe"'
   WriteRegStr HKLM "$UNINST_KEY_THIS" "InstallLocation" "$INSTDIR"
-  WriteRegStr HKLM "$UNINST_KEY_THIS" "DisplayIcon"     "$INSTDIR\@@EXE@@"
+  WriteRegStr HKLM "$UNINST_KEY_THIS" "DisplayIcon"     "$INSTDIR\inc.ico"
   WriteRegDWORD HKLM "$UNINST_KEY_THIS" "NoModify" 1
   WriteRegDWORD HKLM "$UNINST_KEY_THIS" "NoRepair" 1
 
@@ -377,12 +383,14 @@ SectionEnd
 Section "开始菜单快捷方式" SEC_STARTMENU
   ; 用本次安装的名字，共存的版本各有一个程序组，快捷方式不会互相覆盖。
   CreateDirectory "$SMPROGRAMS\$LABEL_THIS"
-  CreateShortCut "$SMPROGRAMS\$LABEL_THIS\$LABEL_THIS.lnk" "$INSTDIR\@@EXE@@"
-  CreateShortCut "$SMPROGRAMS\$LABEL_THIS\卸载.lnk" "$INSTDIR\Uninstall.exe"
+  ; 第四个参数是图标文件，0 是图标序号。不写的话（目标 exe 是注入过
+  ; SEA 的 node.exe）快捷方式会显示 Node 的默认图标，而不是产品图标。
+  CreateShortCut "$SMPROGRAMS\$LABEL_THIS\$LABEL_THIS.lnk" "$INSTDIR\@@EXE@@" "" "$INSTDIR\inc.ico" 0
+  CreateShortCut "$SMPROGRAMS\$LABEL_THIS\卸载.lnk" "$INSTDIR\Uninstall.exe" "" "$INSTDIR\inc.ico" 0
 SectionEnd
 
 Section "桌面快捷方式" SEC_DESKTOP
-  CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\@@EXE@@"
+  CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\@@EXE@@" "" "$INSTDIR\inc.ico" 0
 SectionEnd
 
 Section /o "开机自启动" SEC_AUTOSTART

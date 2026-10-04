@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark" data-accent="#d97706">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Infinity 文件管理器 · IFM</title>
+<script>
+(function(){try{var q=new URLSearchParams(location.search);var t=q.get('theme');if(t==='light'||t==='dark'){document.documentElement.dataset.theme=t;}
+var l=q.get('locale');if(l){document.documentElement.lang=l;}}catch(e){}})();
+</script>
+<link rel="stylesheet" href="../../assets/css/apps.css" />
+</head>
+<body class="app-page">
+<header class="ap-top">
+  <div class="ap-brand">
+    <span class="ap-logo">IFM</span>
+    <div><strong>Infinity 文件管理器</strong><small>Infinity File Manager · IFM</small></div>
+  </div>
+  <nav class="ap-nav">
+    <button type="button" class="active">本机</button>
+    <button type="button">云端</button>
+    <button type="button">传输</button>
+    <button type="button">标签</button>
+  </nav>
+  <div class="ap-actions">
+    <span class="tag ok">1.0.0-pre4</span>
+    <button class="ap-btn" type="button">刷新</button>
+    <button class="ap-btn primary" type="button">新建文件夹</button>
+  </div>
+</header>
+<main class="ap-main">
+  <div class="card" style="padding:12px 16px">
+    <div class="crumbs"><span>此电脑</span><span class="sep">/</span><span>D:\</span><span class="sep">/</span><strong>Infinity.inc</strong></div>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <h3>目录内容</h3>
+      <table class="tbl">
+        <tr><th>名称</th><th>类型</th><th>大小</th><th>修改时间</th></tr>
+        <tr><td>Infinity Cloud</td><td>文件夹</td><td>—</td><td>今天 15:41</td></tr>
+        <tr><td>Infinity Toolbox</td><td>文件夹</td><td>—</td><td>今天 14:02</td></tr>
+        <tr><td>work</td><td>文件夹</td><td>—</td><td>今天 15:56</td></tr>
+        <tr><td>InfinityCloud_1.0.0-pre4_win64_setup.exe</td><td>应用程序</td><td>42.6 MB</td><td>昨天 20:15</td></tr>
+        <tr><td>README.md</td><td>Markdown</td><td>12.4 KB</td><td>昨天 19:40</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>传输队列</h3>
+      <div class="list">
+        <div class="row"><span class="ico">UP</span><div class="grow"><div class="name">上传 · cloud-setup-pre4.exe</div><div class="sub">42.6 / 42.6 MB</div><div class="bar"><span style="width:100%"></span></div></div><span class="val">完成</span></div>
+        <div class="row"><span class="ico">DL</span><div class="grow"><div class="name">下载 · toolbox-pre4.zip</div><div class="sub">11.4 / 28.0 MB</div><div class="bar"><span style="width:41%"></span></div></div><span class="val">41%</span></div>
+        <div class="row"><span class="ico">CD</span><div class="grow"><div class="name">云端挂载 · 文档库</div><div class="sub">已同步 1 284 项</div></div><span class="val">在线</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="note">演示内容 · 由 Infinity Edge Shell 通过 &lt;iframe&gt; 加载（宿主模式下由精简 Chromium 直接承载）。</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<title>Infinity Edge Shell · 模拟宿主 (Mock Host)</title>
+<style>
+  :root { color-scheme: dark; --accent:#4cc2ff; }
+  html,body { height:100%; margin:0; background:#101216; color:#eef1f5;
+    font-family:"Segoe UI Variable Text","Segoe UI","Noto Sans SC",system-ui,sans-serif; }
+  .wrap { display:grid; grid-template-rows:auto 1fr; height:100%; }
+  header { display:flex; align-items:center; gap:12px; padding:10px 16px; background:#171a1f; border-bottom:1px solid rgba(255,255,255,.09); }
+  header strong { font-size:14px; }
+  header .sp { margin-left:auto; font-size:12px; color:#9aa1ab; }
+  iframe { width:100%; height:100%; border:0; display:block; }
+  .host-note { font-size:11.5px; color:#9aa1ab; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <strong>模拟宿主 (mock host)</strong>
+    <span class="host-note">通过 postMessage 与 shell 通信：shell.* → 宿主，host.* → 外壳</span>
+    <span class="sp" id="stat">等待 shell.ready…</span>
+  </header>
+  <iframe id="shell" src="index.html?host=1&frame=0" title="Infinity Edge Shell"></iframe>
+</div>
+<script>
+/* Minimal reference host: receives shell.* frames and answers with host.* frames.
+   Replace this file with your WebView2 / CEF / native integration. */
+(function () {
+  var shell = document.getElementById("shell");
+  var stat = document.getElementById("stat");
+  var log = [];
+  function reply(type, payload) {
+    shell.contentWindow.postMessage({ channel: "infinity-shell", v: 1, dir: "to-shell", type: type, payload: payload || {}, ts: Date.now() }, "*");
+  }
+  window.addEventListener("message", function (e) {
+    var f = e.data;
+    if (!f || f.channel !== "infinity-shell" || f.dir !== "to-host") { return; }
+    log.push(f.type);
+    stat.textContent = f.type + " · " + log.length + " 条报文";
+    switch (f.type) {
+      case "shell.ready":
+        reply("host.info", { host: "mock-host", engine: "Chromium (embedded)", runtime: "postMessage", protocol: "infinity-shell/1" });
+        reply("host.config", { themeMode: "dark", sidebar: true, home: "inc://cloud" });
+        break;
+      case "shell.open":
+      case "shell.navigate":
+        reply("host.tab-update", { tabId: f.payload.tabId, url: f.payload.url, title: f.payload.title, loading: false });
+        break;
+      case "shell.window":
+        window.console.log("[mock-host] window action:", f.payload.action);
+        break;
+      case "shell.command":
+        reply("host.command-result", { name: f.payload.name, ok: false, reason: "mock host: not implemented" });
+        break;
+      default:
+        reply("host.ack", { of: f.type });
+        break;
+    }
+  });
+})();
+</script>
+</body>
+</html>

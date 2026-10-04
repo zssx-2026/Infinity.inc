@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Download — Infinity.Inc</title>
+<meta name="description" content="Download Infinity Cloud, Infinity File Manager, InfinityPackageManager, Infinity Toolbox, Infinity Installer Manager and Infinity Games for Windows.">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/guard.js"></script>
+</head>
+<body>
+<main id="app">
+  <h1>Download</h1>
+  <p class="lede">Six applications. Pick one — the card opens its latest release on GitHub.</p>
+
+  <section class="stack">
+    <div class="grid" id="cards"></div>
+  </section>
+</main>
+
+<script src="../assets/site.js"></script>
+<script>
+(function () {
+  var I = window.INFINITY;
+  I.nav('/download/');
+  I.footer();
+  I.cards(document.getElementById('cards'));
+})();
+</script>
+</body>
+</html>

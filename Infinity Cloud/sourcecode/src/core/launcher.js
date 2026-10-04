@@ -42,7 +42,7 @@ export async function runLauncher(opts) {
    * the sibling executable by name.
    */
   if (!process.stdin.isTTY) {
-    process.stdout.write('非交互环境，未启动任何程序。请直接运行 ' + prefix + '_cli / _tui / _gui。\n');
+    process.stdout.write('非交互环境，未启动任何程序。请直接运行 ' + prefix + '_cli / ' + prefix + '_tui / ' + prefix + '_gui。\n');
     return { ok: true, launched: null };
   }
 

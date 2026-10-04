@@ -17,24 +17,43 @@ import { execFileSync } from 'node:child_process';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
 const BUILD = path.join(ROOT, 'build');
-const OUT = path.join(ROOT, 'release', 'v1.0pre3');
+/* The release this run belongs to. The directory that holds the installers and
+ * the version carried by their file names both come from here, so a new
+ * pre-release is one edit rather than a search: v1.0pre4 -> 1.0.0-pre4.
+ * Either value can be overridden from the environment for a one-off build. */
+const RELEASE = process.env.INC_RELEASE || 'v1.0pre4';
+const VERSION = process.env.INC_VERSION || '1.0.0-pre4';
+const OUT = path.join(ROOT, 'release', RELEASE);
 const MAKENSIS = 'C:/Program Files (x86)/NSIS/makensis.exe';
 
+/* The faces are listed per application: the terminal interface was dropped
+ * from every application, and Infinity Installer Manager ships without the
+ * launcher as well. The name is the whole configuration, so the list differs
+ * from one application to the next. */
 const APPS = [
-  { dir: 'inc', prefix: 'inc', admin: 'inx', product: 'Infinity Cloud', package: 'InfinityCloud' },
-  { dir: 'ifm', prefix: 'ifm', admin: 'ifmx', product: 'Infinity File Manager', package: 'InfinityFileManager' },
-  { dir: 'ipm', prefix: 'ipm', admin: 'ipmx', product: 'InfinityPackageManager', package: 'InfinityPackageManager' }
+  { dir: 'inc', prefix: 'inc', admin: 'inx', product: 'Infinity Cloud', package: 'InfinityCloud', faces: ['cli', 'gui', 'launcher'] },
+  { dir: 'ifm', prefix: 'ifm', admin: 'ifmx', product: 'Infinity File Manager', package: 'InfinityFileManager', faces: ['cli', 'gui', 'launcher'] },
+  { dir: 'ipm', prefix: 'ipm', admin: 'ipmx', product: 'InfinityPackageManager', package: 'InfinityPackageManager', faces: ['cli', 'gui', 'launcher'] },
+  { dir: 'iim', prefix: 'iim', admin: 'iimx', product: 'Infinity Installer Manager', package: 'InfinityInstallerManager', faces: ['cli', 'gui'] },
+  { dir: 'int', prefix: 'int', admin: 'intx', product: 'Infinity Toolbox', package: 'InfinityToolbox', faces: ['cli', 'gui'] },
+  { dir: 'ing', prefix: 'ing', admin: 'ingx', product: 'Infinity Games', package: 'InfinityGames', faces: ['cli', 'gui'] }
 ];
-const MODES = ['cli', 'tui', 'gui', 'launcher'];
 
 function run(exe, args, cwd) {
-  return execFileSync(exe, args, { cwd: cwd || ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  return execFileSync(exe, args, {
+    cwd: cwd || ROOT,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    // makensis prints nothing at /V2, but a failing build can dump a lot, and
+    // the 1 MB default surfaces as ENOBUFS instead of the real error.
+    maxBuffer: 64 * 1024 * 1024
+  });
 }
 function log(s) { process.stdout.write(s + '\n'); }
 
 function nsiFor(app, payload, output) {
   const paths = [];
-  for (const mode of MODES) {
+  for (const mode of app.faces) {
     paths.push({ env: app.prefix + mode, file: app.prefix + '_' + mode + '.exe' });
     paths.push({ env: app.admin + mode, file: app.admin + '_' + mode + '.exe' });
   }
@@ -45,14 +64,14 @@ function nsiFor(app, payload, output) {
   const regDelete = paths.map(function (x) {
     return '  DeleteRegValue HKCU "Environment" "' + x.env + '"';
   }).join('\r\n');
-  const shortcut = app.prefix + '_launcher.exe';
+  const shortcut = app.prefix + '_' + (app.faces.indexOf('launcher') >= 0 ? 'launcher' : 'gui') + '.exe';
   const unkey = 'Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Infinity.Inc.' + app.package;
   return [
     'Unicode true',
     '!include "MUI2.nsh"',
     '!include "LogicLib.nsh"',
     '!define PRODUCT "' + app.product + '"',
-    '!define VERSION "1.0.0-pre3"',
+    '!define VERSION "' + VERSION + '"',
     '!define UNKEY "' + unkey + '"',
     '!define OUTFILE "' + output.replace(/\//g, '\\\\') + '"',
     'Name "${PRODUCT} ${VERSION}"',
@@ -112,7 +131,7 @@ function stage(app) {
   const dest = path.join(BUILD, 'installer-stage', app.dir);
   fs.rmSync(dest, { recursive: true, force: true });
   fs.mkdirSync(dest, { recursive: true });
-  for (const mode of MODES) {
+  for (const mode of app.faces) {
     for (const prefix of [app.prefix, app.admin]) {
       const name = prefix + '_' + mode + '.exe';
       const file = path.join(source, name);
@@ -130,7 +149,7 @@ function main() {
 
   for (const app of APPS) {
     const payload = stage(app);
-    const output = path.join(OUT, app.package + '_1.0.0-pre3_win64_setup.exe');
+    const output = path.join(OUT, app.package + '_' + VERSION + '_win64_setup.exe');
     const script = path.join(payload, 'setup.nsi');
     const text = nsiFor(app, payload, output);
     fs.writeFileSync(script, '\uFEFF' + text, 'utf8');

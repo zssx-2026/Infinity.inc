@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>云盘 — Infinity.Inc</title>
+<meta name="description" content="Infinity Cloud 在桌面上显示的同一个云盘，从同一批 release 里读出来。">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/guard.js"></script>
+</head>
+<body>
+<main id="app">
+  <h1 data-t="cloud"></h1>
+  <p class="lede" data-t="cloudLede"></p>
+
+  <div id="gate"></div>
+
+  <div id="view" hidden>
+    <div class="spread" style="margin-bottom:16px">
+      <div class="row">
+        <label for="store" class="small muted" style="margin:0" data-t="storage"></label>
+        <select id="store" style="width:auto"></select>
+      </div>
+      <div class="row">
+        <button class="btn ghost small" id="reload" data-t="refresh"></button>
+      </div>
+    </div>
+    <div id="summary" class="small muted" style="margin-bottom:12px"></div>
+    <div id="tree"></div>
+    <div id="trash"></div>
+  </div>
+</main>
+
+<script src="../../assets/site.js"></script>
+<script>
+(function () {
+  var I = window.INFINITY;
+  I.applyTranslations();
+  I.nav('/cloud/');
+  I.footer();
+
+  var gate = document.getElementById('gate');
+  var view = document.getElementById('view');
+  var storeSelect = document.getElementById('store');
+  var summary = document.getElementById('summary');
+  var tree = document.getElementById('tree');
+  var trashHost = document.getElementById('trash');
+  var stores = [];
+
+  if (!I.requireAuth(I.page('/cloud/'))) return;
+
+  function readManifest(repo, release) {
+    var asset = null;
+    (release.assets || []).forEach(function (a) { if (a.name === 'file.json') asset = a; });
+    if (!asset) return Promise.resolve(null);
+
+    return fetch(asset.browser_download_url, { credentials: 'omit' })
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.text();
+      })
+      .then(function (text) {
+        var doc = null;
+        try { doc = JSON.parse(text); } catch (e) { doc = null; }
+        if (!doc) throw new Error(I.t('manifestNotJson'));
+        return doc;
+      });
+  }
+
+  function loadStore(repo) {
+    return I.releases(repo.name).then(function (releases) {
+      var candidates = (releases || []).filter(function (r) { return !r.draft; });
+      var best = null;
+      var chain = Promise.resolve();
+      candidates.forEach(function (rel) {
+        chain = chain.then(function () {
+          return readManifest(repo.name, rel).then(function (doc) {
+            if (!doc) return;
+            var volume = Number(doc.volume || 1);
+            if (!best || volume > best.volume) best = { volume: volume, doc: doc, release: rel };
+          });
+        });
+      });
+      return chain.then(function () {
+        return { repo: repo, manifest: best ? best.doc : null, release: best ? best.release : null };
+      });
+    });
+  }
+
+  function fmtType(entry) {
+    return entry.type === 'folder' ? I.t('folderWord') : I.t('fileWord');
+  }
+
+  function renderTree(loaded) {
+    I.clear(tree);
+    I.clear(trashHost);
+
+    if (!loaded.manifest) {
+      tree.appendChild(I.el('div', { class: 'note warn', text: I.t('noManifest') }));
+      tree.appendChild(I.el('p', { class: 'small muted' }, [
+        I.t('repoItself') + ' ',
+        I.link('https://github.com/zssx-2026/' + loaded.repo.name, 'zssx-2026/' + loaded.repo.name)
+      ]));
+      return;
+    }
+
+    var files = loaded.manifest.files || {};
+    var paths = Object.keys(files);
+    var total = 0;
+    paths.forEach(function (p) { total += Number(files[p].size || 0); });
+
+    summary.textContent = paths.length + ' ' + I.t('entries') + ' · ' + I.fmtSize(total) +
+      ' · ' + I.t('volumeWord') + ' ' + (loaded.manifest.volume || 1) +
+      ' · ' + I.t('updatedWord') + ' ' +
+      I.fmtDate(new Date(Number(loaded.manifest.updated || 0)).toISOString());
+
+    if (!paths.length) {
+      tree.appendChild(I.el('div', { class: 'empty', text: I.t('emptyDrive') }));
+    } else {
+      paths.sort();
+      var table = I.el('table');
+      table.appendChild(I.el('thead', null, [I.el('tr', null, [
+        I.el('th', { text: I.t('pathWord') }),
+        I.el('th', { text: I.t('typeWord') }),
+        I.el('th', { class: 'num', text: I.t('size') }),
+        I.el('th', { text: I.t('modifiedWord') }),
+        I.el('th')
+      ])]));
+      var body = I.el('tbody');
+      paths.forEach(function (p) {
+        var entry = files[p];
+        var row = I.el('tr');
+        row.appendChild(I.el('td', { class: 'mono', text: p }));
+        row.appendChild(I.el('td', { class: 'muted', text: fmtType(entry) }));
+        row.appendChild(I.el('td', { class: 'num', text: I.fmtSize(entry.size) }));
+        row.appendChild(I.el('td', { class: 'muted small', text:
+          entry.modified ? I.fmtDate(new Date(Number(entry.modified)).toISOString()) : '' }));
+
+        var cell = I.el('td');
+        var parts = entry.parts;
+        if (Array.isArray(parts) && parts.length && parts[0].asset) {
+          // The manifest names the repository, the release and the asset, so
+          // the download URL is built from those rather than searched for.
+          var href = 'https://github.com/zssx-2026/' + parts[0].repo +
+            '/releases/download/' + parts[0].release + '/' + encodeURIComponent(parts[0].asset);
+          cell.appendChild(I.el('a', {
+            class: 'btn small ghost', href: href, text: I.t('downloadAction')
+          }));
+          if (parts.length > 1) {
+            cell.appendChild(I.el('span', { class: 'small faint', text:
+              ' ' + parts.length + ' ' + I.t('partsWord') }));
+          }
+        } else {
+          cell.appendChild(I.el('span', { class: 'small faint', text: I.t('noParts') }));
+        }
+        row.appendChild(cell);
+        body.appendChild(row);
+      });
+      table.appendChild(body);
+      tree.appendChild(table);
+    }
+
+    var trash = loaded.manifest.trash || {};
+    var trashed = Object.keys(trash);
+    if (trashed.length) {
+      trashHost.appendChild(I.el('h2', { style: 'margin-top:28px', text: I.t('recycleBin') }));
+      var tt = I.el('table');
+      tt.appendChild(I.el('thead', null, [I.el('tr', null, [
+        I.el('th', { text: I.t('pathWord') }),
+        I.el('th', { class: 'num', text: I.t('size') }),
+        I.el('th', { text: I.t('deletedWord') })
+      ])]));
+      var tb = I.el('tbody');
+      trashed.forEach(function (p) {
+        var e = trash[p];
+        tb.appendChild(I.el('tr', null, [
+          I.el('td', { class: 'mono', text: p }),
+          I.el('td', { class: 'num', text: I.fmtSize(e.size) }),
+          I.el('td', { class: 'muted small', text:
+            e.deleted ? I.fmtDate(new Date(Number(e.deleted)).toISOString()) : '' })
+        ]));
+      });
+      tt.appendChild(tb);
+      trashHost.appendChild(tt);
+      trashHost.appendChild(I.el('p', { class: 'small faint', text: I.t('restoreNote') }));
+    }
+  }
+
+  function load() {
+    var name = storeSelect.value;
+    var repo = null;
+    stores.forEach(function (s) { if (s.name === name) repo = s; });
+    if (!repo) return;
+
+    I.loading(tree, I.t('readingManifest'));
+    I.clear(trashHost);
+    summary.textContent = '';
+
+    loadStore(repo).then(renderTree).catch(function (e) {
+      I.clear(tree);
+      tree.appendChild(I.el('div', { class: 'note bad', text:
+        I.t('driveFailed') + ' ' + e.message }));
+    });
+  }
+
+  I.loading(gate, I.t('findingStores'));
+
+  I.gh('/user/repos?per_page=100&affiliation=owner&sort=updated')
+    .then(function (repos) {
+      stores = (repos || []).filter(function (r) { return r.name.indexOf('inc_') === 0; });
+      I.clear(gate);
+
+      if (!stores.length) {
+        gate.appendChild(I.el('div', { class: 'note', text: I.t('noStorage') }));
+        gate.appendChild(I.el('p', null, [
+          I.link(I.page('/download/infinitycloud/'), I.t('getInfinityCloud'))
+        ]));
+        return;
+      }
+
+      stores.forEach(function (r) {
+        storeSelect.appendChild(I.el('option', {
+          value: r.name,
+          text: r.name + '（' + (r.private ? I.t('privateWord') : I.t('publicWord')) + '）'
+        }));
+      });
+      view.hidden = false;
+      load();
+    })
+    .catch(function (e) {
+      I.failure(gate, I.t('reposFailed') + ' ' + e.message);
+    });
+
+  storeSelect.addEventListener('change', load);
+  document.getElementById('reload').addEventListener('click', load);
+})();
+</script>
+</body>
+</html>

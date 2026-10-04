@@ -1,7 +1,10 @@
-#include "inc/console.hpp"
+#include "inc/json.hpp"
 #include "inc/localfs.hpp"
 #include "inc/mode.hpp"
 #include "inc/str.hpp"
+#include "inc/uiserver.hpp"
+
+#include "ui.hpp"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -11,6 +14,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -18,7 +22,7 @@ using namespace inc;
 
 namespace {
 
-const char* kVersion = "1.0.0-pre3";
+const char* kVersion = "1.0.0-pre4";
 const int kUp = 1001;
 const int kNewFolder = 1002;
 const int kRefresh = 1003;
@@ -33,35 +37,7 @@ void out(const std::string& text) {
 }
 
 bool isModeName(const std::string& value) {
-  return value == "cli" || value == "tui" || value == "gui" || value == "launcher";
-}
-
-std::string fitLine(const std::string& text, int width) {
-  if (width <= 0) return std::string();
-  size_t bytes = 0;
-  int cells = 0;
-  while (bytes < text.size()) {
-    unsigned char c = static_cast<unsigned char>(text[bytes]);
-    size_t length = c < 0x80 ? 1 : (c < 0xE0 ? 2 : (c < 0xF0 ? 3 : 4));
-    if (bytes + length > text.size()) length = 1;
-    int cellsForChar = (length == 3 || length == 4) ? 2 : 1;
-    if (cells + cellsForChar > width) break;
-    cells += cellsForChar;
-    bytes += length;
-  }
-  std::string result = text.substr(0, bytes);
-  if (bytes < text.size() && width >= 3) {
-    while (cells > width - 3 && !result.empty()) {
-      size_t start = result.size() - 1;
-      while (start > 0 && (static_cast<unsigned char>(result[start]) & 0xC0) == 0x80) --start;
-      unsigned char c = static_cast<unsigned char>(result[start]);
-      size_t length = c < 0x80 ? 1 : (c < 0xE0 ? 2 : (c < 0xF0 ? 3 : 4));
-      result.resize(start);
-      cells -= (length == 3 || length == 4) ? 2 : 1;
-    }
-    result += "...";
-  }
-  return result;
+  return value == "cli" || value == "gui" || value == "launcher";
 }
 
 std::string entryLine(const localfs::Entry& entry) {
@@ -125,73 +101,6 @@ int cliMain(const std::vector<std::string>& args) {
   }
   out("ifm: invalid command or arguments (use ifm --help)");
   return 2;
-}
-
-void tuiDraw(Console& console, const std::string& path,
-             const std::vector<localfs::Entry>& entries, int cursor,
-             const std::string& status) {
-  console.clear();
-  console.hideCursor();
-  int width = console.width();
-  int height = console.height();
-  console.line(0, fitLine(" " + path, width), width);
-  console.line(1, fitLine(status.empty() ? "" : " " + status, width), width);
-
-  int visible = std::max(0, height - 4);
-  int start = 0;
-  if (cursor >= visible && visible > 0) start = cursor - visible + 1;
-  for (int row = 0; row < visible; ++row) {
-    int index = start + row;
-    if (index >= static_cast<int>(entries.size())) break;
-    std::string line = (index == cursor ? "> " : "  ") + entryLine(entries[index]);
-    console.line(row + 2, fitLine(line, width), width);
-  }
-  if (height > 2) console.line(height - 1, fitLine(" Up/Down select  Enter open  Backspace up  Q quit", width), width);
-  console.flush();
-}
-
-int tuiMain() {
-  Console console;
-  if (!console.ok()) { out("ifm: no console available for TUI"); return 1; }
-
-  std::string path = localfs::currentDirectory();
-  std::vector<localfs::Entry> entries;
-  std::string status;
-  if (!localfs::list(path, &entries, &status)) { out("ifm: " + status); return 1; }
-  int cursor = 0;
-  console.setRaw(true);
-  tuiDraw(console, path, entries, cursor, status);
-
-  for (;;) {
-    Key key = console.readKey();
-    if (key.kind == Key::None || key.kind == Key::CtrlC || key.kind == Key::Escape ||
-        (key.kind == Key::Char && (key.ch == 'q' || key.ch == 'Q'))) break;
-    status.clear();
-    if (key.kind == Key::Up && cursor > 0) --cursor;
-    else if (key.kind == Key::Down && cursor + 1 < static_cast<int>(entries.size())) ++cursor;
-    else if (key.kind == Key::Backspace) {
-      std::string parent = localfs::parentPath(path);
-      if (parent != path) {
-        std::vector<localfs::Entry> next;
-        if (localfs::list(parent, &next, &status)) { path = parent; entries.swap(next); cursor = 0; }
-      }
-    } else if (key.kind == Key::Enter && cursor >= 0 && cursor < static_cast<int>(entries.size())) {
-      const localfs::Entry& entry = entries[cursor];
-      if (entry.directory) {
-        std::vector<localfs::Entry> next;
-        if (localfs::list(entry.path, &next, &status)) { path = entry.path; entries.swap(next); cursor = 0; }
-      } else {
-        HINSTANCE result = ShellExecuteW(nullptr, L"open", toWide(entry.path).c_str(), nullptr, nullptr, SW_SHOWNORMAL);
-        if (reinterpret_cast<INT_PTR>(result) <= 32) status = "open failed";
-      }
-    }
-    console.refreshSize();
-    tuiDraw(console, path, entries, cursor, status);
-  }
-  console.setRaw(false);
-  console.showCursor();
-  console.clear();
-  return 0;
 }
 
 struct PromptState {
@@ -384,6 +293,230 @@ LRESULT CALLBACK guiProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
   return DefWindowProcW(hwnd, message, wParam, lParam);
 }
 
+// ---------------------------------------------------------------- ui
+
+/*
+ * The window is Electron; this process is what it talks to.
+ *
+ * The page fetches everything it shows from these routes, so the rules that
+ * keep the program safe hold here too. A path arriving in a query string is
+ * untrusted input from a browser, and every failure is answered with a JSON
+ * object carrying a message and a non-zero status - an empty 200 would make
+ * the page show a blank list where it should show a reason.
+ */
+
+// The layer has no modified time of its own; Windows does, and the column is
+// worth having, so it is asked for here rather than dropped from the page.
+long long modifiedTime(const std::string& path) {
+  WIN32_FILE_ATTRIBUTE_DATA data;
+  if (!GetFileAttributesExW(toWide(path).c_str(), GetFileExInfoStandard, &data)) return 0;
+  ULARGE_INTEGER stamp;
+  stamp.HighPart = data.ftLastWriteTime.dwHighDateTime;
+  stamp.LowPart = data.ftLastWriteTime.dwLowDateTime;
+  // 100-nanosecond ticks since 1601 -> milliseconds since 1970.
+  return (long long)(stamp.QuadPart / 10000ULL) - 11644473600000LL;
+}
+
+Json entryJson(const localfs::Entry& entry) {
+  Json j = Json::object();
+  j.set("name", entry.name);
+  j.set("path", entry.path);
+  j.set("directory", entry.directory);
+  j.set("size", (long long)entry.size);
+  j.set("modified", modifiedTime(entry.path));
+  return j;
+}
+
+// The drives that actually exist. GetLogicalDrives reports a bit per letter;
+// offering a drive that is not there would be a button that fails.
+std::vector<std::string> drives() {
+  std::vector<std::string> found;
+  const DWORD mask = GetLogicalDrives();
+  for (int letter = 0; letter < 26; ++letter) {
+    if (!(mask & (1u << letter))) continue;
+    std::string root(1, (char)('A' + letter));
+    root += ":\\";
+    UINT type = GetDriveTypeW(toWide(root).c_str());
+    if (type == DRIVE_UNKNOWN || type == DRIVE_NO_ROOT_DIR) continue;
+    found.push_back(root);
+  }
+  return found;
+}
+
+Json listingJson(const std::string& path, std::string* error) {
+  std::vector<localfs::Entry> entries;
+  if (!localfs::list(path, &entries, error)) return Json();
+
+  uint64_t total = 0;
+  Json rows = Json::array();
+  for (const localfs::Entry& entry : entries) {
+    if (!entry.directory) total += entry.size;
+    rows.push(entryJson(entry));
+  }
+
+  Json j = Json::object();
+  j.set("path", path);
+  j.set("entries", rows);
+  j.set("totalBytes", (long long)total);
+  return j;
+}
+
+std::string queryValue(const UiRequest& request, const std::string& key) {
+  auto it = request.query.find(key);
+  return it == request.query.end() ? std::string() : it->second;
+}
+
+UiResponse failure(const std::string& message, int status) {
+  Json j = Json::object();
+  j.set("error", message);
+  return UiResponse::withStatus(UiResponse::json(j.dump(2)), status);
+}
+
+int serveUi(int port) {
+  UiServer server;
+
+  server.route("GET", "/", [](const UiRequest&) { return UiResponse::html(uiHtml()); });
+  server.route("GET", "/app.css", [](const UiRequest&) { return UiResponse::css(uiCss()); });
+  server.route("GET", "/app.js", [](const UiRequest&) { return UiResponse::js(uiJs()); });
+
+  server.route("GET", "/api/state", [](const UiRequest& request) {
+    std::string path = queryValue(request, "path");
+    if (path.empty()) path = localfs::currentDirectory();
+    std::string error;
+    Json listing = listingJson(path, &error);
+    if (listing.isNull()) return failure(error.empty() ? "cannot read " + path : error, 400);
+
+    Json drivesJson = Json::array();
+    for (const std::string& drive : drives()) {
+      Json d = Json::object();
+      d.set("name", drive);
+      d.set("path", drive);
+      drivesJson.push(d);
+    }
+
+    Json j = Json::object();
+    j.set("app", "Infinity File Manager");
+    j.set("version", kVersion);
+    j.set("path", listing.s("path"));
+    j.set("home", localfs::currentDirectory());
+    j.set("entries", listing.get("entries"));
+    j.set("totalBytes", listing.i("totalBytes"));
+    j.set("drives", drivesJson);
+    return UiResponse::json(j.dump(2));
+  });
+
+  server.route("GET", "/api/list", [](const UiRequest& request) {
+    const std::string path = queryValue(request, "path");
+    if (path.empty()) return failure("no path given", 400);
+    std::string error;
+    Json listing = listingJson(path, &error);
+    if (listing.isNull()) return failure(error.empty() ? "cannot read " + path : error, 400);
+    return UiResponse::json(listing.dump(2));
+  });
+
+  server.route("POST", "/api/mkdir", [](const UiRequest& request) {
+    const std::string path = queryValue(request, "path");
+    if (path.empty()) return failure("no path given", 400);
+    std::string error;
+    if (!localfs::createDirectory(path, &error)) return failure(error, 400);
+    return UiResponse::json(Json::object().dump());
+  });
+
+  server.route("POST", "/api/rename", [](const UiRequest& request) {
+    const std::string path = queryValue(request, "path");
+    const std::string name = queryValue(request, "name");
+    if (path.empty() || name.empty()) return failure("path and name are both required", 400);
+    if (name.find_first_of("\\/") != std::string::npos || name == "." || name == "..") {
+      return failure("a name cannot contain a path separator", 400);
+    }
+    std::string error;
+    if (!localfs::renamePath(path, localfs::joinPath(localfs::parentPath(path), name), &error)) {
+      return failure(error, 400);
+    }
+    return UiResponse::json(Json::object().dump());
+  });
+
+  server.route("POST", "/api/copy", [](const UiRequest& request) {
+    const std::string from = queryValue(request, "from");
+    const std::string to = queryValue(request, "to");
+    if (from.empty() || to.empty()) return failure("from and to are both required", 400);
+    std::string error;
+    if (!localfs::copyPath(from, to, &error)) return failure(error, 400);
+    return UiResponse::json(Json::object().dump());
+  });
+
+  server.route("POST", "/api/move", [](const UiRequest& request) {
+    const std::string from = queryValue(request, "from");
+    const std::string to = queryValue(request, "to");
+    if (from.empty() || to.empty()) return failure("from and to are both required", 400);
+    std::string error;
+    if (!localfs::movePath(from, to, &error)) return failure(error, 400);
+    return UiResponse::json(Json::object().dump());
+  });
+
+  server.route("POST", "/api/delete", [](const UiRequest& request) {
+    const std::string path = queryValue(request, "path");
+    if (path.empty()) return failure("no path given", 400);
+    std::string error;
+    if (!localfs::recycleDelete(path, &error)) return failure(error, 400);
+    return UiResponse::json(Json::object().dump());
+  });
+
+  server.route("POST", "/api/upload", [](const UiRequest& request) {
+    const std::string directory = queryValue(request, "path");
+    const std::string name = queryValue(request, "name");
+    if (directory.empty() || name.empty()) return failure("path and name are both required", 400);
+    // The name comes from a browser file picker, which is still not a reason to
+    // trust it: it becomes a path on disk.
+    if (name.find_first_of("\\/") != std::string::npos || name == "." || name == "..") {
+      return failure("a name cannot contain a path separator", 400);
+    }
+    const std::wstring target = toWide(localfs::joinPath(directory, name));
+    HANDLE file = CreateFileW(target.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+                              FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE) return failure("cannot create " + name, 400);
+    DWORD written = 0;
+    const bool ok = request.body.empty() ||
+      WriteFile(file, request.body.data(), (DWORD)request.body.size(), &written, nullptr) != 0;
+    CloseHandle(file);
+    if (!ok) return failure("cannot write " + name, 500);
+    Json j = Json::object();
+    j.set("written", (long long)written);
+    return UiResponse::json(j.dump());
+  });
+
+  server.route("GET", "/api/download", [](const UiRequest& request) {
+    const std::string path = queryValue(request, "path");
+    if (path.empty()) return failure("no path given", 400);
+    if (localfs::isDirectory(path)) return failure("that is a folder", 400);
+    HANDLE file = CreateFileW(toWide(path).c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                              OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE) return failure("cannot open " + path, 404);
+    std::string body;
+    char buffer[65536];
+    DWORD read = 0;
+    while (ReadFile(file, buffer, sizeof(buffer), &read, nullptr) && read) body.append(buffer, read);
+    CloseHandle(file);
+
+    const size_t slash = path.find_last_of("\\/");
+    const std::string name = slash == std::string::npos ? path : path.substr(slash + 1);
+    UiResponse response = UiResponse::text(body, 200);
+    response.contentType = "application/octet-stream";
+    response.headers.push_back({ "Content-Disposition", "attachment; filename=\"" + name + "\"" });
+    return response;
+  });
+
+  std::string error;
+  if (!server.start(port, &error)) {
+    out("ifm: cannot start the interface server: " + error);
+    return 1;
+  }
+  out("Infinity File Manager interface  " + server.url());
+  out("open it in the window, or point a browser at it; close this to stop.");
+  server.wait();
+  return 0;
+}
+
 int guiMain() {
   GuiState state;
   state.path = localfs::currentDirectory();
@@ -411,36 +544,35 @@ int guiMain() {
 }
 
 int launcherMain(bool admin) {
+  const std::string prefix = admin ? "ifmx" : "ifm";
+  out(std::string("Infinity File Manager [") + (admin ? "管理员" : "用户") + "]");
+  out("");
+  out("  1) CLI       命令行");
+  out("  2) GUI       图形界面");
+  out("");
+  out("  q) 退出");
+  out("");
+
   HANDLE input = GetStdHandle(STD_INPUT_HANDLE);
   DWORD inputMode = 0;
   if (input == INVALID_HANDLE_VALUE || !GetConsoleMode(input, &inputMode)) {
-    out(admin ? "Run ifmx_cli/ifmx_tui/ifmx_gui directly."
-              : "Run ifm_cli/ifm_tui/ifm_gui directly.");
+    out("(no console; start " + prefix + "_cli / _gui directly)");
     return 0;
   }
 
-  Console console;
-  if (!console.ok()) return 0;
-  out("1 CLI  2 TUI  3 GUI  (q/Esc quit)");
   fputs("> ", stdout);
   fflush(stdout);
-  console.setRaw(true);
+  std::string answer;
+  char buffer[64];
+  if (fgets(buffer, sizeof(buffer), stdin)) answer = trim(buffer);
+  if (answer.empty() || answer == "q" || answer == "Q") return 0;
 
-  int selection = 0;
-  while (!selection) {
-    Key key = console.readKey();
-    if (key.kind == Key::Escape || key.kind == Key::CtrlC || key.kind == Key::None ||
-        (key.kind == Key::Char && (key.ch == 'q' || key.ch == 'Q'))) {
-      console.setRaw(false);
-      return 0;
-    }
-    if (key.kind == Key::Char && key.ch >= '1' && key.ch <= '3') selection = key.ch - '0';
-  }
-  console.setRaw(false);
+  std::string selectedMode;
+  if (answer == "1" || answer == "cli") selectedMode = "cli";
+  else if (answer == "2" || answer == "gui") selectedMode = "gui";
+  else { out("unknown choice"); return 1; }
 
-  const char* selectedMode = selection == 1 ? "cli" : (selection == 2 ? "tui" : "gui");
-  const std::string prefix = admin ? "ifmx" : "ifm";
-  std::wstring application = toWide(siblingExe(prefix, selectedMode));
+  const std::wstring application = toWide(siblingExe(prefix, selectedMode));
   std::wstring commandLine = L"\"" + application + L"\"";
   STARTUPINFOW startup = {};
   startup.cb = sizeof(startup);
@@ -472,6 +604,33 @@ int main(int, char**) {
     out(std::string("Infinity File Manager ") + kVersion);
     return 0;
   }
+
+  /*
+   * --serve-ui is what the window starts this program with. It is a flag
+   * rather than a face because the face belongs to the Electron shell: the
+   * shell is inc_gui.exe, and it runs this executable with --serve-ui to get
+   * something to draw. The port is fixed per application so the shell does not
+   * have to be told it, and --port= is there for a test that wants two of
+   * these at once.
+   */
+  bool serveUiRequested = false;
+  int uiPort = 7623;
+  {
+    std::vector<std::string> rest;
+    for (const std::string& a : args) {
+      if (a == "--serve-ui") { serveUiRequested = true; continue; }
+      if (startsWith(a, "--port=")) {
+        const int asked = atoi(a.substr(7).c_str());
+        if (asked > 0 && asked < 65536) uiPort = asked;
+        serveUiRequested = true;
+        continue;
+      }
+      rest.push_back(a);
+    }
+    args.swap(rest);
+  }
+  if (serveUiRequested) return serveUi(uiPort);
+
   Mode detected = detectMode();
   std::string mode = detected.mode;
   if (!args.empty() && isModeName(args[0])) {
@@ -480,7 +639,6 @@ int main(int, char**) {
   }
   if (mode == "launcher") return launcherMain(detected.admin);
   if (mode == "gui") return guiMain();
-  if (mode == "tui") return tuiMain();
   if (mode == "cli" || !args.empty()) return cliMain(args);
-  return tuiMain();
+  return guiMain();
 }

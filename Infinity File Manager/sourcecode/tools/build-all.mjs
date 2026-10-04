@@ -10,13 +10,11 @@
  * only by name. The program reads its own file name to decide what to do:
  *
  *   ifm_cli        command line        ifmx_cli        elevated command line
- *   ifm_tui        terminal UI         ifmx_tui        elevated terminal UI
- *   ifm_gui        graphical UI        ifmx_gui        elevated graphical UI
  *   ifm_launcher   launcher            ifmx_launcher   elevated launcher
  *
- * The eight are byte identical, so seven of them are hard links to the first.
+ * The four are byte identical, so three of them are hard links to the first.
  * That keeps a full platform at one executable's worth of disk instead of
- * eight, while still giving each name a real file on the system.
+ * four, while still giving each name a real file on the system.
  *
  * Targets, and why these seven:
  *
@@ -62,12 +60,12 @@ export const TARGETS = [
 ];
 
 /* The naming layer. Two prefixes - the plain one and the elevated one - and
- * four modes each, in the order the launcher lists them. */
+ * the modes each, in the order the launcher lists them. */
 export const PREFIXES = [
   { prefix: 'ifm',  admin: false },
   { prefix: 'ifmx', admin: true }
 ];
-export const MODES = ['cli', 'tui', 'launcher'];
+export const MODES = ['cli', 'launcher'];
 
 export function exeNames(target) {
   const ext = target.id.indexOf('win') === 0 ? '.exe' : '';

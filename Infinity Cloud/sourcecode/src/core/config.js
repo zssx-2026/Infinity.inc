@@ -1,10 +1,8 @@
 /*
  * config.js - settings, and where they live.
  *
- * The two modes keep separate files on purpose. A CLI session and a TUI
- * session are different enough that sharing one file would mean one of them
- * constantly overwriting the other's idea of how things should look. Both
- * files are plain JSON despite the .ics extension.
+ * The command line keeps its own file. The .ics extension is a historical
+ * name; the file is plain JSON.
  *
  * Nothing here ever writes a token into the file unless the user asked for
  * automatic sign-in. The token normally lives in the environment.
@@ -17,7 +15,6 @@ const HOME = process.env.USERPROFILE || process.env.HOME || os.homedir();
 
 export const PATHS = {
   cli: path.join(process.cwd(), 'cli_set.ics'),
-  tui: path.join(process.cwd(), 'tui_set.ics'),
   cache: path.join('D:', 'temp', 'Infinity Cloud'),
   trash: path.join('D:', 'temp', 'recyle.bin', 'Infinity Cloud'),
   backup: path.join('D:', 'temp', 'backup', 'Infinity Cloud')
@@ -37,6 +34,7 @@ export const DEFAULTS = {
   repoPrefix: 'inc_',
   chunkBytes: 1990 * 1024 * 1024,
   maxAssets: 64,
+  maxReleases: 900,
   concurrency: 3,
   speedLimit: 0,
   timeout: 1800,
@@ -51,11 +49,11 @@ export const DEFAULTS = {
 };
 
 /*
- * Which file backs which mode. Passing the mode in keeps the caller from
- * having to know the mapping.
+ * Which file backs the settings. There is only one now; the mode is kept in
+ * the signature so callers do not have to change.
  */
 export function configPath(mode) {
-  return mode === 'tui' ? PATHS.tui : PATHS.cli;
+  return PATHS.cli;
 }
 
 export function load(mode) {
@@ -93,8 +91,8 @@ export function save(mode, cfg) {
 
 /*
  * One place that decides what a setting is called, what it accepts, and what
- * it does. The CLI and the TUI both drive the same table, so a setting can
- * never work in one mode and silently do nothing in the other.
+ * it does. Every face drives the same table, so a setting can never work in
+ * one mode and silently do nothing in another.
  */
 export const SCHEMA = [
   { key: 'lang', type: 'enum', values: ['en', 'zh-CN', 'zh-TW'], desc: 'Interface language' },
@@ -110,7 +108,7 @@ export const SCHEMA = [
   { key: 'timeout', type: 'int', desc: 'Transfer timeout in seconds' },
   { key: 'hashCheck', type: 'bool', desc: 'Verify SHA-256 after transfer' },
   { key: 'useCloudTime', type: 'bool', desc: 'Apply the cloud timestamp locally' },
-  { key: 'theme', type: 'enum', values: ['dark', 'light'], desc: 'TUI colour scheme' },
+  { key: 'theme', type: 'enum', values: ['dark', 'light'], desc: 'Interface colour scheme' },
   { key: 'logLevel', type: 'enum', values: ['quiet', 'info', 'debug'], desc: 'How much to print' },
   { key: 'autoUpdate', type: 'bool', desc: 'Check for a newer release at start' },
   { key: 'confirmDelete', type: 'bool', desc: 'Ask before deleting' },

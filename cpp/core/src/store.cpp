@@ -81,6 +81,29 @@ std::string randomSuffix(size_t len) {
   return out;
 }
 
+// A stable, short fingerprint of a cloud path. Part asset names are built from
+// it so that two files with the same base name - /a/report.pdf and
+// /b/report.pdf - never land on the same asset name and delete each other.
+// FNV-1a is chosen over the SHA-256 already in the file because this is only a
+// naming tie-breaker, not a content check: it must be cheap and deterministic,
+// and a collision would merely reintroduce the bug it fixes, not corrupt data.
+std::string shortHash(const std::string& s) {
+  uint64_t h = 1469598103934665603ULL;
+  for (unsigned char c : s) { h ^= c; h *= 1099511628211ULL; }
+  char buf[24];
+  snprintf(buf, sizeof(buf), "%016llx", (unsigned long long)h);
+  return buf;
+}
+
+// The N in a "manifest-vN" tag, or 0 for anything else. pull sorts releases
+// with it so the newest snapshot is merged first regardless of the order the
+// API happens to return.
+int manifestVolume(const std::string& tag) {
+  const std::string p = "manifest-v";
+  if (!startsWith(tag, p)) return 0;
+  return atoi(tag.c_str() + p.size());
+}
+
 std::string sha256File(const std::string& p, std::string* error) {
   BCRYPT_ALG_HANDLE alg = nullptr;
   BCRYPT_HASH_HANDLE hash = nullptr;
@@ -222,24 +245,48 @@ std::vector<Json> Store::list(const std::string& cloudPath, bool recursive) cons
 }
 
 bool Store::pull(std::string* error) {
-  repos_ = gh_.listStorageRepos(cfg_.repoPrefix, error);
+  // A cloud we cannot list is not an empty cloud. listStorageRepos reports a
+  // dead token or a network failure through error, and ignoring it here is
+  // what let an expired token look like a freshly emptied drive.
+  std::string e;
+  repos_ = gh_.listStorageRepos(cfg_.repoPrefix, &e);
+  if (!e.empty()) { if (error) *error = e; return false; }
+
   Json merged = emptyManifest();
   Json& mergedFiles = const_cast<Json&>(merged.get("files"));
   Json& mergedTrash = const_cast<Json&>(merged.get("trash"));
   std::vector<std::string> trashOrder;
   int maxVolume = 1;
+  // Every manifest snapshot is kept rather than merged on sight. Telling a
+  // deleted path from one that was never mentioned needs the order, and the
+  // order is only known once every volume has been read.
+  struct Snapshot { int vol; std::string repo; Json doc; };
+  std::vector<Snapshot> snaps;
 
   for (const auto& repo : repos_) {
-    std::vector<Release> releases = gh_.listReleases(owner_, repo, 100, error);
+    std::string le;
+    std::vector<Release> releases = gh_.listReleases(owner_, repo, 100, &le);
+    if (!le.empty()) { if (error) *error = le; return false; }
     for (const auto& rel : releases) {
       long long assetId = 0;
       for (const Json& a : rel.assets.items()) if (a.s("name") == "file.json") { assetId = a.i("id"); break; }
+      // A release without a manifest is ordinary - data-part releases and
+      // volumes whose manifest has already been superseded look like this -
+      // so this one skip is deliberate rather than a swallowed failure.
       if (!assetId) continue;
       std::string tmp = cacheDir() + "\\" + repo + "-" + std::to_string(rel.id) + ".json";
-      std::string e;
-      if (!gh_.downloadAsset(owner_, repo, assetId, tmp, &e)) continue;
+      std::string de;
+      if (!gh_.downloadAsset(owner_, repo, assetId, tmp, &de)) {
+        DeleteFileW(utf8ToPath(tmp).c_str());
+        if (error) *error = de.empty() ? ("cannot download the manifest from " + repo) : de;
+        return false;
+      }
       FILE* in = _wfopen(utf8ToPath(tmp).c_str(), L"rb");
-      if (!in) { DeleteFileW(utf8ToPath(tmp).c_str()); continue; }
+      if (!in) {
+        DeleteFileW(utf8ToPath(tmp).c_str());
+        if (error) *error = "cannot read the downloaded manifest from " + repo;
+        return false;
+      }
       std::ostringstream ss;
       char raw[1 << 16]; size_t read = 0;
       while ((read = fread(raw, 1, sizeof(raw), in)) != 0) ss.write(raw, (std::streamsize)read);
@@ -247,17 +294,43 @@ bool Store::pull(std::string* error) {
       bool ok = false;
       Json doc = Json::parse(ss.str(), &ok);
       DeleteFileW(utf8ToPath(tmp).c_str());
-      if (!ok || !doc.isObject()) continue;
-      mergeObject(mergedFiles, doc.get("files"));
-      mergeObject(mergedTrash, doc.get("trash"));
-      int vol = (int)doc.i("volume", 1);
-      if (vol > maxVolume) maxVolume = vol;
-      for (const Json& k : doc.get("trashOrder").items()) {
-        std::string s = k.str();
-        if (std::find(trashOrder.begin(), trashOrder.end(), s) == trashOrder.end()) trashOrder.push_back(s);
+      if (!ok || !doc.isObject()) {
+        if (error) *error = "the manifest in " + repo + " is not readable JSON";
+        return false;
       }
+      int vol = manifestVolume(rel.tag);
+      if (vol <= 0) vol = (int)doc.i("volume", 1);
+      snaps.push_back(Snapshot{vol, repo, doc});
     }
   }
+  // Newest snapshot first, and the first snapshot that mentions a path decides
+  // it. First-wins-if-absent cannot express a deletion: a file removed from the
+  // newest manifest is still listed by the volume before it, so the next pull
+  // put it back. Stopping at the first mention fixes that, and it also follows a
+  // file that moved from one repository to another.
+  std::stable_sort(snaps.begin(), snaps.end(),
+                   [](const Snapshot& a, const Snapshot& b) { return a.vol > b.vol; });
+  for (const auto& s : snaps) {
+    for (const auto& kv : s.doc.get("files").entries()) {
+      if (mergedFiles.has(kv.first) || mergedTrash.has(kv.first)) continue;
+      mergedFiles.set(kv.first, kv.second);
+    }
+    for (const auto& kv : s.doc.get("trash").entries()) {
+      if (mergedFiles.has(kv.first) || mergedTrash.has(kv.first)) continue;
+      mergedTrash.set(kv.first, kv.second);
+    }
+    for (const Json& k : s.doc.get("trashOrder").items()) {
+      std::string key = k.str();
+      if (std::find(trashOrder.begin(), trashOrder.end(), key) == trashOrder.end()) trashOrder.push_back(key);
+    }
+  }
+  // A tombstone has to outlive the snapshot that recorded it, or an older
+  // volume brings the file back the moment the newest one stops mentioning it.
+  for (const auto& kv : mergedTrash.entries()) {
+    if (std::find(trashOrder.begin(), trashOrder.end(), kv.first) == trashOrder.end()) trashOrder.push_back(kv.first);
+  }
+  maxVolume = snaps.empty() ? 1 : snaps[0].vol;
+
   Json repos = Json::array();
   for (const auto& r : repos_) repos.push(Json(r));
   merged.set("repos", repos);
@@ -271,13 +344,29 @@ bool Store::pull(std::string* error) {
 }
 
 bool Store::ensureRepo(std::string& repo, std::string* error) {
-  if (repos_.empty()) repos_ = gh_.listStorageRepos(cfg_.repoPrefix, error);
+  // A listing that failed must not be read as "no repositories yet": that
+  // would send this write to a brand-new repo and make the existing cloud look
+  // as though it had never existed.
+  if (repos_.empty()) {
+    std::string e;
+    repos_ = gh_.listStorageRepos(cfg_.repoPrefix, &e);
+    if (!e.empty()) { if (error) *error = e; return false; }
+  }
   for (const auto& r : repos_) {
     std::vector<Release> rels = gh_.listReleases(owner_, r, cfg_.maxReleases + 1, nullptr);
     if ((int)rels.size() < cfg_.maxReleases) { repo = r; return true; }
   }
   repo = cfg_.repoPrefix + randomSuffix(16);
-  if (!gh_.createRepo(repo, false, error)) return false;
+  /*
+   * A storage repository is private, always.
+   *
+   * These repositories hold the user's files. Creating one as public publishes
+   * everything put into it to anyone who finds the repository, which is not a
+   * setting a person should have to remember to change - and the upload does
+   * not fail loudly enough afterwards for them to notice. There is no option
+   * for it and no reason to want it: the files are the user's.
+   */
+  if (!gh_.createRepo(repo, true, error)) return false;
   repos_.push_back(repo);
   return true;
 }
@@ -318,16 +407,19 @@ bool Store::put(const std::string& localPath, const std::string& cloudPath, std:
   for (uint64_t i = 0; i < count; i++) {
     uint64_t start = i * cfg_.chunkBytes;
     uint64_t length = size == 0 ? 0 : std::min(cfg_.chunkBytes, size - start);
-    std::string tag = "part-" + padRight("", 5); // replaced below with zero padding
     char ix[16]; snprintf(ix, sizeof(ix), "%05llu", (unsigned long long)i);
-    tag = "part-" + std::string(ix);
+    std::string tag = "part-" + std::string(ix);
     std::string e;
     Release rel = gh_.releaseByTag(owner_, repo, tag, nullptr);
     if (!rel.id && !gh_.createRelease(owner_, repo, tag, tag, &e)) { if (error) *error = e; return false; }
     if (!rel.id) rel = gh_.releaseByTag(owner_, repo, tag, &e);
     if (!rel.id) { if (error) *error = e.empty() ? "cannot find created release" : e; return false; }
 
-    std::string asset = baseName(cp) + "." + ix + ".part";
+    // The full cloud path, not just its base name, goes into the asset name:
+    // /a/report.pdf and /b/report.pdf must not share one, or the second upload
+    // deletes the first while the manifest still points at it. The hash keeps
+    // the name short and unique, the base name keeps it readable.
+    std::string asset = baseName(cp) + "." + shortHash(cp) + "." + ix + ".part";
     for (const Json& a : rel.assets.items()) if (a.s("name") == asset) {
       if (!gh_.deleteAsset(owner_, repo, a.i("id"), &e)) { if (error) *error = e; return false; }
       break;
@@ -345,9 +437,23 @@ bool Store::put(const std::string& localPath, const std::string& cloudPath, std:
   }
 
   const Json* prev = stat(cp);
+  // Copy the old parts before the manifest entry is replaced: files.set() can
+  // move the entry out from under prev, and we still need the old asset ids.
+  std::vector<Json> prevParts;
+  if (prev && prev->s("type") == "file") prevParts = prev->get("parts").items();
   Json entry = fileEntry(cp, "file", size, hash, [&]() { Json a = Json::array(); for (const auto& p : parts) a.push(p); return a; }(), prev);
   Json& files = const_cast<Json&>(manifest_.get("files"));
   files.set(cp, entry);
+  // A part the new version does not name again is now unreachable: the file
+  // shrank, or its asset name changed with the collision fix. Deleting it
+  // stops the release from accumulating orphans. Parts the loop above already
+  // replaced are skipped by name; a delete that fails here leaves an orphan but
+  // the stored file is already correct, so it must not fail the whole put.
+  for (const Json& part : prevParts) {
+    bool reused = false;
+    for (const Json& p : parts) if (p.s("asset") == part.s("asset")) { reused = true; break; }
+    if (!reused) gh_.deleteAsset(owner_, part.s("repo"), part.i("assetId"), nullptr);
+  }
   return ensureParents(cp, error);
 }
 
@@ -461,43 +567,94 @@ bool Store::purge(const std::string& cloudPath, std::string* error) {
   std::string cp = cloudPath.empty() ? "" : normalizePath(cloudPath);
   std::string prefix = cp.empty() ? "" : (cp == "/" ? "/" : cp + "/");
   for (const auto& e : trash.entries()) if (cp.empty() || e.first == cp || startsWith(e.first, prefix)) keys.push_back(e.first);
-  for (const auto& k : keys) {
-    const Json entry = trash.get(k);
-    for (const Json& part : entry.get("parts").items()) {
-      std::string e;
-      if (!gh_.deleteAsset(owner_, part.s("repo"), part.i("assetId"), &e) && !e.empty() && error) *error = e;
-    }
-  }
+  // A record is dropped only once every one of its parts is really gone.
+  // Removing it while a delete failed turned a failed purge into a silent
+  // leak: the asset stayed in the cloud with nothing left pointing at it.
   Json newTrash = Json::object();
-  for (const auto& e : trash.entries()) if (std::find(keys.begin(), keys.end(), e.first) == keys.end()) newTrash.set(e.first, e.second);
+  bool failed = false;
+  std::string firstError;
+  for (const auto& e : trash.entries()) {
+    if (std::find(keys.begin(), keys.end(), e.first) == keys.end()) { newTrash.set(e.first, e.second); continue; }
+    bool gone = true;
+    for (const Json& part : e.second.get("parts").items()) {
+      std::string de;
+      if (!gh_.deleteAsset(owner_, part.s("repo"), part.i("assetId"), &de)) {
+        gone = false;
+        if (firstError.empty()) firstError = de;
+      }
+    }
+    if (gone) continue;
+    newTrash.set(e.first, e.second);
+    failed = true;
+  }
   manifest_.set("trash", newTrash);
   Json order = Json::array();
-  for (const Json& k : manifest_.get("trashOrder").items()) if (std::find(keys.begin(), keys.end(), k.str()) == keys.end()) order.push(k);
+  for (const Json& k : manifest_.get("trashOrder").items()) if (newTrash.has(k.str())) order.push(k);
   manifest_.set("trashOrder", order);
+  if (failed) {
+    if (error) *error = firstError.empty() ? "some assets could not be deleted" : firstError;
+    return false;
+  }
   return true;
 }
 
 bool Store::saveManifestToRepo(const std::string& repo, std::string* error) {
-  std::string tag = "manifest-v" + std::to_string(manifest_.i("volume", 1));
+  /*
+   * The replacement manifest is written to a fresh volume, and only then is
+   * the previous volume's file.json removed.
+   *
+   * A release cannot hold two assets with the same name, so a replacement
+   * cannot be staged inside the release it replaces - uploading the new
+   * file.json would either be rejected or, as the old code did, require
+   * deleting the live manifest first and leaving the cloud with none. Moving
+   * to a new volume is what lets the new manifest exist before the old one
+   * goes away, so a concurrent pull never meets a release that has lost its
+   * manifest.
+   *
+   * The volume tag doubles as a coarse compare-and-swap: two writers that
+   * start from the same volume aim at the same tag, so one createRelease or
+   * upload fails instead of silently overwriting the other. What remains
+   * unguarded: a writer that started from a volume another writer has already
+   * superseded will delete that superseded manifest as its "old" one. There is
+   * no If-Match here because the HTTP layer exposes no conditional requests.
+   */
+  long long next = manifest_.i("volume", 1) + 1;
+  std::string tag = "manifest-v" + std::to_string(next);
+  std::string e;
   Release rel = gh_.releaseByTag(owner_, repo, tag, nullptr);
-  if (!rel.id && !gh_.createRelease(owner_, repo, tag, tag, error)) return false;
-  if (!rel.id) rel = gh_.releaseByTag(owner_, repo, tag, error);
-  if (!rel.id) { if (error && error->empty()) *error = "cannot find manifest release"; return false; }
-  for (const Json& a : rel.assets.items()) if (a.s("name") == "file.json") {
-    if (!gh_.deleteAsset(owner_, repo, a.i("id"), error)) return false;
-    break;
-  }
+  if (!rel.id && !gh_.createRelease(owner_, repo, tag, tag, &e)) { if (error) *error = e; return false; }
+  if (!rel.id) rel = gh_.releaseByTag(owner_, repo, tag, &e);
+  if (!rel.id) { if (error) *error = e.empty() ? "cannot find manifest release" : e; return false; }
+
   std::string tmp = cacheDir() + "\\file.json";
   manifest_.set("updated", Json((long long)unixMillis()));
+  manifest_.set("volume", Json(next));
   FILE* f = _wfopen(utf8ToPath(tmp).c_str(), L"wb");
   if (!f) { if (error) *error = "cannot write manifest"; return false; }
   std::string bytes = manifest_.dump(2);
   bool wrote = fwrite(bytes.data(), 1, bytes.size(), f) == bytes.size();
   fclose(f);
   if (!wrote) { DeleteFileW(utf8ToPath(tmp).c_str()); if (error) *error = "manifest write failed"; return false; }
+
+  // Upload the replacement before touching the old one.
   long long id = gh_.uploadAsset(owner_, repo, rel.id, tmp, "file.json", error);
   DeleteFileW(utf8ToPath(tmp).c_str());
-  return id != 0;
+  if (!id) return false;
+
+  // Now the superseded manifests can go. We remove every older manifest this
+  // repo still holds rather than only volume next-1, because a repo can carry
+  // a stale manifest at a non-adjacent volume once writers have moved between
+  // repositories. A failure here leaves an older snapshot behind; pull orders
+  // volumes newest-first, so it is shadowed and harmless, and is not worth
+  // failing a write that has already succeeded.
+  for (const Release& stale : gh_.listReleases(owner_, repo, 100, nullptr)) {
+    if (manifestVolume(stale.tag) >= next) continue;
+    for (const Json& a : stale.assets.items()) if (a.s("name") == "file.json") {
+      gh_.deleteAsset(owner_, repo, a.i("id"), nullptr);
+      break;
+    }
+  }
+  return true;
 }
 
 bool Store::flush(std::string* error) {

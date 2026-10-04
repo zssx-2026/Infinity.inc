@@ -1,7 +1,7 @@
 /*
  * main.js - the Infinity File Manager entry point.
  *
- * ifm                  the two-pane window
+ * ifm                  the window
  * ifm mount            serve the cloud over WebDAV and map a drive letter
  * ifm unmount          stop that server and remove the mapping
  * ifm install          install for the current user
@@ -11,11 +11,11 @@
  * A bare invocation opens the window, which is what a double click does and
  * what somebody who typed the name alone almost certainly wants.
  *
- * Infinity.Inc also ships the same program under eight names, and then the
+ * Infinity.Inc also ships the same program under six names, and then the
  * name decides before any argument is read:
  *
- *   ifm_cli  ifm_tui  ifm_gui  ifm_launcher
- *   ifmx_cli ifmx_tui ifmx_gui ifmx_launcher
+ *   ifm_cli  ifm_gui  ifm_launcher
+ *   ifmx_cli ifmx_gui ifmx_launcher
  *
  * The launcher asks which face to open and hands over to a sibling; the
  * graphical face is a loopback server that stays alive on its own.
@@ -23,12 +23,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ensureDirs, PATHS, load } from './core/config.js';
-import { setLang } from './i18n/i18n.js';
 import { GitHub, probeProxy } from './net/github.js';
 import { Store } from './store/store.js';
 import { DavServer } from './core/dav.js';
 import { runInstaller, repair, uninstall } from './installer.js';
-import { runIfm } from './ui/ifm.js';
 import { detect } from './core/mode.js';
 import { runLauncher } from './core/launcher.js';
 import { runGui } from './gui/server.js';
@@ -223,24 +221,14 @@ async function main() {
 
   /*
    * The command-line face never opens a window: with nothing to do it prints
-   * the usage, which is what a scripted caller wants. The terminal face and
-   * an ordinary `node src/main.js` both fall through to the two-pane window.
+   * the usage, which is what a scripted caller wants.
    */
   if (me.mode === 'cli') { help(); return; }
 
-  /*
-   * Anything else opens the window. A missing cloud is not a failure: the
-   * local pane works on its own, and a file manager that refuses to start
-   * because a token is absent would be useless exactly when it is needed.
-   */
-  const cfg = load('cli');
-  if (cfg.lang) setLang(cfg.lang);
-
-  let store = null;
-  try { store = await makeStore(cfg); await store.pull(); }
-  catch (e) { /* no cloud, local only */ }
-
-  await runIfm(store);
+  /* Anything else opens the window. */
+  const r = await runGui({});
+  if (!r.ok) { process.stderr.write('cannot start the UI: ' + (r.error || 'unknown') + String.fromCharCode(10)); process.exitCode = 1; return; }
+  return new Promise(function () { });
 }
 
 main().catch(function (e) {

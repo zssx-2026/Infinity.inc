@@ -15,12 +15,21 @@
  * The portable zip is the application on its own: no installer, no registry
  * writes, no uninstaller. Someone who wants to run it from a USB stick should
  * not have to install anything first.
+ *
+ * The executable names inside that zip come from build-all.mjs, which is the
+ * one place the naming convention lives. The old single
+ * "InfinityFileManager.exe" is gone: the program ships as
+ * <p>_cli / <p>_tui / <p>_launcher plus the administrator twins and the
+ * Electron window, and every name is derived here rather than copied, so a
+ * face added or renamed in the build shows up without an edit to this file.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import url from 'node:url';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { exeNames } from './build-all.mjs';
+import { stageGui, hasGui } from '../../../shell/payload.mjs';
 
 const NL = String.fromCharCode(10);
 const CRLF = String.fromCharCode(13) + String.fromCharCode(10);
@@ -32,14 +41,16 @@ const STAGE = path.join(BUILD, 'stage');
 const RELEASE = path.join(PROJECT, 'release-files');
 const SEVEN = 'D:/temp/tools/7za.exe';
 
+/* The executable names are not listed here: build-all.mjs derives them from
+ * the target, and a name written down twice is a name that drifts. */
 const PLATFORMS = [
-  { id: 'win64',       target: 'win-x64',      kind: 'win',  exe: 'InfinityFileManager.exe' },
-  { id: 'winx86',      target: 'win-ia32',     kind: 'win',  exe: 'InfinityFileManager.exe' },
-  { id: 'win-arm64',   target: 'win-arm64',    kind: 'win',  exe: 'InfinityFileManager.exe' },
-  { id: 'linux',       target: 'linux-x64',    kind: 'unix', exe: 'InfinityFileManager' },
-  { id: 'linux-arm64', target: 'linux-arm64',  kind: 'unix', exe: 'InfinityFileManager' },
-  { id: 'mac',         target: 'darwin-x64',   kind: 'unix', exe: 'InfinityFileManager' },
-  { id: 'mac-arm64',   target: 'darwin-arm64', kind: 'unix', exe: 'InfinityFileManager' }
+  { id: 'win64',       target: 'win-x64',      kind: 'win'  },
+  { id: 'winx86',      target: 'win-ia32',     kind: 'win'  },
+  { id: 'win-arm64',   target: 'win-arm64',    kind: 'win'  },
+  { id: 'linux',       target: 'linux-x64',    kind: 'unix' },
+  { id: 'linux-arm64', target: 'linux-arm64',  kind: 'unix' },
+  { id: 'mac',         target: 'darwin-x64',   kind: 'unix' },
+  { id: 'mac-arm64',   target: 'darwin-arm64', kind: 'unix' }
 ];
 
 function log(m) { process.stdout.write(m + NL); }
@@ -62,19 +73,22 @@ function zipDir(dir, outZip) {
  * A launcher: a .cmd on Windows, a shell script elsewhere.
  */
 function writeLaunchers(dir, p) {
+  /* Both launchers point at the non-administrator launcher face, which is the
+   * one a double click should get. */
+  const launcher = p.kind === 'win' ? 'ifm_launcher.exe' : 'ifm_launcher';
   if (p.kind === 'win') {
     const cmd = [
       '@echo off', 'set NODE_OPTIONS=',
       'rem Infinity File Manager',
       'cd /d "%~dp0"',
-      '"%~dp0' + p.exe + '" %*',
+      '"%~dp0' + launcher + '" %*',
       ''
     ].join(CRLF);
     fs.writeFileSync(path.join(dir, 'ifm.cmd'), cmd, 'utf8');
     return;
   }
   const sh = '#!/bin/sh' + NL + 'DIR=$(cd "$(dirname "$0")" && pwd)' + NL +
-    'exec "$DIR/' + p.exe + '" "$@"' + NL;
+    'exec "$DIR/' + launcher + '" "$@"' + NL;
   const a = path.join(dir, 'ifm');
   fs.writeFileSync(a, sh, 'utf8');
   try { fs.chmodSync(a, 0o755); } catch (e) { }
@@ -83,11 +97,17 @@ function writeLaunchers(dir, p) {
 /* The portable payload: the executable, both icons, launchers, a readme. */
 function stagePortable(p, dest) {
   fs.mkdirSync(dest, { recursive: true });
-  const src = path.join(BUILD, 'out', p.target, p.exe);
-  if (!fs.existsSync(src)) throw new Error('the build is missing: ' + src);
-  const exe = path.join(dest, p.exe);
-  fs.copyFileSync(src, exe);
-  if (p.kind === 'unix') { try { fs.chmodSync(exe, 0o755); } catch (e) { } }
+  /* Every face the build made for this target, under the build's own names. */
+  for (const name of exeNames({ id: p.target })) {
+    const src = path.join(BUILD, 'out', p.target, name);
+    if (!fs.existsSync(src)) throw new Error('the build is missing: ' + src);
+    const exe = path.join(dest, name);
+    fs.copyFileSync(src, exe);
+    if (p.kind === 'unix') { try { fs.chmodSync(exe, 0o755); } catch (e) { } }
+  }
+  /* The window is an Electron directory, not a file; the shell helper knows
+   * its shape, and a target without a window build is skipped quietly. */
+  if (p.kind === 'win' && hasGui('ifm', p.target)) stageGui(dest, 'ifm', p.target);
   fs.copyFileSync(path.join(ROOT, 'assets', 'ifm.ico'), path.join(dest, 'ifm.ico'));
   writeLaunchers(dest, p);
   const readme = [

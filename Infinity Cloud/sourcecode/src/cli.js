@@ -121,7 +121,6 @@ export class Cli {
     }
     this.cfg.sendLog = send;
     save('cli', this.cfg);
-    save('tui', this.cfg);
     this.print(C.orange + t('setup_done') + C.reset);
   }
 
@@ -363,6 +362,10 @@ export class Cli {
     const rest = parts.slice(1);
     if (cmd === 'exit' || cmd === 'quit') return false;
     if (cmd === 'help') { this.cmdHelp(); return true; }
+    if (cmd === 'cls' || cmd === 'clear') return this.cmdClear();
+    if (cmd === 'ver' || cmd === 'version') { this.banner(); return true; }
+    if (cmd === 'login') { await this.signIn(); return true; }
+    if (cmd === 'logout') { this.signOut(); return true; }
     if (cmd === 'settings' || cmd === 'set') { this.cmdSet(rest); return true; }
     if (cmd === 'setup') { await this.cmdSetup(); return true; }
     if (!this.store) { this.print(C.red + t('not_signed_in') + C.reset); return true; }
@@ -394,7 +397,6 @@ export class Cli {
         this.cfg.lang = "zh-CN";
         setLang(this.cfg.lang);
         save("cli", this.cfg);
-        save("tui", this.cfg);
       }
     } else setLang(this.cfg.lang);
 

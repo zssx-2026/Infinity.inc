@@ -19,7 +19,7 @@ namespace inc {
 struct StoreConfig {
   std::string repoPrefix = "inc_";
   uint64_t chunkBytes = 1990ULL * 1024ULL * 1024ULL;
-  int maxReleases = 64;
+  int maxReleases = 900;
 };
 
 class Store {

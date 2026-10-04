@@ -49,9 +49,9 @@ function log(m) { process.stdout.write(m + NL); }
  * Copy one platform's files into a directory the template can point at.
  *
  * Everything the program needs at run time has to be here: the executable,
- * both icons for the shortcuts, the launchers, and a short readme. The
- * installer copies this directory wholesale, so a file missing here is a
- * file missing after installation.
+ * the product icon the installer and the shortcuts use, the launchers, and a
+ * short readme. The installer copies this directory wholesale, so a file
+ * missing here is a file missing after installation.
  */
 function stage(platform) {
   const dest = path.join(STAGE, platform.id);
@@ -61,7 +61,7 @@ function stage(platform) {
   /*
    * The whole name family goes in, not one executable.
    *
-   * build-all.mjs already decided the eight names for this target; asking it
+   * build-all.mjs already decided the names for this target; asking it
    * rather than repeating the list here means the installer can never ship a
    * name the build did not produce.
    */
@@ -79,18 +79,33 @@ function stage(platform) {
   if (hasGui('inc', platform.target)) stageGui(dest, 'inc', platform.target);
   else log('  (no Electron shell for ' + platform.target + '; the window is skipped)');
 
-  /* Icons come from the shared Infinity.inc/icons folder when it has them,
-   * and from the project's own assets when it does not. */
+  /*
+   * The one icon this installer uses, and the only one it stages.
+   *
+   * Infinity.inc/icons holds one icon per product, and the file name is the
+   * product:
+   *   inc.ico  Infinity Cloud           ifm.ico  Infinity File Manager
+   *   ipm.ico  InfinityPackageManager   iim.ico  Infinity Installer Manager
+   *   ing.ico  Infinity Games           int.ico  Infinity Toolbox
+   * An Infinity Cloud setup needs only its own; the other products ship their
+   * own installers with their own copy, and a sibling icon in this payload
+   * would just be a file nothing references.
+   *
+   * installer.nsi reads this file for MUI_ICON, MUI_UNICON, every shortcut
+   * and DisplayIcon, so a missing icon is a hard error here rather than a
+   * setup silently built with the default NSIS icon.
+   */
   const icons = path.resolve(ROOT, '..', '..', 'icons');
   const pick = function (name) {
     const shared = path.join(icons, name);
     const local = path.join(ROOT, 'assets', name);
     return fs.existsSync(shared) ? shared : (fs.existsSync(local) ? local : null);
   };
-  for (const name of ['inc.ico', 'ifm.ico']) {
-    const p = pick(name);
-    if (p) fs.copyFileSync(p, path.join(dest, name));
-  }
+  const name = 'inc.ico';
+  const icon = pick(name);
+  if (!icon) throw new Error('no ' + name + ' in ' + icons + ' or ' + path.join(ROOT, 'assets'));
+  fs.copyFileSync(icon, path.join(dest, name));
+  log('  icon ' + icon);
 
   return dest;
 }

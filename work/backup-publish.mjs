@@ -30,7 +30,28 @@ const STAGE = path.join(DIR, 'work', 'archive-stage');
 
 const OWNER = 'zssx-2026';
 const REPO = 'backup';
-const TAG = process.argv[2] || 'infinity-v1.0pre2';
+/*
+ * The tag defaults to the newest release the build tree describes, so it does
+ * not have to be edited every time the version moves. A stale default here
+ * files the archive under a version it is not - which is what the old
+ * hard-coded 'infinity-v1.0pre2' did after the suite had moved on.
+ */
+function defaultTag() {
+  let best = null;
+  const releases = path.join(DIR, 'cpp', 'release');
+  try {
+    for (const name of fs.readdirSync(releases)) {
+      const f = path.join(releases, name, 'release-assets.json');
+      if (!fs.existsSync(f)) continue;
+      const j = JSON.parse(fs.readFileSync(f, 'utf8'));
+      if (!j || !j.tag) continue;
+      const at = fs.statSync(f).mtimeMs;
+      if (!best || at > best.at) best = { at: at, tag: j.tag };
+    }
+  } catch (e) { /* fall through to the fallback */ }
+  return 'infinity-' + (best ? best.tag : 'v1.0.0-pre3');
+}
+const TAG = process.argv[2] || defaultTag();
 const TOKEN = process.env.EV_GH_TOKEN || '';
 const SEVEN = 'D:/temp/tools/7za.exe';
 
@@ -67,7 +88,12 @@ function wanted(rel) {
   const parts = rel.split('/');
   for (const p of parts) if (EXCLUDE_DIRS.indexOf(p) >= 0) return false;
   const ext = path.extname(rel).toLowerCase();
-  if (EXCLUDE_EXT.indexOf(ext) >= 0) return false;
+  if (EXCLUDE_EXT.indexOf(ext) >= 0) {
+    /* The work log is the one .log that exists nowhere else, and the archive
+     * exists to carry it. The .log rule is aimed at build and sync noise. */
+    if (rel === 'work/worklog.log') return true;
+    return false;
+  }
   return true;
 }
 

@@ -85,6 +85,7 @@ export class Store {
     say('pulling manifest...');
     this.repos = await this.gh.listStorageRepos(this.cfg.repoPrefix);
     const merged = emptyManifest();
+    const snaps = [];
     let seen = 0;
     const total = this.repos.length;
     for (let i = 0; i < total; i++) {
@@ -100,7 +101,11 @@ export class Store {
         try {
           await this.gh.downloadAsset(this.owner, repo.name, asset.id, tmp, null,
             { tag: rel.tag_name, name: asset.name });
-          mergeManifest(merged, JSON.parse(fs.readFileSync(tmp, 'utf8')));
+          const doc = JSON.parse(fs.readFileSync(tmp, 'utf8'));
+          snaps.push({
+            v: manifestVolume(rel.tag_name) || doc.volume || 1,
+            repo: repo.name, tag: rel.tag_name, doc: doc
+          });
           seen++;
         } catch (e) { say('bad manifest in ' + repo.name + ' ' + rel.tag_name); }
         try { fs.unlinkSync(tmp); } catch (e) { }
@@ -108,21 +113,93 @@ export class Store {
     }
     say(null, 100);
     say('pull done.');
+
+    /*
+     * Resolve one path at a time, newest snapshot first.
+     *
+     * This is the part the old merge got wrong, and it is why an upload could
+     * vanish. First-wins-if-absent cannot express a deletion: a file removed
+     * from the newest manifest is still listed by the volume before it, so the
+     * next pull put it back. It also cannot express an edit that moves a file
+     * between repositories.
+     *
+     * Scanning newest-first and stopping at the first snapshot that mentions a
+     * path fixes both. A path is live if the newest mention of it is in files,
+     * and deleted if the newest mention is in trash. Nothing older is consulted
+     * once a verdict exists, so a superseded volume cannot resurrect anything.
+     */
+    snaps.sort(function (a, b) { return b.v - a.v; });
+    const verdict = new Map();
+    for (const s of snaps) {
+      const f = s.doc.files || {};
+      const tr = s.doc.trash || {};
+      for (const k of Object.keys(f)) if (!verdict.has(k)) verdict.set(k, { live: true, entry: f[k] });
+      for (const k of Object.keys(tr)) if (!verdict.has(k)) verdict.set(k, { live: false, entry: tr[k] });
+    }
+
+    const files = {};
+    const trash = {};
+    for (const kv of verdict) {
+      if (kv[1].live) files[kv[0]] = kv[1].entry;
+      else trash[kv[0]] = kv[1].entry;
+    }
+
+    /*
+     * A tombstone is kept forever, not just until the bin is emptied.
+     *
+     * Purging removes the parts but the fact that the path was deleted has to
+     * outlive the snapshot that recorded it, or an older volume would bring the
+     * file back the moment the newest one stopped mentioning it.
+     */
+    const order = [];
+    for (const s of snaps) {
+      for (const k of (s.doc.trashOrder || [])) if (order.indexOf(k) < 0) order.push(k);
+    }
+    for (const k of Object.keys(trash)) if (order.indexOf(k) < 0) order.push(k);
+
+    merged.files = files;
+    merged.trash = trash;
+    merged.trashOrder = order;
     merged.repos = this.repos.map(function (r) { return r.name; });
+    merged.volume = snaps.length ? snaps[0].v : 1;
     merged.updated = Date.now();
+
+    /* The chain of volumes lives in one repository, so the next write goes
+     * there rather than wherever has room. Two chains would each number their
+     * volumes from one, and the merge would have no way to order them. */
+    this.authoritativeRepo = snaps.length ? snaps[0].repo : null;
     this.manifest = merged;
     this.log('manifest: ' + Object.keys(merged.files).length + ' files from ' + seen + ' volume(s)');
     return merged;
   }
 
-  /* Find a repository with room, or open a new one. */
+  /*
+   * The storage repository for this account.
+   *
+   * One account gets one repository. The prefix is what makes it findable
+   * again - there is no list of repositories kept anywhere else - and a
+   * second one is only ever opened when the first is genuinely full, which
+   * at nine hundred releases will not happen to a person.
+   *
+   * It is created PRIVATE, always. These repositories hold the user's files;
+   * a public one publishes everything put into it to anyone who finds the
+   * name, and the upload does not fail loudly enough afterwards for the
+   * user to notice. There is no option for it and no reason to want it.
+   */
   async ensureRepo() {
+    if (!this.repos.length) {
+      const found = await this.gh.listStorageRepos(this.cfg.repoPrefix);
+      if (found.length) this.repos = found.slice();
+    }
     for (const r of this.repos) {
       const rels = await this.gh.listReleases(this.owner, r.name);
-      if (rels.length < this.cfg.maxAssets) return r.name;
+      if (rels.length < this.cfg.maxReleases) {
+        if (!this.authoritativeRepo) this.authoritativeRepo = r.name;
+        return r.name;
+      }
     }
     const name = this.cfg.repoPrefix + randomSuffix(16);
-    await this.gh.createRepo(name, false);
+    await this.gh.createRepo(name, true);
     this.repos.push({ name: name });
     this.log('created storage repo ' + name);
     return name;
@@ -130,6 +207,7 @@ export class Store {
 
   async put(localPath, cloudPath, opts, onProgress) {
     const o = opts || {};
+    /* Both halves of a write must land in the same chain. */
     const cp = normPath(cloudPath);
     const size = fs.statSync(localPath).size;
     const hash = await sha256File(localPath);
@@ -145,7 +223,14 @@ export class Store {
       const tag = 'part-' + String(i).padStart(5, '0');
       let rel = await this.gh.getRelease(this.owner, repo, tag);
       if (!rel) rel = await this.gh.createRelease(this.owner, repo, tag, tag);
-      const assetName = baseOf(cp) + '.' + String(i).padStart(5, '0') + '.part';
+      /*
+       * The full cloud path, not just its base name, goes into the asset
+       * name: /a/report.pdf and /b/report.pdf must not share one, or the
+       * second upload deletes the first while the manifest still points at
+       * it. The hash keeps the name short and unique, the base name keeps it
+       * readable.
+       */
+      const assetName = baseOf(cp) + '.' + shortHash(cp) + '.' + String(i).padStart(5, '0') + '.part';
       const old = (rel.assets || []).find(function (a) { return a.name === assetName; });
       if (old) await this.gh.deleteAsset(this.owner, repo, old.id);
       const slice = path.join(cacheDirFor(this.owner), 'slice-' + Date.now() + '-' + i);
@@ -324,17 +409,54 @@ export class Store {
 
   async flush() {
     const repo = await this.ensureRepo();
+    this.authoritativeRepo = repo;
     if (this.gh.ensureReleasable) await this.gh.ensureReleasable(this.owner, repo);
-    const tag = 'manifest-v' + this.manifest.volume;
+    /*
+     * The replacement manifest is written to a fresh volume, and only then is
+     * the previous volume's file.json removed.
+     *
+     * A release cannot hold two assets with the same name, so a replacement
+     * cannot be staged inside the release it replaces - uploading the new
+     * file.json would either be rejected or, as the old code did, require
+     * deleting the live manifest first and leaving the cloud with none.
+     * Moving to a new volume is what lets the new manifest exist before the
+     * old one goes away, so a concurrent pull never meets a release that has
+     * lost its manifest.
+     *
+     * The volume tag doubles as a coarse compare-and-swap: two writers that
+     * start from the same volume aim at the same tag, so one createRelease or
+     * upload fails instead of silently overwriting the other.
+     */
+    const next = (this.manifest.volume || 1) + 1;
+    const tag = 'manifest-v' + next;
     let rel = await this.gh.getRelease(this.owner, repo, tag);
     if (!rel) rel = await this.gh.createRelease(this.owner, repo, tag, tag);
     const tmp = path.join(cacheDirFor(this.owner), MANIFEST_NAME);
     this.manifest.updated = Date.now();
+    this.manifest.volume = next;
     fs.writeFileSync(tmp, JSON.stringify(this.manifest), 'utf8');
-    const old = (rel.assets || []).find(function (a) { return a.name === MANIFEST_NAME; });
-    if (old) await this.gh.deleteAsset(this.owner, repo, old.id);
+
+    /* Upload the replacement before touching the old one. */
     const up = await this.gh.uploadAsset(this.owner, repo, rel.id, tmp, MANIFEST_NAME);
     try { fs.unlinkSync(tmp); } catch (e) { }
+
+    /*
+     * Now the superseded manifests can go. Every older manifest this repo
+     * still holds is removed rather than only volume next-1, because a repo
+     * can carry a stale manifest at a non-adjacent volume once writers have
+     * moved between repositories. A failure here leaves an older snapshot
+     * behind; pull orders volumes newest-first, so it is shadowed and
+     * harmless, and is not worth failing a write that has already succeeded.
+     */
+    const stale = await this.gh.listReleases(this.owner, repo);
+    for (const s of stale) {
+      if (manifestVolume(s.tag_name) >= next) continue;
+      for (const a of (s.assets || [])) {
+        if (a.name !== MANIFEST_NAME) continue;
+        try { await this.gh.deleteAsset(this.owner, repo, a.id); } catch (e) { }
+        break;
+      }
+    }
     return up;
   }
 
@@ -355,24 +477,24 @@ export class Store {
   }
 }
 
-function mergeManifest(into, doc) {
-  if (!doc || typeof doc !== 'object') return;
-  const files = doc.files || {};
-  for (const k of Object.keys(files)) if (!into.files[k]) into.files[k] = files[k];
-
-  /*
-   * The recycle bin merges the same way the live tree does, and for the same
-   * reason: a volume that knows about a deleted file is the only place that
-   * fact is recorded, so dropping it would make the file unrecoverable.
-   */
-  const trash = doc.trash || {};
-  for (const k of Object.keys(trash)) {
-    if (into.trash[k]) continue;
-    into.trash[k] = trash[k];
-    into.trashOrder.push(k);
+/*
+ * A stable, short fingerprint of a cloud path. Part asset names are built
+ * from it so that two files with the same base name - /a/report.pdf and
+ * /b/report.pdf - never land on the same asset name and delete each other.
+ * FNV-1a is chosen over the SHA-256 already in the net layer because this is
+ * only a naming tie-breaker, not a content check: it must be cheap and
+ * deterministic, and a collision would merely reintroduce the bug it fixes,
+ * not corrupt data.
+ */
+function shortHash(s) {
+  let h = 1469598103934665603n;
+  const prime = 1099511628211n;
+  for (const c of Buffer.from(s, 'utf8')) {
+    h = ((h ^ BigInt(c)) * prime) & 0xffffffffffffffffn;
   }
-  if (doc.volume && doc.volume > into.volume) into.volume = doc.volume;
+  return h.toString(16).padStart(16, '0');
 }
+
 
 function ensureParents(man, cp) {
   let p = parentOf(cp);

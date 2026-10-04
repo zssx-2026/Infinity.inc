@@ -3,12 +3,22 @@
 // Infinity.Inc ships one program under several names, and the name is the
 // whole configuration:
 //
-//   inc_cli  inc_tui  inc_gui  inc_launcher        the user's copies
-//   inx_cli  inx_tui  inx_gui  inx_launcher        the administrator's copies
+//   inc_cli  inc_gui  inc_launcher        the user's copies
+//   inx_cli  inx_gui  inx_launcher        the administrator's copies
 //
-// The eight files are identical; only the file name carries meaning. Reading
-// it here means the build stays a single artifact per application and the
-// behaviour lives in one place instead of eight.
+// The files are identical; only the file name carries meaning. Reading it here
+// means the build stays a single artifact per application and the behaviour
+// lives in one place instead of several.
+//
+// Two faces, not three. The terminal interface was dropped from every
+// application: it duplicated the window without being better at anything, and
+// a screen that has to be redrawn by hand is the most expensive thing in the
+// suite to keep correct. What is left is a command line for scripts and a
+// window for people.
+//
+// Infinity Installer Manager ships without the launcher as well - it has
+// exactly two faces, cli and gui, and nothing to choose between. Infinity
+// Toolbox and Infinity Games do the same.
 
 #pragma once
 
@@ -25,13 +35,13 @@
 namespace inc {
 
 struct Mode {
-  std::string app;      // inc / ifm / ipm, or empty when the name matched nothing
-  std::string mode;     // cli / tui / gui / launcher, or empty
+  std::string app;      // inc / ifm / ipm / iim / int / ing, or empty when the name matched nothing
+  std::string mode;     // cli / gui / launcher, or empty
   bool admin = false;
   std::string exe;      // the base name it was started as
 };
 
-inline const char* modeNames() { return "cli tui gui launcher"; }
+inline const char* modeNames() { return "cli gui launcher"; }
 
 inline Mode detectMode() {
   Mode m;
@@ -49,14 +59,27 @@ inline Mode detectMode() {
   const std::string prefix = name.substr(0, cut);
   const std::string mode = name.substr(cut + 1);
 
-  if (mode != "cli" && mode != "tui" && mode != "gui" && mode != "launcher") return m;
   if (prefix == "inc") { m.app = "inc"; m.admin = false; }
   else if (prefix == "inx") { m.app = "inc"; m.admin = true; }
   else if (prefix == "ifm") { m.app = "ifm"; m.admin = false; }
   else if (prefix == "ifmx") { m.app = "ifm"; m.admin = true; }
   else if (prefix == "ipm") { m.app = "ipm"; m.admin = false; }
   else if (prefix == "ipmx") { m.app = "ipm"; m.admin = true; }
+  else if (prefix == "iim") { m.app = "iim"; m.admin = false; }
+  else if (prefix == "iimx") { m.app = "iim"; m.admin = true; }
+  else if (prefix == "int") { m.app = "int"; m.admin = false; }
+  else if (prefix == "intx") { m.app = "int"; m.admin = true; }
+  else if (prefix == "ing") { m.app = "ing"; m.admin = false; }
+  else if (prefix == "ingx") { m.app = "ing"; m.admin = true; }
   else return m;
+
+  // Infinity Installer Manager, Infinity Toolbox and Infinity Games have two
+  // faces; the others have three.
+  const bool twoFaced = m.app == "iim" || m.app == "int" || m.app == "ing";
+  const bool known = twoFaced
+      ? (mode == "cli" || mode == "gui")
+      : (mode == "cli" || mode == "gui" || mode == "launcher");
+  if (!known) return m;
 
   m.mode = mode;
   return m;

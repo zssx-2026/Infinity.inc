@@ -4,12 +4,12 @@
  * Infinity.Inc ships one program under several names, and the name is the
  * whole configuration:
  *
- *   ifm_cli  ifm_tui  ifm_gui  ifm_launcher        the user's copies
- *   ifmx_cli ifmx_tui ifmx_gui ifmx_launcher       the administrator's copies
+ *   ifm_cli  ifm_gui  ifm_launcher        the user's copies
+ *   ifmx_cli ifmx_gui ifmx_launcher       the administrator's copies
  *
- * The eight files are identical; only the file name carries meaning. Reading
+ * The six files are identical; only the file name carries meaning. Reading
  * it here means the build stays a single artifact and the behaviour lives in
- * one place instead of eight.
+ * one place instead of six.
  *
  * When the program is started some other way - `node src/main.js`, or a name
  * that matches nothing - mode is null and the caller keeps its old default.
@@ -20,7 +20,7 @@ const PREFIX = {
   ifm: { app: 'ifm', admin: false },
   ifmx: { app: 'ifm', admin: true }
 };
-const MODES = ['cli', 'tui', 'gui', 'launcher'];
+const MODES = ['cli', 'gui', 'launcher'];
 
 export function detect() {
   const base = path.basename(process.execPath).replace(/\.exe$/i, '').toLowerCase();

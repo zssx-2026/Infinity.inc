@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Not found — Infinity.Inc</title>
+<meta name="robots" content="noindex">
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #0b0d12; color: #e6e9f0;
+         font: 15px/1.6 "Segoe UI", system-ui, -apple-system, "Noto Sans SC", sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 64px 20px; }
+  h1 { font-size: 28px; margin: 0 0 12px; }
+  p { color: #98a0b3; }
+  a { color: #4c8dff; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Not found</h1>
+  <p id="what">That address does not match a page on this site.</p>
+  <p><a href="https://zssx-2026.github.io/infinity/">Go to the Infinity.Inc site</a></p>
+</main>
+
+<script>
+/*
+ * This file is the repository's 404 handler.
+ *
+ * A missing address under the suite's directory belongs to the suite, and the
+ * suite's pages are script routes - a static host cannot tell
+ * /infinity/run/abc from a typo. The root /404 is a real page, so a request
+ * for a missing suite page is sent there. The root page must never redirect
+ * again: /404 is itself a missing path, and a redirect from it would loop.
+ *
+ * Deliberately standalone. It loads no site.js and no site.css, because it is
+ * served for arbitrary paths - including the repository root, where a base
+ * derived from a script's own src would be wrong.
+ */
+(function () {
+  var path = location.pathname;
+  if (path.indexOf('/infinity/') === 0 || path === '/infinity') {
+    location.replace('https://zssx-2026.github.io/404');
+    return;
+  }
+  var what = document.getElementById('what');
+  if (what) what.textContent = path + ' does not match a page on this site.';
+})();
+</script>
+</body>
+</html>

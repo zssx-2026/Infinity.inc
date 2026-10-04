@@ -19,6 +19,7 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -53,7 +54,25 @@ class Json {
 
   bool asBool(bool d = false) const { return type_ == Type::Bool ? bool_ : d; }
   double asNumber(double d = 0) const { return type_ == Type::Number ? num_ : d; }
-  long long asInt(long long d = 0) const { return type_ == Type::Number ? (long long)num_ : d; }
+  long long asInt(long long d = 0) const {
+    if (type_ != Type::Number) return d;
+    /*
+     * An integer literal is read back as an integer.
+     *
+     * A GitHub id is nineteen digits and a double carries fifty-three bits of
+     * it, so going through num_ turns 1234567890123456789 into
+     * 1234567890123456768 - which is the exact reason this class keeps the
+     * original text. A value that does not fit a long long falls back to the
+     * double rather than wrapping around silently.
+     */
+    if (isIntegerText()) {
+      errno = 0;
+      char* end = nullptr;
+      const long long v = strtoll(raw_.c_str(), &end, 10);
+      if (end && *end == '\0' && errno != ERANGE) return v;
+    }
+    return (long long)num_;
+  }
   const std::string& asString() const { static const std::string e; return type_ == Type::String ? str_ : e; }
   std::string str(const std::string& d = "") const { return type_ == Type::String ? str_ : d; }
 
@@ -116,6 +135,16 @@ class Json {
   static Json parse(const std::string& text, bool* ok = nullptr) {
     Parser p(text);
     Json v = p.value();
+    p.ws();
+    /*
+     * The whole document has to be consumed.
+     *
+     * Taking the first value and ignoring the rest turns "[1]xyz" into a
+     * success and "123abc" into the number 123, so a malformed response
+     * becomes a plausible wrong answer instead of an error - and the callers
+     * of this parser are reading release metadata they then act on.
+     */
+    if (p.ok && p.p < p.t.size()) p.ok = false;
     if (ok) *ok = p.good();
     return v;
   }
@@ -129,6 +158,20 @@ class Json {
   std::vector<Json> arr_;
   std::vector<std::pair<std::string, Json>> obj_;
   std::map<std::string, size_t> index_;
+
+  // Is the original text an integer literal - optional sign, then digits, and
+  // nothing else? "1e3" and "1.0" are numbers but not integers, and going
+  // through strtoll for those would truncate them differently than the double
+  // does.
+  bool isIntegerText() const {
+    if (raw_.empty()) return false;
+    size_t i = (raw_[0] == '-' || raw_[0] == '+') ? 1 : 0;
+    if (i >= raw_.size()) return false;
+    for (; i < raw_.size(); i++) {
+      if (raw_[i] < '0' || raw_[i] > '9') return false;
+    }
+    return true;
+  }
 
   static std::string format(double v) {
     if (std::isnan(v) || std::isinf(v)) return "0";

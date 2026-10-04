@@ -139,7 +139,7 @@ export async function runInstaller(argv) {
   const want = ans !== null && ans.trim().toLowerCase() === 'y';
   if (want) {
     const link = path.join(process.env.USERPROFILE || base, 'Desktop', APP + '.lnk');
-    shortcut(link, process.execPath, 'tui', installDir, path.join(installDir, 'ifm.ico'));
+    shortcut(link, process.execPath, 'gui', installDir, path.join(installDir, 'ifm.ico'));
     console.log('  shortcut created');
   }
 

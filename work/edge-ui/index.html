@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark" data-host="demo">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Infinity Edge Shell</title>
+<script>
+/* Pre-paint boot: apply theme / locale / forced host from the URL before first paint. */
+(function () {
+  function q(name) { try { return new URLSearchParams(location.search).get(name); } catch (e) { return null; } }
+  function ls(name) { try { return localStorage.getItem(name); } catch (e) { return null; } }
+  var t = q('theme') || ls('infinity-shell-theme');
+  if (t === 'light' || t === 'dark') { document.documentElement.dataset.theme = t; }
+  var l = q('locale') || ls('infinity-shell-locale');
+  if (l) { document.documentElement.lang = l; document.documentElement.dataset.locale = l; }
+  var h = q('host');
+  if (h) { document.documentElement.dataset.hostforce = h; }
+  var f = q('frame');
+  if (f === '0') { document.documentElement.dataset.frame = '0'; }
+})();
+</script>
+<link rel="stylesheet" href="assets/css/shell.css" />
+</head>
+<body>
+<div class="backdrop" aria-hidden="true">
+  <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span>
+  <span class="grain"></span>
+</div>
+
+<div class="app" id="app">
+  <!-- ======================= Title bar / tab strip ======================= -->
+  <header class="titlebar" id="titlebar">
+    <div class="tabstrip">
+      <div class="tabs" id="tabs" role="tablist" aria-label="Tabs"></div>
+      <button class="tab-new" id="btn-new-tab" type="button" data-icon="plus" data-i18n-title="tab.new"></button>
+      <div class="tabstrip-spacer"></div>
+      <div class="tab-actions">
+        <button class="tb-btn sm" id="btn-tab-list" type="button" data-icon="chevron-down" data-i18n-title="tab.list"></button>
+      </div>
+      <div class="caption" id="caption">
+        <button class="cap-btn" id="cap-min" type="button" data-icon="min" data-i18n-title="win.min"></button>
+        <button class="cap-btn" id="cap-max" type="button" data-icon="max" data-i18n-title="win.max"></button>
+        <button class="cap-btn close" id="cap-close" type="button" data-icon="close" data-i18n-title="win.close"></button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ======================= Navigation row ======================= -->
+  <div class="toolbar" id="toolbar">
+    <button class="tb-btn" id="btn-sidebar" type="button" data-icon="panel-left" data-i18n-title="nav.sidebar"></button>
+    <button class="tb-btn" id="btn-back" type="button" data-icon="back" data-i18n-title="nav.back"></button>
+    <button class="tb-btn" id="btn-forward" type="button" data-icon="forward" data-i18n-title="nav.forward"></button>
+    <button class="tb-btn" id="btn-reload" type="button" data-icon="reload" data-i18n-title="nav.reload"></button>
+    <button class="tb-btn" id="btn-home" type="button" data-icon="home" data-i18n-title="nav.home"></button>
+
+    <div class="omnibox" id="omnibox">
+      <span class="omni-leading" id="omniLeading"><span data-icon="search"></span></span>
+      <span class="omni-scheme" id="omniScheme" hidden>https://</span>
+      <input class="omni-input" id="address" type="text" spellcheck="false" autocomplete="off"
+             data-i18n-placeholder="address.placeholder" aria-label="Address" />
+      <button class="omni-btn" id="btn-translate" type="button" data-icon="translate" data-i18n-title="nav.translate"></button>
+      <button class="omni-btn" id="btn-favorite" type="button" data-icon="star" data-i18n-title="nav.favorite"></button>
+    </div>
+
+    <button class="tb-btn" id="btn-collections" type="button" data-icon="collections" data-i18n-title="nav.collections"></button>
+    <button class="tb-btn" id="btn-extensions" type="button" data-icon="puzzle" data-i18n-title="nav.extensions"></button>
+    <button class="tb-btn profile" id="btn-profile" type="button" data-i18n-title="nav.profile"><span>II</span></button>
+    <button class="tb-btn" id="btn-menu" type="button" data-icon="more" data-i18n-title="nav.menu" aria-haspopup="true"></button>
+  </div>
+
+  <!-- ======================= Body: sidebar + content ======================= -->
+  <div class="body" id="body">
+    <aside class="sidebar" id="sidebar">
+      <div class="sb-head">
+        <span class="sb-title" data-i18n="sidebar.title">侧栏</span>
+        <button class="tb-btn sm" id="btn-sidebar-close" type="button" data-icon="panel-left" data-i18n-title="sidebar.collapse"></button>
+      </div>
+      <div class="sb-search">
+        <span data-icon="search"></span>
+        <input id="sbSearch" type="text" spellcheck="false" data-i18n-placeholder="sidebar.search" />
+      </div>
+      <div class="sb-section">
+        <div class="sb-section-head"><span data-i18n="sidebar.apps">应用</span></div>
+        <div class="sb-apps" id="sbApps"></div>
+      </div>
+      <div class="sb-section grow">
+        <div class="sb-section-head">
+          <span data-i18n="sidebar.verticalTabs">垂直标签页</span>
+          <span class="sb-count" id="sbCount">0</span>
+        </div>
+        <div class="sb-tabs" id="sbTabs"></div>
+      </div>
+      <div class="sb-foot">
+        <button class="sb-foot-btn" id="btn-sb-settings" type="button" data-icon="settings"><span data-i18n="menu.settings">设置</span></button>
+      </div>
+    </aside>
+
+    <main class="content" id="content">
+      <div class="loadbar" id="loadbar" hidden><span></span></div>
+      <div class="views" id="views"></div>
+    </main>
+  </div>
+
+  <!-- ======================= DevTools panel (protocol inspector) ======================= -->
+  <section class="devtools" id="devtools" hidden>
+    <div class="dt-head">
+      <div class="dt-tabs">
+        <button class="dt-tab active" data-dt="protocol" type="button" data-i18n="devtools.protocol">协议消息</button>
+        <button class="dt-tab" data-dt="host" type="button" data-i18n="devtools.hostInfo">宿主信息</button>
+      </div>
+      <div class="dt-tools">
+        <button class="dt-btn" id="dt-simulate" type="button" data-i18n="devtools.simulate">模拟宿主响应</button>
+        <button class="dt-btn" id="dt-copy" type="button" data-i18n="devtools.copy">复制日志</button>
+        <button class="dt-btn" id="dt-clear" type="button" data-i18n="devtools.clear">清空</button>
+        <button class="dt-btn icon" id="dt-close" type="button" data-icon="close" data-i18n-title="devtools.close"></button>
+      </div>
+    </div>
+    <div class="dt-body">
+      <div class="dt-pane" id="dtPaneProtocol">
+        <div class="dt-log" id="dtLog"></div>
+      </div>
+      <div class="dt-pane" id="dtPaneHost" hidden>
+        <dl class="host-dl" id="hostDl"></dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= Overflow menu ======================= -->
+  <div class="menu" id="menu" hidden role="menu">
+    <button class="mi" data-action="new-tab" type="button"><span class="mi-ic" data-icon="plus"></span><span class="mi-t" data-i18n="menu.newTab">新建标签页</span><span class="mi-k">Ctrl+T</span></button>
+    <button class="mi" data-action="new-window" type="button"><span class="mi-ic" data-icon="window"></span><span class="mi-t" data-i18n="menu.newWindow">新建窗口</span><span class="mi-k">Ctrl+N</span></button>
+    <button class="mi" data-action="history" type="button"><span class="mi-ic" data-icon="history"></span><span class="mi-t" data-i18n="menu.history">历史记录</span><span class="mi-k">Ctrl+H</span></button>
+    <button class="mi" data-action="favorites" type="button"><span class="mi-ic" data-icon="star"></span><span class="mi-t" data-i18n="menu.favorites">收藏夹</span><span class="mi-k">Ctrl+Shift+O</span></button>
+    <button class="mi" data-action="downloads" type="button"><span class="mi-ic" data-icon="download"></span><span class="mi-t" data-i18n="menu.downloads">下载</span><span class="mi-k">Ctrl+J</span></button>
+    <button class="mi" data-action="collections" type="button"><span class="mi-ic" data-icon="collections"></span><span class="mi-t" data-i18n="menu.collections">集锦</span><span class="mi-k">Ctrl+Shift+Y</span></button>
+    <div class="mi-sep"></div>
+    <button class="mi" data-action="devtools" type="button"><span class="mi-ic" data-icon="code"></span><span class="mi-t" data-i18n="menu.devtools">开发者工具</span><span class="mi-k">F12</span></button>
+    <button class="mi" data-action="protocol" type="button"><span class="mi-ic" data-icon="signal"></span><span class="mi-t" data-i18n="menu.protocol">协议消息</span><span class="mi-k">Ctrl+Shift+P</span></button>
+    <button class="mi" data-action="print" type="button"><span class="mi-ic" data-icon="print"></span><span class="mi-t" data-i18n="menu.print">打印</span><span class="mi-k">Ctrl+P</span></button>
+    <div class="mi-sep"></div>
+    <div class="mi-row" role="group">
+      <span class="mi-ic" data-icon="palette"></span>
+      <span class="mi-t" data-i18n="menu.theme">主题</span>
+      <div class="seg" id="segTheme">
+        <button type="button" data-theme-set="dark" data-i18n="menu.themeDark">深色</button>
+        <button type="button" data-theme-set="light" data-i18n="menu.themeLight">浅色</button>
+      </div>
+    </div>
+    <div class="mi-row" role="group">
+      <span class="mi-ic" data-icon="language"></span>
+      <span class="mi-t" data-i18n="menu.language">语言</span>
+      <div class="seg" id="segLocale">
+        <button type="button" data-locale-set="zh-CN">中文</button>
+        <button type="button" data-locale-set="en-US">English</button>
+      </div>
+    </div>
+    <div class="mi-sep"></div>
+    <button class="mi" data-action="settings" type="button"><span class="mi-ic" data-icon="settings"></span><span class="mi-t" data-i18n="menu.settings">设置</span></button>
+    <button class="mi" data-action="about" type="button"><span class="mi-ic" data-icon="info"></span><span class="mi-t" data-i18n="menu.about">关于</span><span class="mi-k" id="menuVersion">v0.1.0</span></button>
+    <div class="menu-foot"><span id="menuHostPill" class="pill">演示模式</span></div>
+  </div>
+
+  <!-- ======================= Modal dialogs ======================= -->
+  <div class="overlay" id="overlay" hidden>
+    <div class="dialog" id="dialog-settings" role="dialog" aria-modal="true" hidden>
+      <div class="dlg-head"><h2 data-i18n="settings.title">设置</h2><button class="tb-btn sm" data-close-dialog type="button" data-icon="close"></button></div>
+      <div class="dlg-body">
+        <section class="set-group">
+          <h3 data-i18n="settings.appearance">外观</h3>
+          <div class="set-row"><div class="set-label"><span data-i18n="settings.theme">主题</span><small data-i18n="settings.themeHint">深色 / 浅色 / 跟随系统</small></div>
+            <div class="seg lg" id="segTheme2">
+              <button type="button" data-theme-set="dark" data-i18n="menu.themeDark">深色</button>
+              <button type="button" data-theme-set="light" data-i18n="menu.themeLight">浅色</button>
+              <button type="button" data-theme-set="system" data-i18n="settings.themeSystem">跟随系统</button>
+            </div></div>
+          <div class="set-row"><div class="set-label"><span data-i18n="settings.acrylic">亚克力 / Mica 效果</span><small data-i18n="settings.acrylicHint">半透明 + backdrop-filter 模糊</small></div>
+            <label class="switch"><input type="checkbox" id="setAcrylic" checked /><span></span></label></div>
+          <div class="set-row"><div class="set-label"><span data-i18n="settings.sidebar">默认展开侧栏</span></div>
+            <label class="switch"><input type="checkbox" id="setSidebar" checked /><span></span></label></div>
+        </section>
+        <section class="set-group">
+          <h3 data-i18n="settings.startup">启动与主页</h3>
+          <div class="set-row"><div class="set-label"><span data-i18n="settings.homePage">主页地址</span><small data-i18n="settings.homePageHint">点击主页按钮时打开</small></div>
+            <input class="set-input" id="setHome" type="text" value="inc://cloud" spellcheck="false" /></div>
+          <div class="set-row"><div class="set-label"><span data-i18n="settings.language">界面语言</span></div>
+            <div class="seg lg" id="segLocale2">
+              <button type="button" data-locale-set="zh-CN">中文</button>
+              <button type="button" data-locale-set="en-US">English</button>
+            </div></div>
+        </section>
+        <section class="set-group">
+          <h3 data-i18n="settings.host">宿主</h3>
+          <div class="set-row"><div class="set-label"><span data-i18n="settings.hostMode">宿主模式</span><small id="hostModeHint"></small></div><span class="pill" id="setHostPill">demo</span></div>
+          <div class="set-row"><div class="set-label"><span data-i18n="settings.hostApi">宿主接口</span><small data-i18n="settings.hostApiHint">window.chrome.webview.postMessage / 自定义桥 / postMessage</small></div><span class="pill" id="setHostApi">null</span></div>
+        </section>
+      </div>
+      <div class="dlg-foot">
+        <button class="btn ghost" id="btn-reset" type="button" data-i18n="settings.reset">恢复默认</button>
+        <button class="btn primary" data-close-dialog type="button" data-i18n="settings.done">完成</button>
+      </div>
+    </div>
+
+    <div class="dialog narrow" id="dialog-about" role="dialog" aria-modal="true" hidden>
+      <div class="dlg-head"><h2 data-i18n="about.title">关于</h2><button class="tb-btn sm" data-close-dialog type="button" data-icon="close"></button></div>
+      <div class="dlg-body">
+        <div class="about-hero">
+          <span class="about-logo">&#8734;</span>
+          <div>
+            <strong>Infinity Edge Shell</strong>
+            <small id="aboutVersion">v0.1.0</small>
+          </div>
+        </div>
+        <dl class="about-dl">
+          <dt data-i18n="about.engine">内核</dt><dd data-i18n="about.engineValue">精简 Chromium（Chromium Trim）</dd>
+          <dt data-i18n="about.shell">外壳</dt><dd>work/edge-ui · HTML/CSS/JS</dd>
+          <dt data-i18n="about.host">宿主</dt><dd id="aboutHost">demo</dd>
+          <dt data-i18n="about.protocol">协议</dt><dd>infinity-shell v1</dd>
+          <dt data-i18n="about.apps">应用</dt><dd>INC · ITB · IIM · IFM</dd>
+        </dl>
+        <p class="about-note" data-i18n="about.note">无构建步骤、无外部 CDN；界面文案默认中文，可在菜单中切换英文。</p>
+      </div>
+      <div class="dlg-foot"><button class="btn primary" data-close-dialog type="button" data-i18n="settings.done">完成</button></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+</div>
+
+<!-- ======================= Templates ======================= -->
+<template id="tpl-tab">
+  <div class="tab" role="tab" tabindex="0">
+    <span class="tab-fav"></span>
+    <span class="tab-title">New tab</span>
+    <span class="tab-audio" data-icon="audio" hidden></span>
+    <button class="tab-close" type="button" tabindex="-1" data-icon="close"></button>
+  </div>
+</template>
+
+<template id="tpl-ntp">
+  <div class="ntp">
+    <div class="ntp-inner">
+      <header class="ntp-head">
+        <span class="ntp-logo">&#8734;</span>
+        <h1 class="ntp-greeting" class="ntp-greeting">&#26089;&#19978;&#22909;</h1>
+        <p class="ntp-date" class="ntp-date"></p>
+      </header>
+
+      <form class="ntp-search" class="ntp-search" autocomplete="off">
+        <span class="ntp-search-ic" data-icon="search"></span>
+        <input class="ntp-search-input" class="ntp-search-input" type="text" spellcheck="false"
+               data-i18n-placeholder="address.placeholder" />
+        <button class="ntp-search-btn" type="submit" data-i18n="ntp.searchBtn">搜索</button>
+      </form>
+
+      <section class="ntp-section">
+        <div class="ntp-section-head">
+          <h2 data-i18n="ntp.favorites">收藏夹</h2>
+          <button class="link-btn ntp-add-fav" type="button"><span data-icon="plus"></span><span data-i18n="ntp.addFavorite">添加收藏</span></button>
+        </div>
+        <div class="fav-row"></div>
+      </section>
+
+      <section class="ntp-section">
+        <div class="ntp-section-head">
+          <h2 data-i18n="ntp.apps">Infinity 套件</h2>
+          <span class="muted" data-i18n="ntp.appsHint">由精简 Chromium 内核承载的应用页面</span>
+        </div>
+        <div class="app-grid"></div>
+      </section>
+
+      <footer class="ntp-foot">
+        <span class="pill ntp-host-pill">demo</span>
+        <span class="ntp-foot-text" data-i18n="ntp.footer">Infinity Edge Shell · 演示外壳</span>
+        <span class="dot"></span>
+        <span class="ntp-foot-text ntp-engine">Chromium Trim</span>
+      </footer>
+    </div>
+  </div>
+</template>
+
+<noscript><p style="padding:24px;font:14px system-ui">Infinity Edge Shell requires JavaScript.</p></noscript>
+
+<script src="assets/js/icons.js"></script>
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/shell.js"></script>
+</body>
+</html>

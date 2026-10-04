@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark" data-accent="#0f8a6a">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Infinity 安装管理器 · IIM</title>
+<script>
+(function(){try{var q=new URLSearchParams(location.search);var t=q.get('theme');if(t==='light'||t==='dark'){document.documentElement.dataset.theme=t;}
+var l=q.get('locale');if(l){document.documentElement.lang=l;}}catch(e){}})();
+</script>
+<link rel="stylesheet" href="../../assets/css/apps.css" />
+</head>
+<body class="app-page">
+<header class="ap-top">
+  <div class="ap-brand">
+    <span class="ap-logo">IIM</span>
+    <div><strong>Infinity 安装管理器</strong><small>Infinity Installer Manager · IIM</small></div>
+  </div>
+  <nav class="ap-nav">
+    <button type="button" class="active">已安装</button>
+    <button type="button">可用更新</button>
+    <button type="button">历史版本</button>
+    <button type="button">安装包</button>
+  </nav>
+  <div class="ap-actions">
+    <span class="tag ok">1.0.0-pre4</span>
+    <button class="ap-btn" type="button">刷新</button>
+    <button class="ap-btn primary" type="button">检查更新</button>
+  </div>
+</header>
+<main class="ap-main">
+  <div class="card">
+    <h3>已安装的 Infinity 组件</h3>
+    <table class="tbl">
+      <tr><th>组件</th><th>版本</th><th>安装时间</th><th>状态</th></tr>
+      <tr><td>Infinity Cloud (INC)</td><td>1.0.0-pre4</td><td>2026-10-01</td><td>已是最新</td></tr>
+      <tr><td>Infinity Toolbox (ITB)</td><td>1.0.0-pre4</td><td>2026-10-01</td><td>已是最新</td></tr>
+      <tr><td>Infinity Installer Manager (IIM)</td><td>1.0.0-pre4</td><td>2026-10-01</td><td>运行中</td></tr>
+      <tr><td>Infinity File Manager (IFM)</td><td>1.0.0-pre4</td><td>2026-09-28</td><td>可更新</td></tr>
+    </table>
+  </div>
+  <div class="two-col">
+    <div class="card"><h3>可用更新</h3>
+      <div class="list">
+        <div class="row"><span class="ico">IFM</span><div class="grow"><div class="name">Infinity File Manager 1.0.0-pre4</div><div class="sub">42.6 MB · win-x64</div></div><button class="ap-btn primary" type="button">更新</button></div>
+        <div class="row"><span class="ico">SDK</span><div class="grow"><div class="name">Infinity Runtime SDK 0.9.7</div><div class="sub">18.1 MB · 可选组件</div></div><button class="ap-btn" type="button">安装</button></div>
+      </div>
+    </div>
+    <div class="card"><h3>维护操作</h3>
+      <div class="list">
+        <div class="row"><div class="grow"><div class="name">修复安装</div><div class="sub">重新注册组件与文件关联</div></div></div>
+        <div class="row"><div class="grow"><div class="name">回滚到 pre3</div><div class="sub">保留配置，替换程序文件</div></div></div>
+        <div class="row"><div class="grow"><div class="name">清理安装缓存</div><div class="sub">约 214 MB</div></div></div>
+      </div>
+    </div>
+  </div>
+  <p class="note">演示内容 · 由 Infinity Edge Shell 通过 &lt;iframe&gt; 加载（宿主模式下由精简 Chromium 直接承载）。</p>
+</main>
+</body>
+</html>

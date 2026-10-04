@@ -53,17 +53,20 @@ function log(m) { process.stdout.write(m + NL); }
 /*
  * The naming layer.
  *
- * Infinity.Inc ships each application as a family of executables that differ
- * only by name. The program reads its own file name to decide what to do:
+ * Infinity.Inc ships each application as a family of eight executables that
+ * differ only by name. The program reads its own file name to decide what to
+ * do:
  *
- *   inc_cli        command line        inx_cli        elevated command line
- *   inc_tui        terminal UI         inx_tui        elevated terminal UI
- *   inc_gui        graphical UI        inx_gui        elevated graphical UI
- *   inc_launcher   launcher            inx_launcher   elevated launcher
+ *   inc_cli       command line       inx_cli       elevated command line
+ *   inc_tui       terminal UI        inx_tui       elevated terminal UI
+ *   inc_launcher  launcher           inx_launcher  elevated launcher
+ *   inc_gui       window             inx_gui       elevated window
  *
- * The eight are byte identical, so seven of them are hard links to the first.
- * That keeps a platform at one executable's worth of disk instead of eight,
- * while still giving each name a real file on the system.
+ * The six command-line names are made here and are byte identical, so five of
+ * them are hard links to the first one. The two _gui names come from the
+ * Electron shell (shell/build.mjs), which is why they are not in MODES. One
+ * platform therefore costs one executable's worth of disk for the six command
+ * line faces, plus the window.
  */
 export const PREFIXES = [
   { prefix: 'inc', admin: false },

@@ -28,12 +28,25 @@ const OUT = path.join(ROOT, 'out');
 const MINGW = 'C:/Users/REDMI/AppData/Local/Microsoft/WinGet/Packages/' +
   'BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64/bin';
 
+/* The C++ build makes every face the C++ program itself can serve: `cli` is
+ * the command line, `launcher` the menu that starts one of the other faces,
+ * and `gui` the loopback UI server the Electron window draws. The list per
+ * application has to match core/include/inc/mode.hpp, which rejects a face an
+ * application does not have - Infinity Installer Manager, Infinity Toolbox and
+ * Infinity Games have exactly two faces (cli, gui) and no launcher.
+ *
+ * Every name is a real copy of the one C++ artifact. The Electron shell in
+ * shell/build.mjs is a separate deliverable - a directory tree, not a single
+ * executable - and is not what these names wrap. */
 export const APPS = [
-  { app: 'inc', prefix: 'inc', admin: 'inx', label: 'Infinity Cloud' },
-  { app: 'ifm', prefix: 'ifm', admin: 'ifmx', label: 'Infinity File Manager' },
-  { app: 'ipm', prefix: 'ipm', admin: 'ipmx', label: 'InfinityPackageManager' }
+  { app: 'inc', prefix: 'inc', admin: 'inx', label: 'Infinity Cloud', modes: ['cli', 'gui', 'launcher'] },
+  { app: 'ifm', prefix: 'ifm', admin: 'ifmx', label: 'Infinity File Manager', modes: ['cli', 'gui', 'launcher'] },
+  { app: 'ipm', prefix: 'ipm', admin: 'ipmx', label: 'InfinityPackageManager', modes: ['cli', 'gui', 'launcher'] },
+  { app: 'iim', prefix: 'iim', admin: 'iimx', label: 'Infinity Installer Manager', modes: ['cli', 'gui'] },
+  { app: 'int', prefix: 'int', admin: 'intx', label: 'Infinity Toolbox', modes: ['cli', 'gui'] },
+  { app: 'ing', prefix: 'ing', admin: 'ingx', label: 'Infinity Games', modes: ['cli', 'gui'] }
 ];
-export const MODES = ['cli', 'tui', 'gui', 'launcher'];
+export const MODES = ['cli', 'gui', 'launcher'];
 
 /* Windows itself. Anything else in the import table is a dependency the user
  * would have to install, which is exactly what this build exists to avoid. */
@@ -50,6 +63,11 @@ function run(exe, args, cwd) {
     cwd: cwd || ROOT,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
+    // objdump -p on a statically linked binary prints more than the 1 MB
+    // default, and the default failure is ENOBUFS - which the caller used to
+    // swallow, leaving the dependency audit reported as "skipped" while the
+    // summary line still claimed the dependencies were Windows only.
+    maxBuffer: 256 * 1024 * 1024,
     env: Object.assign({}, process.env, { PATH: MINGW + ';' + (process.env.PATH || '') })
   }) || '';
 }
@@ -77,10 +95,13 @@ function imports(exe) {
   return Array.from(new Set(out));
 }
 
+/* The import table, as objdump reports it. null means the table could not be
+ * read at all, which is different from an empty list and has to stay
+ * different - the callers refuse to call a build audited when it was not. */
 function audit(exe) {
   const dlls = imports(exe);
-  if (!dlls) { log('  (objdump unavailable; dependency check skipped)'); return []; }
-  const foreign = dlls.filter(function (d) {
+  if (!dlls) return null;
+  return dlls.filter(function (d) {
     if (SYSTEM_DLLS.has(String(d).toLowerCase())) return false;
     // The UCRT forwarders are part of Windows 10 and later; they are not
     // something a user installs.
@@ -88,7 +109,6 @@ function audit(exe) {
     if (d.toLowerCase().indexOf('api-ms-win-core-') === 0) return false;
     return true;
   });
-  return foreign;
 }
 
 function emitNames(app, exe) {
@@ -96,7 +116,7 @@ function emitNames(app, exe) {
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
   const made = [];
-  for (const mode of MODES) {
+  for (const mode of app.modes) {
     for (const prefix of [app.prefix, app.admin]) {
       const name = prefix + '_' + mode + '.exe';
       const dst = path.join(dir, name);
@@ -116,11 +136,9 @@ function main() {
   log('built ' + exe + '  ' + size + ' B');
 
   const foreign = audit(exe);
-  if (foreign.length) {
-    log('  WARNING external dependencies: ' + foreign.join(', '));
-  } else {
-    log('  dependencies: Windows only');
-  }
+  if (foreign === null) log('  WARNING the import table could not be read; dependencies were NOT checked');
+  else if (foreign.length) log('  WARNING external dependencies: ' + foreign.join(', '));
+  else log('  dependencies: Windows only');
 
   log('');
   const only = process.argv[2];
@@ -130,9 +148,10 @@ function main() {
     const src = path.join(BUILD, app.app + '.exe');
     const from = fs.existsSync(src) ? src : exe;
     const foreign = audit(from);
+    if (foreign === null) throw new Error(app.app + ': the import table could not be read, so the dependency audit did not run');
     if (foreign.length) throw new Error(app.app + ' has external dependencies: ' + foreign.join(', '));
     const made = emitNames(app, from);
-    log(app.app.padEnd(5) + app.label.padEnd(24) + made.length + ' names  ' + fs.statSync(from).size + ' B  Windows dependencies only');
+    log(app.app.padEnd(5) + app.label.padEnd(26) + made.length + ' names  ' + fs.statSync(from).size + ' B  Windows dependencies only');
     built.push({ app: app.app, exe: from, names: made });
   }
   log('');

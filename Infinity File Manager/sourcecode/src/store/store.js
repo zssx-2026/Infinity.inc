@@ -93,6 +93,14 @@ export class Store {
       let releases = [];
       try { releases = await this.gh.listReleases(this.owner, repo.name); }
       catch (e) { say('skip ' + repo.name + ': ' + e.message); continue; }
+      /*
+       * Newest volume first. A superseded manifest can linger until its writer
+       * deletes it, and the merge below is first-wins, so the newest snapshot
+       * has to be seen first or a stale one would shadow it.
+       */
+      releases = releases.slice().sort(function (a, b) {
+        return manifestVolume(b.tag_name) - manifestVolume(a.tag_name);
+      });
       for (const rel of releases) {
         const asset = (rel.assets || []).find(function (a) { return a.name === MANIFEST_NAME; });
         if (!asset) continue;
@@ -145,7 +153,14 @@ export class Store {
       const tag = 'part-' + String(i).padStart(5, '0');
       let rel = await this.gh.getRelease(this.owner, repo, tag);
       if (!rel) rel = await this.gh.createRelease(this.owner, repo, tag, tag);
-      const assetName = baseOf(cp) + '.' + String(i).padStart(5, '0') + '.part';
+      /*
+       * The full cloud path, not just its base name, goes into the asset
+       * name: /a/report.pdf and /b/report.pdf must not share one, or the
+       * second upload deletes the first while the manifest still points at
+       * it. The hash keeps the name short and unique, the base name keeps it
+       * readable.
+       */
+      const assetName = baseOf(cp) + '.' + shortHash(cp) + '.' + String(i).padStart(5, '0') + '.part';
       const old = (rel.assets || []).find(function (a) { return a.name === assetName; });
       if (old) await this.gh.deleteAsset(this.owner, repo, old.id);
       const slice = path.join(cacheDirFor(this.owner), 'slice-' + Date.now() + '-' + i);
@@ -325,16 +340,52 @@ export class Store {
   async flush() {
     const repo = await this.ensureRepo();
     if (this.gh.ensureReleasable) await this.gh.ensureReleasable(this.owner, repo);
-    const tag = 'manifest-v' + this.manifest.volume;
+    /*
+     * The replacement manifest is written to a fresh volume, and only then is
+     * the previous volume's file.json removed.
+     *
+     * A release cannot hold two assets with the same name, so a replacement
+     * cannot be staged inside the release it replaces - uploading the new
+     * file.json would either be rejected or, as the old code did, require
+     * deleting the live manifest first and leaving the cloud with none.
+     * Moving to a new volume is what lets the new manifest exist before the
+     * old one goes away, so a concurrent pull never meets a release that has
+     * lost its manifest.
+     *
+     * The volume tag doubles as a coarse compare-and-swap: two writers that
+     * start from the same volume aim at the same tag, so one createRelease or
+     * upload fails instead of silently overwriting the other.
+     */
+    const next = (this.manifest.volume || 1) + 1;
+    const tag = 'manifest-v' + next;
     let rel = await this.gh.getRelease(this.owner, repo, tag);
     if (!rel) rel = await this.gh.createRelease(this.owner, repo, tag, tag);
     const tmp = path.join(cacheDirFor(this.owner), MANIFEST_NAME);
     this.manifest.updated = Date.now();
+    this.manifest.volume = next;
     fs.writeFileSync(tmp, JSON.stringify(this.manifest), 'utf8');
-    const old = (rel.assets || []).find(function (a) { return a.name === MANIFEST_NAME; });
-    if (old) await this.gh.deleteAsset(this.owner, repo, old.id);
+
+    /* Upload the replacement before touching the old one. */
     const up = await this.gh.uploadAsset(this.owner, repo, rel.id, tmp, MANIFEST_NAME);
     try { fs.unlinkSync(tmp); } catch (e) { }
+
+    /*
+     * Now the superseded manifests can go. Every older manifest this repo
+     * still holds is removed rather than only volume next-1, because a repo
+     * can carry a stale manifest at a non-adjacent volume once writers have
+     * moved between repositories. A failure here leaves an older snapshot
+     * behind; pull orders volumes newest-first, so it is shadowed and
+     * harmless, and is not worth failing a write that has already succeeded.
+     */
+    const stale = await this.gh.listReleases(this.owner, repo);
+    for (const s of stale) {
+      if (manifestVolume(s.tag_name) >= next) continue;
+      for (const a of (s.assets || [])) {
+        if (a.name !== MANIFEST_NAME) continue;
+        try { await this.gh.deleteAsset(this.owner, repo, a.id); } catch (e) { }
+        break;
+      }
+    }
     return up;
   }
 
@@ -353,6 +404,36 @@ export class Store {
     for (const k of Object.keys(this.manifest.files)) n += this.manifest.files[k].size || 0;
     return n;
   }
+}
+
+/*
+ * A stable, short fingerprint of a cloud path. Part asset names are built
+ * from it so that two files with the same base name - /a/report.pdf and
+ * /b/report.pdf - never land on the same asset name and delete each other.
+ * FNV-1a is chosen over the SHA-256 already in the net layer because this is
+ * only a naming tie-breaker, not a content check: it must be cheap and
+ * deterministic, and a collision would merely reintroduce the bug it fixes,
+ * not corrupt data.
+ */
+function shortHash(s) {
+  let h = 1469598103934665603n;
+  const prime = 1099511628211n;
+  for (const c of Buffer.from(s, 'utf8')) {
+    h = ((h ^ BigInt(c)) * prime) & 0xffffffffffffffffn;
+  }
+  return h.toString(16).padStart(16, '0');
+}
+
+/*
+ * The N in a "manifest-vN" tag, or 0 for anything else. pull sorts releases
+ * with it so the newest snapshot is merged first regardless of the order the
+ * API happens to return.
+ */
+function manifestVolume(tag) {
+  const p = 'manifest-v';
+  if (typeof tag !== 'string' || tag.indexOf(p) !== 0) return 0;
+  const n = parseInt(tag.slice(p.length), 10);
+  return isNaN(n) ? 0 : n;
 }
 
 function mergeManifest(into, doc) {

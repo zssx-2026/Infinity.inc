@@ -67,22 +67,17 @@ function writeLaunchers(dir, p) {
       '@echo off', 'set NODE_OPTIONS=',
       'rem Infinity Cloud',
       'cd /d "%~dp0"',
-      'if "%~1"=="" ( "%~dp0' + p.exe + '" tui ) else ( "%~dp0' + p.exe + '" %* )',
+      'if "%~1"=="" ( "%~dp0' + p.exe + '" gui ) else ( "%~dp0' + p.exe + '" %* )',
       ''
     ].join(CRLF);
     fs.writeFileSync(path.join(dir, 'inc.cmd'), cmd, 'utf8');
-    fs.writeFileSync(path.join(dir, 'ifm.cmd'),
-      '@echo off' + CRLF + 'set NODE_OPTIONS=' + CRLF + 'cd /d "%~dp0"' + CRLF + '"%~dp0' + p.exe + '" ifm' + CRLF, 'utf8');
     return;
   }
   const sh = '#!/bin/sh' + NL + 'DIR=$(cd "$(dirname "$0")" && pwd)' + NL +
-    'if [ $# -eq 0 ]; then exec "$DIR/' + p.exe + '" tui; else exec "$DIR/' + p.exe + '" "$@"; fi' + NL;
+    'if [ $# -eq 0 ]; then exec "$DIR/' + p.exe + '" gui; else exec "$DIR/' + p.exe + '" "$@"; fi' + NL;
   const a = path.join(dir, 'inc');
   fs.writeFileSync(a, sh, 'utf8');
   try { fs.chmodSync(a, 0o755); } catch (e) { }
-  const b = path.join(dir, 'ifm');
-  fs.writeFileSync(b, '#!/bin/sh' + NL + 'exec "$(dirname "$0")/' + p.exe + '" ifm' + NL, 'utf8');
-  try { fs.chmodSync(b, 0o755); } catch (e) { }
 }
 
 /* The portable payload: the executable, both icons, launchers, a readme. */
@@ -99,9 +94,8 @@ function stagePortable(p, dest) {
   const readme = [
     'Infinity Cloud - portable',
     '',
-    '  inc                 open the interface',
+    '  inc                 open the window',
     '  inc cli             open the command line',
-    '  inc ifm             open the file manager',
     '',
     '  install, repair and uninstall also work from here.',
     '',

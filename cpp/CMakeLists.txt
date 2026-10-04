@@ -39,14 +39,14 @@ file(GLOB CORE_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/core/src/*.cpp)
 
 add_library(inc_core STATIC ${CORE_SRC})
 target_include_directories(inc_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/core/include)
-target_link_libraries(inc_core PUBLIC winhttp bcrypt shell32 comctl32)
+target_link_libraries(inc_core PUBLIC winhttp bcrypt shell32 comctl32 ws2_32)
 
 # ---------------------------------------------------------------- apps
 
 # Each application produces ONE executable. The eight names are copies of it,
 # made after the build by tools/build.mjs, exactly as the Node build hard
 # linked them - the program reads its own file name to know which face to be.
-set(INC_APPS inc ifm ipm)
+set(INC_APPS inc ifm ipm iim int ing)
 
 foreach(app ${INC_APPS})
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/apps/${app}/main.cpp)
@@ -55,6 +55,17 @@ foreach(app ${INC_APPS})
     set_target_properties(${app} PROPERTIES OUTPUT_NAME ${app})
   endif()
 endforeach()
+
+# ---------------------------------------------------------------- host tools
+
+# The .itbt packer is a build-time tool, not an application: it turns a plugin
+# directory into the single-file container Infinity Toolbox installs from. It
+# uses no third party library and no Windows API of its own, so it needs only
+# the compiler. Building it from the same configure as the suite is what keeps
+# the writer and the loader from drifting apart.
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tools/itbt/itbt-pack.cpp)
+  add_executable(itbt-pack ${CMAKE_CURRENT_SOURCE_DIR}/tools/itbt/itbt-pack.cpp)
+endif()
 
 # Explicit opt-in end-to-end test. It creates a uniquely named test storage
 # repository and removes that repository before returning; it never touches an

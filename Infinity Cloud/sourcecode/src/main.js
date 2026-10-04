@@ -2,23 +2,20 @@
 /*
  * main.js - the entry point.
  *
- *   inc                 open the TUI
+ *   inc                 open the window
  *   inc cli             open the CLI
- *   inc tui             open the TUI
  *   inc <command> ...   run one CLI command and exit
  *
  * Infinity.Inc also ships the same program under eight names, and then the
  * name decides before any argument is read:
  *
- *   inc_cli  inc_tui  inc_gui  inc_launcher
- *   inx_cli  inx_tui  inx_gui  inx_launcher
+ *   inc_cli  inc_tui  inc_launcher  inc_gui
+ *   inx_cli  inx_tui  inx_launcher  inx_gui
  *
- * Both routes keep their own settings file so a CLI session and a TUI
+ * Both routes keep their own settings file so a CLI session and a GUI
  * session never overwrite each other's idea of how things should look.
  */
 import { runCli } from './cli.js';
-import { runTui } from './tui/tui.js';
-import { runIfm } from './tui/ifm.js';
 import { ensureDirs, PATHS } from './core/config.js';
 import { ensureTools } from './net/bootstrap.js';
 import { runInstaller, repair, uninstall } from './installer.js';
@@ -65,12 +62,13 @@ async function main() {
      * because the exit handler below turns a resolved main into exit(0). */
     return new Promise(function () { });
   }
-  if (me.mode === 'tui') { await runTui(); return; }
+  /* TUI is the interactive terminal session: the same Cli as the command
+   * line, entered with no arguments. Keeping it a name of its own is what
+   * makes the six command-line faces symmetrical, as in the Package Manager. */
+  if (me.mode === 'tui') { await runCli([]); return; }
   if (me.mode === 'cli') { await runCli(args); return; }
 
-  if (first === 'ifm') { await runIfm(null); return; }
   if (first === 'cli') { await runCli(); return; }
-  if (first === 'tui') { await runTui(); return; }
   if (first === 'gui') {
     const r = await runGui({});
     if (!r.ok) { process.exitCode = 1; return; }
@@ -90,7 +88,11 @@ async function main() {
   }
 
   if (args.length > 0) { await runCli(args); return; }
-  await runTui();
+  const r = await runGui({});
+  if (!r.ok) { console.error('cannot start the UI: ' + (r.error || 'unknown')); process.exitCode = 1; return; }
+  /* The server is what keeps the process alive; main() must not resolve,
+   * because the exit handler below turns a resolved main into exit(0). */
+  return new Promise(function () { });
 }
 
 main().then(function () { process.exit(0); }, function (e) {

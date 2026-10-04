@@ -9,8 +9,9 @@
  * download cache npm already filled.
  *
  * Electron ships as a directory, not a lone file, and that directory is what
- * the installer stages as <prefix>_gui.exe. The six names are the same
- * directory; only the executable at its root is renamed.
+ * the installer stages as <prefix>_gui.exe. The ten names are the same
+ * directory; only the executable at its root is renamed. The C++ build no
+ * longer emits any _gui name, so this shell owns all ten.
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -25,7 +26,9 @@ const OUT = path.join(HERE, 'build');
 export const TARGETS = [
   { prefix: 'inc', app: 'Infinity Cloud' },
   { prefix: 'ifm', app: 'Infinity File Manager' },
-  { prefix: 'ipm', app: 'InfinityPackageManager' }
+  { prefix: 'ipm', app: 'InfinityPackageManager' },
+  { prefix: 'iim', app: 'Infinity Installer Manager' },
+  { prefix: 'int', app: 'Infinity Toolbox' }
 ];
 
 function log(m) { process.stdout.write(m + NL); }
@@ -38,15 +41,25 @@ function electronVersion() {
 }
 
 /* The cached runtime. @electron/get stores it under a hash-named folder, so
- * the file is found by name rather than by path. */
-function findRuntimeZip(version, arch) {
-  const roots = [
-    path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'electron', 'Cache'),
+ * the file is found by name rather than by path. The shared runtime cache
+ * under D:/temp/tools/runtimes is consulted first: on this machine it is
+ * where runtimes are meant to be staged, and the npm cache is only a
+ * fallback for a machine that has none. */
+function runtimeRoots(arch) {
+  const local = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+  const tools = process.env.INFINITY_RUNTIMES || 'D:/temp/tools/runtimes';
+  return [
+    path.join(tools, 'win-' + arch),
+    tools,
+    path.join(local, 'electron', 'Cache'),
     path.join(os.homedir(), '.cache', 'electron'),
     path.join(os.homedir(), 'AppData', 'Local', 'electron', 'Cache')
   ];
+}
+
+function findRuntimeZip(version, arch) {
   const want = 'electron-v' + version + '-win32-' + arch + '.zip';
-  for (const root of roots) {
+  for (const root of runtimeRoots(arch)) {
     let entries = [];
     try { entries = fs.readdirSync(root); } catch (e) { continue; }
     for (const e of entries) {

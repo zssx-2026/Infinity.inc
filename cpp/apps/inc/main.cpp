@@ -15,16 +15,20 @@
 // the next slice, and its shape is visible in the commands that are already
 // wired up.
 
-#include "inc/console.hpp"
 #include "inc/env.hpp"
 #include "inc/github.hpp"
 #include "inc/json.hpp"
 #include "inc/mode.hpp"
 #include "inc/store.hpp"
+#include "inc/ansi.hpp"
 #include "inc/str.hpp"
+#include "inc/uiserver.hpp"
+
+#include "ui.hpp"
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -44,16 +48,11 @@ static const char* APP = "Infinity Cloud";
 
 static void out(const std::string& s) { fputs((s + "\n").c_str(), stdout); }
 
-static std::string color(int c, const std::string& s) {
-  return "\x1b[" + std::to_string(c) + "m" + s + "\x1b[0m";
-}
-
 static void help() {
   out(std::string(APP) + " [v" + version() + "]  ·  Infinity.Inc");
   out("");
   out("  inc                       open the terminal interface");
   out("  inc cli                   open the command line");
-  out("  inc tui                   open the terminal interface");
   out("  inc gui                   open the window");
   out("  inc login                 show which token is in use");
   out("  inc get                   refresh the cloud manifest");
@@ -223,107 +222,223 @@ static int cliMain(const std::vector<std::string>& args) {
   return 1;
 }
 
-// ---------------------------------------------------------------- tui
+// ---------------------------------------------------------------- ui
 
-static void tuiDraw(Console& c, Session& s, Store& store, const std::string& cloudPath,
-                    const std::vector<std::string>& repos, int page, int cursor,
-                    bool manifestLoaded, const std::string& status) {
-  c.clear();
-  c.hideCursor();
-  const int w = c.width();
-  c.line(0, color(C_CYAN, " Infinity Cloud [v" + std::string(version()) + "] ") + color(C_DIM, "Infinity.Inc"), w);
-  c.line(1, color(C_DIM, " " + s.gh.login() + "  ·  " + s.tokenSourceName), w);
+/*
+ * The window is Electron; this process is what it talks to.
+ *
+ * The handlers run one at a time on the server's thread, so the Store below
+ * needs no locking - there is only ever one request in flight, and the main
+ * thread is parked in wait().
+ *
+ * Two rules from the command line carry over unchanged. A path in a query
+ * string is untrusted input, and it goes to the Store, which normalises it and
+ * refuses to walk out of the tree. And a failure is answered with a JSON object
+ * carrying a message and a non-zero status: an empty 200 would make the page
+ * show an empty drive where it should show a reason.
+ */
 
-  const char* pages[3] = { " My files ", " Account ", " Repositories " };
-  std::string tabs;
-  for (int i = 0; i < 3; i++) {
-    tabs += (i == page) ? color(C_CYAN, "[" + std::string(pages[i]) + "]") : color(C_DIM, " " + std::string(pages[i]) + " ");
-    tabs += " ";
-  }
-  c.line(3, " " + tabs, w);
-  c.line(4, color(C_DIM, " " + std::string(w > 2 ? w - 2 : 0, '-')), w);
-
-  int row = 6;
-  if (page == 0) {
-    c.line(row++, color(C_DIM, "  " + cloudPath + (manifestLoaded ? "" : "  (manifest unavailable)")), w);
-    std::vector<Json> entries = store.list(cloudPath);
-    if (entries.empty()) c.line(row++, color(C_DIM, "  empty"), w);
-    for (size_t i = 0; i < entries.size() && row < c.height() - 2; i++, row++) {
-      const Json& e = entries[i];
-      const bool folder = e.s("type") == "folder";
-      const std::string label = (folder ? "[DIR]  " : "       ") + e.s("name") +
-                                (folder ? "" : "  " + humanSize((uint64_t)std::max<long long>(0, e.i("size"))));
-      c.line(row, (static_cast<int>(i) == cursor ? color(C_CYAN, " > ") : "   ") + label, w);
-    }
-  } else if (page == 1) {
-    c.line(row++, "  account   " + color(C_GREEN, s.gh.login()), w);
-    c.line(row++, "  token     " + color(C_DIM, s.tokenSourceName), w);
-    c.line(row++, "  version   v" + std::string(version()), w);
-    c.line(row++, "  cloud     " + humanSize(store.totalBytes()), w);
-  } else {
-    if (repos.empty()) c.line(row++, color(C_DIM, "  no repositories"), w);
-    for (size_t i = 0; i < repos.size() && row < c.height() - 2; i++, row++) {
-      c.line(row, (static_cast<int>(i) == cursor ? color(C_CYAN, " > ") : "   ") + repos[i], w);
-    }
-  }
-
-  c.line(c.height() - 1, color(C_DIM, " up/down  select/page  Enter  open  Backspace  up  r  refresh  q  quit"), w);
-  if (!status.empty() && c.height() > 2) c.line(c.height() - 2, color(C_DIM, " " + status), w);
-  c.flush();
+std::string queryValue(const UiRequest& request, const std::string& key) {
+  auto it = request.query.find(key);
+  return it == request.query.end() ? std::string() : it->second;
 }
 
-static int tuiMain() {
-  Console c;
-  if (!c.ok()) { out("Infinity Cloud needs a console for TUI mode."); return 1; }
+// The architecture this copy of the program is running on, so the page can say
+// which build it is looking at without asking.
+std::string hostPlatformName() {
+  SYSTEM_INFO info;
+  GetNativeSystemInfo(&info);
+  switch (info.wProcessorArchitecture) {
+    case PROCESSOR_ARCHITECTURE_ARM64: return "windows-arm64";
+    case PROCESSOR_ARCHITECTURE_INTEL: return "windows-x86";
+    default: return "windows-x64";
+  }
+}
 
+UiResponse uiFailure(const std::string& message, int status) {
+  Json j = Json::object();
+  j.set("error", message);
+  return UiResponse::withStatus(UiResponse::json(j.dump(2)), status);
+}
+
+// A path in the system temp directory, for the two places where the Store
+// insists on a file: an upload arrives as a request body, and a download has
+// to be written somewhere before it can be read back.
+std::wstring tempPath(const std::string& tag) {
+  wchar_t directory[32768] = { 0 };
+  DWORD length = GetTempPathW(32768, directory);
+  std::wstring path(directory, length);
+  if (path.empty() || path.back() != L'\\') path.push_back(L'\\');
+  path += L"inc-ui-" + toWide(tag) + L"-" + std::to_wstring(GetCurrentProcessId()) + L".tmp";
+  return path;
+}
+
+std::string readFileBytes(const std::wstring& path, bool* ok) {
+  *ok = false;
+  HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                            FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (file == INVALID_HANDLE_VALUE) return std::string();
+  std::string body;
+  char buffer[65536];
+  DWORD read = 0;
+  while (ReadFile(file, buffer, sizeof(buffer), &read, nullptr) && read) body.append(buffer, read);
+  CloseHandle(file);
+  *ok = true;
+  return body;
+}
+
+int serveUi(int port) {
   std::string token = tokenFromEnv();
-  if (token.empty()) { out(color(C_RED, "not signed in") + " - set gittoken_zssx-2026_1 first."); return 1; }
-
-  Session s(token);
-  s.tokenSourceName = tokenSource();
-  std::string err;
-  if (!s.signIn(&err)) { out(color(C_RED, "not signed in") + " (" + err + ")"); return 1; }
-
-  Store store(s.gh, s.gh.login());
-  bool manifestLoaded = store.pull(&err);
-  std::string status = manifestLoaded ? "" : err;
-  std::vector<std::string> repos = s.gh.listStorageRepos("inc_");
-  std::string cloudPath = "/";
-  int page = 0, cursor = 0;
-  c.setRaw(true);
-  tuiDraw(c, s, store, cloudPath, repos, page, cursor, manifestLoaded, status);
-
-  for (;;) {
-    Key k = c.readKey();
-    if (k.kind == Key::None || k.kind == Key::CtrlC) break;
-    if (k.kind == Key::Char && (k.ch == 'q' || k.ch == 'Q')) break;
-    if (k.kind == Key::Char && (k.ch == 'r' || k.ch == 'R')) {
-      status = store.pull(&err) ? "refreshed" : err;
-      manifestLoaded = err.empty();
-      cursor = 0;
-    } else if (k.kind == Key::Up) {
-      if (page == 0) { if (cursor > 0) cursor--; }
-      else { page = (page + 2) % 3; cursor = 0; }
-    } else if (k.kind == Key::Down) {
-      if (page == 0) { auto rows = store.list(cloudPath); if (cursor + 1 < (int)rows.size()) cursor++; }
-      else { page = (page + 1) % 3; cursor = 0; }
-    } else if (k.kind == Key::Backspace && page == 0) {
-      if (cloudPath != "/") cloudPath = Store::parentPath(cloudPath);
-      cursor = 0;
-    } else if (k.kind == Key::Enter && page == 0) {
-      std::vector<Json> rows = store.list(cloudPath);
-      if (cursor >= 0 && cursor < (int)rows.size() && rows[cursor].s("type") == "folder") {
-        cloudPath = Store::normalizePath(cloudPath == "/" ? "/" + rows[cursor].s("name") : cloudPath + "/" + rows[cursor].s("name"));
-        cursor = 0;
-      }
-    }
-    c.refreshSize();
-    tuiDraw(c, s, store, cloudPath, repos, page, cursor, manifestLoaded, status);
+  if (token.empty()) {
+    out(color(C_RED, "not signed in") + " - set gittoken_zssx-2026_1 (or EV_GH_TOKEN) first.");
+    return 1;
   }
 
-  c.setRaw(false);
-  c.showCursor();
-  c.clear();
+  Session session(token);
+  session.tokenSourceName = tokenSource();
+  std::string error;
+  if (!session.signIn(&error)) {
+    out(color(C_RED, "not signed in") + " (" + error + ")");
+    return 1;
+  }
+
+  Store store(session.gh, session.gh.login());
+  std::string manifestError;
+  const bool manifestLoaded = store.pull(&manifestError);
+
+  UiServer server;
+  server.route("GET", "/", [](const UiRequest&) { return UiResponse::html(uiHtml()); });
+  server.route("GET", "/app.css", [](const UiRequest&) { return UiResponse::css(uiCss()); });
+  server.route("GET", "/app.js", [](const UiRequest&) { return UiResponse::js(uiJs()); });
+
+  server.route("GET", "/api/state", [&](const UiRequest&) {
+    Json j = Json::object();
+    j.set("app", APP);
+    j.set("version", version());
+    j.set("login", session.gh.login());
+    j.set("tokenSource", session.tokenSourceName);
+    j.set("platform", hostPlatformName());
+    Json trash = Json::array();
+    for (const Json& entry : store.listTrash()) trash.push(entry);
+    j.set("trash", trash);
+    j.set("totalBytes", (long long)store.totalBytes());
+    // An unread manifest is reported rather than rendered as an empty drive:
+    // "you have nothing" and "I could not read what you have" are different.
+    if (!manifestLoaded) j.set("error", manifestError);
+    return UiResponse::json(j.dump(2));
+  });
+
+  server.route("GET", "/api/list", [&](const UiRequest& request) {
+    std::string path = queryValue(request, "path");
+    if (path.empty()) path = "/";
+    std::vector<Json> entries = store.list(Store::normalizePath(path));
+    Json rows = Json::array();
+    for (const Json& entry : entries) rows.push(entry);
+    Json j = Json::object();
+    j.set("path", Store::normalizePath(path));
+    j.set("entries", rows);
+    j.set("totalBytes", (long long)store.totalBytes());
+    return UiResponse::json(j.dump(2));
+  });
+
+  server.route("POST", "/api/mkdir", [&](const UiRequest& request) {
+    const std::string path = queryValue(request, "path");
+    if (path.empty()) return uiFailure("no path given", 400);
+    std::string why;
+    if (!store.mkdir(path, &why) || !store.flush(&why)) return uiFailure(why, 400);
+    return UiResponse::json(Json::object().dump());
+  });
+
+  server.route("POST", "/api/remove", [&](const UiRequest& request) {
+    const std::string path = queryValue(request, "path");
+    if (path.empty()) return uiFailure("no path given", 400);
+    std::string why;
+    if (!store.remove(path, false, &why) || !store.flush(&why)) return uiFailure(why, 400);
+    return UiResponse::json(Json::object().dump());
+  });
+
+  server.route("POST", "/api/trash/restore", [&](const UiRequest& request) {
+    const std::string path = queryValue(request, "path");
+    if (path.empty()) return uiFailure("no path given", 400);
+    std::string why;
+    if (!store.restore(path, &why) || !store.flush(&why)) return uiFailure(why, 400);
+    return UiResponse::json(Json::object().dump());
+  });
+
+  server.route("POST", "/api/trash/purge", [&](const UiRequest& request) {
+    std::string why;
+    const std::string path = queryValue(request, "path");
+    if (!store.purge(path, &why) || !store.flush(&why)) return uiFailure(why, 400);
+    return UiResponse::json(Json::object().dump());
+  });
+
+  server.route("POST", "/api/refresh", [&](const UiRequest&) {
+    std::string why;
+    const bool ok = store.pull(&why);
+    Json j = Json::object();
+    if (!ok) j.set("error", why);
+    j.set("entries", (long long)store.list("/", true).size());
+    return UiResponse::withStatus(UiResponse::json(j.dump(2)), ok ? 200 : 502);
+  });
+
+  server.route("POST", "/api/upload", [&](const UiRequest& request) {
+    const std::string directory = queryValue(request, "path");
+    const std::string name = queryValue(request, "name");
+    if (name.empty()) return uiFailure("no name given", 400);
+    if (name.find_first_of("/\\") != std::string::npos || name == "." || name == "..") {
+      return uiFailure("a name cannot contain a path separator", 400);
+    }
+    const std::string cloud = Store::normalizePath(
+        (directory.empty() || directory == "/") ? "/" + name : directory + "/" + name);
+
+    const std::wstring staged = tempPath("upload");
+    HANDLE file = CreateFileW(staged.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+                              FILE_ATTRIBUTE_TEMPORARY, nullptr);
+    if (file == INVALID_HANDLE_VALUE) return uiFailure("cannot stage the upload", 500);
+    DWORD written = 0;
+    const bool wrote = request.body.empty() ||
+      WriteFile(file, request.body.data(), (DWORD)request.body.size(), &written, nullptr) != 0;
+    CloseHandle(file);
+    if (!wrote) { DeleteFileW(staged.c_str()); return uiFailure("cannot stage the upload", 500); }
+
+    std::string why;
+    const bool ok = store.put(toUtf8(staged), cloud, &why) && store.flush(&why);
+    DeleteFileW(staged.c_str());
+    if (!ok) return uiFailure(why, 400);
+    return UiResponse::json(Json::object().dump());
+  });
+
+  server.route("GET", "/api/download", [&](const UiRequest& request) {
+    const std::string cloud = queryValue(request, "path");
+    if (cloud.empty()) return uiFailure("no path given", 400);
+    const std::wstring staged = tempPath("download");
+    std::string why;
+    if (!store.get(cloud, toUtf8(staged), true, &why)) {
+      DeleteFileW(staged.c_str());
+      return uiFailure(why, 404);
+    }
+    bool ok = false;
+    const std::string body = readFileBytes(staged, &ok);
+    DeleteFileW(staged.c_str());
+    if (!ok) return uiFailure("the file could not be read back", 500);
+
+    const std::string normalized = Store::normalizePath(cloud);
+    const size_t slash = normalized.find_last_of('/');
+    UiResponse response = UiResponse::text(body, 200);
+    response.contentType = "application/octet-stream";
+    response.headers.push_back({ "Content-Disposition",
+      "attachment; filename=\"" + (slash == std::string::npos ? normalized : normalized.substr(slash + 1)) + "\"" });
+    return response;
+  });
+
+  if (!server.start(port, &error)) {
+    out(color(C_RED, "cannot start the interface server: " + error));
+    return 1;
+  }
+  out(color(C_GREEN, session.gh.login()) + "  " + color(C_DIM, "via " + session.tokenSourceName));
+  out("Infinity Cloud interface  " + server.url());
+  out("open it in the window, or point a browser at it; close this to stop.");
+  server.wait();
   return 0;
 }
 
@@ -624,8 +739,7 @@ static int launcherMain(const Mode& m) {
   out(APP + std::string(" [") + (m.admin ? "管理员" : "用户") + "]");
   out("");
   out("  1) CLI       命令行");
-  out("  2) TUI       终端界面");
-  out("  3) GUI       图形界面");
+  out("  2) GUI       图形界面");
   out("");
   out("  q) 退出");
   out("");
@@ -647,8 +761,7 @@ static int launcherMain(const Mode& m) {
 
   std::string target;
   if (answer == "1" || answer == "cli") target = "cli";
-  else if (answer == "2" || answer == "tui") target = "tui";
-  else if (answer == "3" || answer == "gui") target = "gui";
+  else if (answer == "2" || answer == "gui") target = "gui";
   else { out("unknown choice"); return 1; }
 
   std::string exe = siblingExe(prefix, target);
@@ -684,6 +797,32 @@ int main(int argc, char** argv) {
     if (args[0] == "--help" || args[0] == "-h" || args[0] == "help") { help(); return 0; }
   }
 
+  /*
+   * --serve-ui is what the window starts this program with. It is a flag
+   * rather than a face because the face belongs to the Electron shell: the
+   * shell is inc_gui.exe, and it runs this executable with --serve-ui to get
+   * something to draw. The port is fixed per application so the shell does not
+   * have to be told it, and --port= is there for a test that wants two of
+   * these at once.
+   */
+  bool serveUiRequested = false;
+  int uiPort = 7621;
+  {
+    std::vector<std::string> rest;
+    for (const std::string& a : args) {
+      if (a == "--serve-ui") { serveUiRequested = true; continue; }
+      if (startsWith(a, "--port=")) {
+        const int asked = atoi(a.substr(7).c_str());
+        if (asked > 0 && asked < 65536) uiPort = asked;
+        serveUiRequested = true;
+        continue;
+      }
+      rest.push_back(a);
+    }
+    args.swap(rest);
+  }
+  if (serveUiRequested) return serveUi(uiPort);
+
   Mode m = detectMode();
 
   // `inc gui` and friends still work when the program is started under a
@@ -694,17 +833,15 @@ int main(int argc, char** argv) {
     const std::string& a = args[0];
     std::vector<std::string> rest(args.begin() + 1, args.end());
     if (a == "cli") return cliMain(rest);
-    if (a == "tui") return tuiMain();
     if (a == "gui") return guiMain();
     if (a == "launcher") return launcherMain(m);
   }
 
   if (m.mode == "launcher") return launcherMain(m);
   if (m.mode == "gui") return guiMain();
-  if (m.mode == "tui") return tuiMain();
   if (m.mode == "cli") return cliMain(args);
 
   // No mode in the name and nothing on the command line: a bare double click.
-  if (args.empty()) return tuiMain();
+  if (args.empty()) return guiMain();
   return cliMain(args);
 }

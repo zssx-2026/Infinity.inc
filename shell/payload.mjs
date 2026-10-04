@@ -9,6 +9,11 @@
  * Both names - the user's and the administrator's - are the same program, so
  * one packaged directory is copied and its executable is duplicated under the
  * second name. That halves what the installer carries.
+ *
+ * The C++ build now emits its own <prefix>_gui.exe as well - a single
+ * executable serving the loopback interface - and this module stages an
+ * Electron program under the same name. They are different artifacts, so a
+ * payload that already holds one is refused rather than silently overwritten.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,11 +22,15 @@ import url from 'node:url';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const BUILD = path.join(HERE, 'build');
 
-/* win-x64 and win-ia32 share the 32/64 split Electron uses; arm64 is its own. */
+/* The three Windows architectures Electron is built for. A linux or darwin
+ * target has no window at all, so it gets null rather than falling through to
+ * x64: the old default claimed a Linux installer had a window whenever the
+ * Windows build existed, and would have staged Windows DLLs into it. */
 export function electronArch(targetId) {
   if (targetId === 'win-arm64') return 'arm64';
   if (targetId === 'win-ia32') return 'ia32';
-  return 'x64';
+  if (targetId === 'win-x64') return 'x64';
+  return null;
 }
 
 export function guiDir(prefix, arch) {
@@ -32,7 +41,9 @@ export function guiDir(prefix, arch) {
  * shell, or one where Electron could not be fetched, simply has no window and
  * the installer keeps the command-line faces. */
 export function hasGui(prefix, targetId) {
-  const dir = guiDir(prefix, electronArch(targetId));
+  const arch = electronArch(targetId);
+  if (!arch) return false;
+  const dir = guiDir(prefix, arch);
   return fs.existsSync(path.join(dir, prefix + '_gui.exe'));
 }
 
@@ -42,9 +53,16 @@ export function hasGui(prefix, targetId) {
  */
 export function stageGui(dest, prefix, targetId) {
   const arch = electronArch(targetId);
+  if (!arch) throw new Error('no Electron window is built for ' + targetId);
   const src = guiDir(prefix, arch);
   const main = path.join(src, prefix + '_gui.exe');
   if (!fs.existsSync(main)) throw new Error('the Electron shell is missing: ' + main);
+
+  /* The C++ build owns <prefix>_gui.exe too, and its file is not this one.
+   * Writing over it would leave whichever ran last in the installer. */
+  if (fs.existsSync(path.join(dest, prefix + '_gui.exe'))) {
+    throw new Error('refusing to overwrite a different ' + prefix + '_gui.exe already in ' + dest);
+  }
 
   fs.cpSync(src, dest, { recursive: true, dereference: false });
 

@@ -2686,3 +2686,62 @@ GUI：INC 已换成 Win32 直接文件列表，可 Up/New Folder/Refresh/Delete/
   不再每次同步都清空重传（清空期间目录是空的，且资产 id 会变）。
 
 
+
+
+[2026-10-03] 五产品 / Electron+C++ 架构 / 官网
+================================================================
+
+一、模式收敛
+  所有产品去掉 TUI，统一 CLI + GUI；IIM 与 INT 只有这两个面。
+  inc/ifm/ipm 各 6 个命名（cli/gui/launcher x 用户/管理员），iim/int 各 4 个（cli/gui x 2）。
+  mode.hpp 按应用校验模式名，iim/int 不接受 launcher。
+  删掉 core 的 console.{hpp,cpp}，颜色常量搬到新的 core/include/inc/ansi.hpp。
+
+二、GUI 改为 Electron + C++
+  C++ 侧不再画窗口，改为每个程序用回环 HTTP 服务自己的界面。
+  core/include/inc/uiserver.hpp 是冻结契约，core/src/uiserver.cpp 已实现：
+  只绑 127.0.0.1（这个服务带着用户的 GitHub token，绑 0.0.0.0 是最严重的错误）、
+  每连接一请求、无 keep-alive、无分块编码。
+  四个页面以 raw 字符串放在 apps/<app>/ui.hpp：inc 20198B、ipm 15394B、
+  ifm 25413B、iim 25117B。四页调色板已统一为同一套深色（--bg:#0e1116）。
+  未完成：四个 main.cpp 都还没接 --serve-ui 路由；Electron 外壳（shell/）也还没重建。
+
+三、新应用 Infinity Toolbox（INT）
+  cpp/apps/int/main.cpp，默认端口 7653。三工具：
+    fdm         真实实现：多分片 Range 下载 + SHA-256 校验，服务器不支持 Range 时退化单连接
+    fastgithub  状态真实（探测本机端口），start/stop 是明确标注的桩
+    steampp     桩，输出中标注，完全不碰网络栈
+  已接入 mode.hpp / build.mjs / CMakeLists（并显式链接 ws2_32）。
+  五个应用全部构建通过，依赖只有 Windows 自带 DLL。
+
+四、修复（都有测试证明）
+  json.hpp：asInt 走 double 丢精度（1234567890123456789 -> ...768），改为整数原文用 strtoll；
+            parse 接受尾随垃圾（"[1]xyz" 报成功、"123abc" 变 123），改为必须消费完整输入。
+            tests/json_test.cpp 57/57 通过，str_test 56/56。
+  store.cpp：S1 同名文件互相覆盖（asset 名加路径哈希）
+            S2 清单先删后传的空窗（改为先写新卷再删旧卷，卷标签充当粗粒度 CAS）
+            S3 失败被吞导致 pull 恒真（改为设置 error 并返回 false）
+            S4 volume 不自增导致回卷后旧清单遮蔽新文件
+            S5 覆盖写与 purge 的孤儿资产泄漏
+            新增 tests/store_collision.cpp，PASS。
+  仍未修：JS 客户端 store.js 里同样有 S1/S2 两个缺陷（Node 版，已被 C++ 取代）。
+
+五、官网（zssx-2026.github.io）
+  根页面 = Infinity.Inc 发布页本体，不是跳转枢纽。
+  /infinity/ 下 15 条路由全部 200：主发布页、download/ + 5 个产品页、docs、
+  login、signup、cloud、myself、settings、run/<runid>、login/link/<linkid>。
+  纯静态、无后端：登录 = 浏览器里存 GitHub token，请求直连 api.github.com；
+  外部数据一律 textContent 注入，绝不用 innerHTML；空态/错误态/载入态三态分明。
+  发布脚本 work/publish-site.mjs 走 Git Data API + base_tree，
+  保住 Pages 仓库里其它内容不被这次提交抹掉。已推送 ffe969540c5b。
+
+六、磁盘
+  清理 253 MB 到 D:/dev/DeepSeekHarnessWorkspace/temp/recyle.bin/2026-10-02-cleanup：
+  项目根 4 个旧安装包/压缩包（20+35+44+43 MB）、InfinityPackageManager - 副本（58 MB）、
+  C:/temp 的 18 项临时文件、5 个子智能体的临时目录。
+
+七、教训（重要）
+  并行派 37 个子智能体，全部撞 429 频率上限（额度到次日 09:14 才恢复）——派太多等于没派。
+  另有成员启动了 GUI 与安装程序，在用户桌面上弹窗，用户连续三次投诉。
+  已下硬禁令：一律后台执行；绝不启动会画窗口的程序；需要窗口才能验证的一律标记为未验证。
+  今后默认最多 10 个成员，且只读验证类任务才值得并行。

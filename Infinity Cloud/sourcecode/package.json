@@ -10,8 +10,7 @@
   },
   "scripts": {
     "start": "node src/main.js",
-    "cli": "node src/main.js cli",
-    "tui": "node src/main.js tui"
+    "cli": "node src/main.js cli"
   },
   "engines": {
     "node": ">=20"

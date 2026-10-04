@@ -2,7 +2,7 @@
   "name": "infinity-shell",
   "version": "1.0.0",
   "private": true,
-  "description": "Infinity.Inc Electron shell - one window per application, wrapping the local UI the program already serves",
+  "description": "Infinity.Inc Electron shell - one window per application, wrapping the local interface the C++ program serves over loopback",
   "main": "main.js",
   "author": "Infinity.Inc",
   "license": "MIT",
@@ -11,7 +11,6 @@
     "pack": "node build.mjs"
   },
   "devDependencies": {
-    "@electron/packager": "^18.3.6",
     "electron": "^33.2.0"
   }
 }

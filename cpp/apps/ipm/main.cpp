@@ -1,27 +1,67 @@
+// main.cpp - InfinityPackageManager, in C++.
+//
+// One program, several faces, and the file name decides which one runs - the
+// same contract the other two applications keep:
+//
+//   ipm_cli        a command line
+//   ipm_tui        a full screen terminal interface
+//   ipm_gui        a native window
+//   ipm_launcher   a menu that starts one of the other three
+//
+// The catalogue is the whole application. Every package is a release asset in
+// one repository, and what this program adds is the index, the digest check
+// and the launch. A build is only ever run after its SHA-256 has been checked
+// against the digest GitHub reports for the asset, because an installer that
+// runs without that check is just a download that happens to end in .exe.
+//
+// The window is direct manipulation - a filter, a list, and buttons that act
+// on the selected row. There is no command box: a package manager that makes
+// you type a package name has not been given an interface, it has been given
+// a terminal with a title bar.
+
 #include "inc/env.hpp"
 #include "inc/github.hpp"
 #include "inc/http.hpp"
+#include "inc/json.hpp"
+#include "inc/mode.hpp"
+#include "inc/ansi.hpp"
 #include "inc/str.hpp"
+#include "inc/uiserver.hpp"
+
+#include "ui.hpp"
+
+#include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <string>
+#include <vector>
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
-#include <shellapi.h>
 #include <bcrypt.h>
-
-#include <algorithm>
-#include <cstdio>
-#include <string>
-#include <vector>
+#include <commctrl.h>
+#include <commdlg.h>
+#include <shellapi.h>
 
 using namespace inc;
+
+static const char* APP = "InfinityPackageManager";
 
 namespace {
 
 const char* kOwner = "zssx-2026";
 const char* kRepo = "applications";
-const char* kApp = "Infinity Package Manager";
+
+// ---------------------------------------------------------------- output
+
+void out(const std::string& text) {
+  fwrite(text.data(), 1, text.size(), stdout);
+  fputc('\n', stdout);
+}
+
+// ---------------------------------------------------------------- model
 
 struct Build {
   std::string package;
@@ -46,20 +86,21 @@ struct Asset {
   long long size = 0;
 };
 
-void out(const std::string& text) {
-  fwrite(text.data(), 1, text.size(), stdout);
-  fputc('\n', stdout);
-}
-
 void help() {
-  out(std::string(kApp) + " [v" + version() + "]");
-  out("  ipm --version");
-  out("  ipm help");
-  out("  ipm repos");
-  out("  ipm catalog");
-  out("  ipm info <name>");
+  out(std::string(APP) + " [v" + version() + "]  ·  Infinity.Inc");
+  out("");
+  out("  ipm                       open the terminal interface");
+  out("  ipm cli                   open the command line");
+  out("  ipm gui                   open the window");
+  out("  ipm login                 show which token is in use");
+  out("  ipm repos                 repositories you own");
+  out("  ipm catalog               every package in the index");
+  out("  ipm search <keyword>      packages whose name matches");
+  out("  ipm info <name>           the builds of one package");
   out("  ipm download <name> <platform> <destination>");
-  out("  ipm install <name> <platform>");
+  out("  ipm install <name> <platform>   download, verify, run");
+  out("  ipm --version             print the version");
+  out("  ipm --paths               where this program keeps things");
 }
 
 std::string canonicalPlatform(std::string value) {
@@ -219,12 +260,24 @@ bool loadBuilds(const std::string& token, std::vector<Build>* builds, std::strin
   return true;
 }
 
+// A stable order, so the list does not reshuffle between two refreshes of the
+// same data. Package first, then platform, then version descending.
+void sortBuilds(std::vector<Build>* builds) {
+  std::sort(builds->begin(), builds->end(), [](const Build& a, const Build& b) {
+    if (!iequals(a.package, b.package)) return lower(a.package) < lower(b.package);
+    if (a.platform != b.platform) return a.platform < b.platform;
+    return a.version > b.version;
+  });
+}
+
 void printBuild(const Build& build, bool includePackage) {
   std::string line;
   if (includePackage) line = build.package + "\t";
   line += build.version + "\t" + build.platform + "\t" + humanSize(static_cast<uint64_t>(std::max(0LL, build.size))) + "\t" + build.url;
   out(line);
 }
+
+// ---------------------------------------------------------------- download
 
 std::string ansiPath(const std::wstring& wide) {
   const UINT codePage = GetACP();
@@ -246,6 +299,10 @@ bool hasSha256Digest(const Build& build) {
   return std::all_of(digest.begin() + 7, digest.end(), [](unsigned char c) {
     return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
   });
+}
+
+bool isRunnable(const Build& build) {
+  return iequals(build.installKind, "setup") && hasSha256Digest(build);
 }
 
 std::string sha256File(const std::wstring& path, std::string* error) {
@@ -331,13 +388,11 @@ bool createDirectoryIfNeeded(const std::wstring& path) {
   return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
 }
 
-bool installDestination(const std::string& filename, std::wstring* destination, std::string* error) {
-  std::wstring wideFilename;
-  if (!safeInstallerFilename(filename, &wideFilename)) {
-    *error = "unsafe installer filename";
-    return false;
-  }
-
+// Where an installer is staged before it is run. Kept beside the program's
+// other state rather than in the temp directory, because a 400 MB download
+// that a cleanup pass deletes halfway through is worse than a folder the user
+// can see and empty themselves.
+bool downloadsDirectory(std::wstring* directory, std::string* error) {
   DWORD length = GetEnvironmentVariableW(L"LOCALAPPDATA", nullptr, 0);
   if (!length) { *error = "LOCALAPPDATA is not available"; return false; }
   std::vector<wchar_t> buffer(length);
@@ -347,12 +402,24 @@ bool installDestination(const std::string& filename, std::wstring* destination, 
   if (!root.empty() && root.back() != L'\\' && root.back() != L'/') root.push_back(L'\\');
 
   const std::wstring managerDirectory = root + L"InfinityPackageManager";
-  const std::wstring downloadsDirectory = managerDirectory + L"\\downloads";
-  if (!createDirectoryIfNeeded(managerDirectory) || !createDirectoryIfNeeded(downloadsDirectory)) {
+  const std::wstring downloads = managerDirectory + L"\\downloads";
+  if (!createDirectoryIfNeeded(managerDirectory) || !createDirectoryIfNeeded(downloads)) {
     *error = "cannot create installer download directory";
     return false;
   }
-  *destination = downloadsDirectory + L"\\" + wideFilename;
+  *directory = downloads;
+  return true;
+}
+
+bool installDestination(const std::string& filename, std::wstring* destination, std::string* error) {
+  std::wstring wideFilename;
+  if (!safeInstallerFilename(filename, &wideFilename)) {
+    *error = "unsafe installer filename";
+    return false;
+  }
+  std::wstring downloads;
+  if (!downloadsDirectory(&downloads, error)) return false;
+  *destination = downloads + L"\\" + wideFilename;
   return true;
 }
 
@@ -442,90 +509,170 @@ bool downloadBuild(const Build& build, const std::string& token, const std::wstr
   return true;
 }
 
-int run(const std::vector<std::string>& args) {
-  if (args.empty() || args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
-    help();
-    return 0;
+// ---------------------------------------------------------------- session
+
+struct Session {
+  GitHub gh;
+  std::string tokenSourceName;
+  bool ready = false;
+
+  explicit Session(const std::string& token) : gh(token) {}
+
+  bool signIn(std::string* error) {
+    if (!gh.me(error)) return false;
+    if (!gh.verifyIdentity(error)) return false;
+    ready = true;
+    return true;
   }
-  if (args[0] == "--version" || args[0] == "-v") {
-    out(std::string(kApp) + " " + version());
-    return 0;
+};
+
+// The index, loaded once and then kept. Reading it costs six API calls plus
+// one request per release for its name.txt, which is not something a keystroke
+// should pay for.
+struct Catalog {
+  std::vector<Build> builds;
+  std::string error;
+  bool loaded = false;
+
+  bool refresh(const std::string& token) {
+    std::vector<Build> fresh;
+    std::string failure;
+    const bool ok = loadBuilds(token, &fresh, &failure);
+    if (!ok) {
+      error = failure.empty() ? "cannot read the catalogue" : failure;
+      return false;
+    }
+    sortBuilds(&fresh);
+    builds.swap(fresh);
+    error.clear();
+    loaded = true;
+    return true;
   }
 
-  if (args[0] != "repos" && args[0] != "catalog" && args[0] != "info" &&
-      args[0] != "download" && args[0] != "install") {
-    out("ipm: unknown command (use ipm help)");
-    return 2;
+  std::vector<int> matching(const std::string& filter) const {
+    std::vector<int> rows;
+    const std::string needle = lower(trim(filter));
+    for (size_t i = 0; i < builds.size(); ++i) {
+      if (needle.empty()) { rows.push_back((int)i); continue; }
+      const Build& b = builds[i];
+      const std::string haystack = lower(b.package + " " + b.version + " " + b.platform + " " + b.filename);
+      if (haystack.find(needle) != std::string::npos) rows.push_back((int)i);
+    }
+    return rows;
   }
-  if (args[0] == "info" && args.size() != 2) {
-    out("usage: ipm info <name>");
-    return 2;
+
+  std::string summary() const {
+    if (!loaded) return error.empty() ? "not loaded" : error;
+    size_t runnable = 0;
+    for (const Build& b : builds) if (isRunnable(b)) runnable++;
+    return std::to_string(builds.size()) + " builds  ·  " + std::to_string(runnable) + " installable";
   }
-  if (args[0] == "download" && args.size() != 4) {
-    out("usage: ipm download <name> <platform> <destination>");
-    return 2;
-  }
-  if (args[0] == "install" && args.size() != 3) {
-    out("usage: ipm install <name> <platform>");
-    return 2;
+};
+
+}  // namespace
+
+// ---------------------------------------------------------------- cli
+
+namespace {
+
+int cliMain(const std::vector<std::string>& args) {
+  if (!args.empty()) {
+    const std::string& a = args[0];
+    if (a == "--version" || a == "-v") { out(std::string(APP) + " " + version()); return 0; }
+    if (a == "--paths") {
+      std::wstring downloads;
+      std::string error;
+      const bool ok = downloadsDirectory(&downloads, &error);
+      out("exe        " + exeDir());
+      out("version    " + std::string(version()));
+      out("token      " + (tokenSource().empty() ? std::string("(none)") : tokenSource()));
+      out("downloads  " + (ok ? toUtf8(downloads) : "(unavailable: " + error + ")"));
+      return 0;
+    }
+    if (a == "help" || a == "--help" || a == "-h") { help(); return 0; }
   }
 
   const std::string token = tokenFromEnv();
   if (token.empty()) {
-    out("ipm: GitHub token not found");
+    out(color(C_RED, "not signed in") + " - set gittoken_zssx-2026_1 (or EV_GH_TOKEN) first.");
     return 1;
   }
-  GitHub github(token);
+  Session session(token);
+  session.tokenSourceName = tokenSource();
   std::string error;
+  if (!session.signIn(&error)) {
+    out(color(C_RED, "not signed in") + " (" + error + ")");
+    return 1;
+  }
 
-  if (args[0] == "repos") {
-    const std::vector<std::string> repos = github.listRepos(&error);
-    if (!error.empty()) { out("ipm: " + error); return 1; }
-    for (const std::string& repo : repos) out(repo);
-    if (repos.empty()) out("no repositories");
+  if (args.empty() || args[0] == "whoami" || args[0] == "login") {
+    out(color(C_GREEN, session.gh.login()) + "  " + color(C_DIM, "via " + session.tokenSourceName));
     return 0;
   }
 
-  std::vector<Build> builds;
-  if (!loadBuilds(token, &builds, &error)) {
-    out("ipm: " + (error.empty() ? std::string("no releases") : error));
-    return 1;
+  if (args[0] == "repos") {
+    std::vector<std::string> repos = session.gh.listRepos(&error);
+    if (repos.empty()) { out(color(C_DIM, "no repositories")); return 0; }
+    for (const std::string& r : repos) out("  " + r);
+    return 0;
   }
+
+  const bool known = args[0] == "catalog" || args[0] == "search" || args[0] == "info" ||
+                     args[0] == "download" || args[0] == "install";
+  if (!known) {
+    out(color(C_RED, args[0] + ": command not found"));
+    return 2;
+  }
+  if (args[0] == "search" && args.size() != 2) { out(color(C_RED, "usage: ipm search <keyword>")); return 2; }
+  if (args[0] == "info" && args.size() != 2) { out(color(C_RED, "usage: ipm info <name>")); return 2; }
+  if (args[0] == "download" && args.size() != 4) { out(color(C_RED, "usage: ipm download <name> <platform> <destination>")); return 2; }
+  if (args[0] == "install" && args.size() != 3) { out(color(C_RED, "usage: ipm install <name> <platform>")); return 2; }
+
+  Catalog catalog;
+  if (!catalog.refresh(token)) { out(color(C_RED, "ipm: " + catalog.error)); return 1; }
+
   if (args[0] == "catalog") {
-    if (builds.empty()) { out("no packages"); return 0; }
-    for (const Build& build : builds) printBuild(build, true);
+    if (catalog.builds.empty()) { out(color(C_DIM, "no packages")); return 0; }
+    for (const Build& build : catalog.builds) printBuild(build, true);
+    return 0;
+  }
+
+  if (args[0] == "search") {
+    const std::vector<int> rows = catalog.matching(args[1]);
+    if (rows.empty()) { out(color(C_DIM, "no match for " + args[1])); return 1; }
+    for (int index : rows) printBuild(catalog.builds[index], true);
     return 0;
   }
 
   if (args[0] == "info") {
-    std::vector<Build> found;
-    for (const Build& build : builds) if (iequals(build.package, args[1])) found.push_back(build);
-    if (found.empty()) { out("ipm: package not found: " + args[1]); return 1; }
-    for (const Build& build : found) printBuild(build, false);
+    bool found = false;
+    for (const Build& build : catalog.builds) {
+      if (!iequals(build.package, args[1])) continue;
+      printBuild(build, false);
+      found = true;
+    }
+    if (!found) { out(color(C_RED, "ipm: package not found: " + args[1])); return 1; }
     return 0;
   }
 
   const bool installing = args[0] == "install";
   const std::string wantedName = args[1];
   const std::string wantedPlatform = canonicalPlatform(args[2]);
-  auto selected = std::find_if(builds.begin(), builds.end(), [&](const Build& build) {
+  auto selected = std::find_if(catalog.builds.begin(), catalog.builds.end(), [&](const Build& build) {
     return iequals(build.package, wantedName) &&
            (canonicalPlatform(build.platform) == wantedPlatform || canonicalPlatform(build.platform) == "any") &&
-           (!installing || (iequals(build.installKind, "setup") && hasSha256Digest(build)));
+           (!installing || isRunnable(build));
   });
-  if (selected == builds.end()) {
-    out(installing ? "ipm: no setup build with a valid SHA-256 digest for " + wantedName + " on " + args[2]
-                   : "ipm: no build for " + wantedName + " on " + args[2]);
+  if (selected == catalog.builds.end()) {
+    out(color(C_RED, installing ? "ipm: no setup build with a valid SHA-256 digest for " + wantedName + " on " + args[2]
+                                : "ipm: no build for " + wantedName + " on " + args[2]));
     return 1;
   }
 
   std::wstring destination;
   std::string destinationLabel;
   if (installing) {
-    if (!installDestination(selected->filename, &destination, &error)) {
-      out("ipm: " + error);
-      return 1;
-    }
+    if (!installDestination(selected->filename, &destination, &error)) { out(color(C_RED, "ipm: " + error)); return 1; }
     destinationLabel = toUtf8(destination);
   } else {
     destination = toWide(args[3]);
@@ -533,14 +680,11 @@ int run(const std::vector<std::string>& args) {
   }
 
   bool verified = false;
-  if (!downloadBuild(*selected, token, destination, &verified, &error)) {
-    out("ipm: " + error);
-    return 1;
-  }
+  if (!downloadBuild(*selected, token, destination, &verified, &error)) { out(color(C_RED, "ipm: " + error)); return 1; }
   if (!verified) {
     if (installing) {
       DeleteFileW(destination.c_str());
-      out("ipm: refusing to run an installer without a verified SHA-256 digest");
+      out(color(C_RED, "ipm: refusing to run an installer without a verified SHA-256 digest"));
       return 1;
     }
     out("downloaded " + selected->filename + " -> " + destinationLabel + " (SHA-256 could not be verified; file was not run)");
@@ -553,23 +697,616 @@ int run(const std::vector<std::string>& args) {
 
   HINSTANCE launchResult = ShellExecuteW(nullptr, L"open", destination.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
   if (reinterpret_cast<INT_PTR>(launchResult) <= 32) {
-    out("ipm: verified installer downloaded but could not be opened");
+    out(color(C_RED, "ipm: verified installer downloaded but could not be opened"));
     return 1;
   }
   out("launched verified installer " + selected->filename);
   return 0;
 }
 
+// ---------------------------------------------------------------- ui
+
+/*
+ * The window is Electron; this process is what it talks to.
+ *
+ * The page never decides whether a build may be installed - it reads
+ * `installable` and disables the button, but the gate that matters is the one
+ * in the handler below, because a page is a suggestion and the server is the
+ * rule. Nothing reaches ShellExecuteW without a verified digest.
+ */
+
+std::string queryValue(const UiRequest& request, const std::string& key) {
+  auto it = request.query.find(key);
+  return it == request.query.end() ? std::string() : it->second;
+}
+
+UiResponse uiFailure(const std::string& message, int status) {
+  Json j = Json::object();
+  j.set("error", message);
+  return UiResponse::withStatus(UiResponse::json(j.dump(2)), status);
+}
+
+std::string hostPlatformName() {
+  SYSTEM_INFO info;
+  GetNativeSystemInfo(&info);
+  switch (info.wProcessorArchitecture) {
+    case PROCESSOR_ARCHITECTURE_ARM64: return "windows-arm64";
+    case PROCESSOR_ARCHITECTURE_INTEL: return "windows-x86";
+    default: return "windows-x64";
+  }
+}
+
+Json buildJson(const Build& build) {
+  Json j = Json::object();
+  j.set("package", build.package);
+  j.set("version", build.version);
+  j.set("platform", build.platform);
+  j.set("size", build.size);
+  j.set("kind", build.installKind.empty() ? std::string("port") : build.installKind);
+  j.set("page", build.releaseTag);
+  j.set("digest", build.digest);
+  j.set("url", build.url);
+  // The page uses this to disable Install. It is a convenience, not the gate.
+  j.set("installable", isRunnable(build));
+  return j;
+}
+
+Json stateJson(const Catalog& catalog, const Session& session, const std::vector<int>& rows) {
+  Json packages = Json::array();
+  for (int index : rows) packages.push(buildJson(catalog.builds[index]));
+
+  size_t installableCount = 0;
+  for (const Build& build : catalog.builds) if (isRunnable(build)) installableCount++;
+
+  Json summary = Json::object();
+  summary.set("loaded", catalog.loaded);
+  summary.set("builds", (long long)catalog.builds.size());
+  summary.set("installable", (long long)installableCount);
+  if (!catalog.error.empty()) summary.set("error", catalog.error);
+
+  Json j = Json::object();
+  j.set("app", APP);
+  j.set("version", version());
+  j.set("login", session.gh.login());
+  j.set("tokenSource", session.tokenSourceName);
+  j.set("platform", hostPlatformName());
+  j.set("summary", summary);
+  j.set("packages", packages);
+  return j;
+}
+
+std::vector<int> allRows(const Catalog& catalog) {
+  std::vector<int> all;
+  for (size_t i = 0; i < catalog.builds.size(); ++i) all.push_back((int)i);
+  return all;
+}
+
+int serveUi(int port) {
+  const std::string token = tokenFromEnv();
+  if (token.empty()) {
+    out(color(C_RED, "not signed in") + " - set gittoken_zssx-2026_1 (or EV_GH_TOKEN) first.");
+    return 1;
+  }
+  Session session(token);
+  session.tokenSourceName = tokenSource();
+  std::string error;
+  if (!session.signIn(&error)) {
+    out(color(C_RED, "not signed in") + " (" + error + ")");
+    return 1;
+  }
+
+  Catalog catalog;
+  catalog.refresh(token);
+
+  UiServer server;
+  server.route("GET", "/", [](const UiRequest&) { return UiResponse::html(uiHtml()); });
+  server.route("GET", "/app.css", [](const UiRequest&) { return UiResponse::css(uiCss()); });
+  server.route("GET", "/app.js", [](const UiRequest&) { return UiResponse::js(uiJs()); });
+
+  server.route("GET", "/api/state", [&](const UiRequest&) {
+    return UiResponse::json(stateJson(catalog, session, allRows(catalog)).dump(2));
+  });
+
+  server.route("GET", "/api/search", [&](const UiRequest& request) {
+    return UiResponse::json(stateJson(catalog, session, catalog.matching(queryValue(request, "q"))).dump(2));
+  });
+
+  server.route("POST", "/api/refresh", [&](const UiRequest&) {
+    const bool ok = catalog.refresh(token);
+    return UiResponse::withStatus(
+        UiResponse::json(stateJson(catalog, session, allRows(catalog)).dump(2)), ok ? 200 : 502);
+  });
+
+  /*
+   * Find the build the page asked for. The page sends the exact package and
+   * platform of a row it was shown, so this is an exact lookup - falling back
+   * to "the best one for this platform" would install something the user did
+   * not point at.
+   */
+  auto locate = [&](const UiRequest& request, const Build** found, std::string* why) -> bool {
+    const std::string package = queryValue(request, "package");
+    const std::string platform = queryValue(request, "platform");
+    if (package.empty()) { *why = "no package given"; return false; }
+    for (const Build& build : catalog.builds) {
+      if (!iequals(build.package, package)) continue;
+      if (!platform.empty() && !iequals(build.platform, platform)) continue;
+      *found = &build;
+      return true;
+    }
+    *why = "no build for " + package + (platform.empty() ? "" : " on " + platform);
+    return false;
+  };
+
+  server.route("POST", "/api/download", [&](const UiRequest& request) {
+    const Build* build = nullptr;
+    std::string why;
+    if (!locate(request, &build, &why)) return uiFailure(why, 404);
+
+    std::wstring directory;
+    if (!downloadsDirectory(&directory, &why)) return uiFailure(why, 500);
+    const std::wstring destination = directory + L"\\" + toWide(build->filename);
+    if (GetFileAttributesW(destination.c_str()) != INVALID_FILE_ATTRIBUTES) DeleteFileW(destination.c_str());
+
+    bool verified = false;
+    if (!downloadBuild(*build, token, destination, &verified, &why)) return uiFailure(why, 502);
+
+    Json j = Json::object();
+    j.set("message", "Downloaded " + build->filename +
+                     (verified ? " and the SHA-256 matches." : " but no digest was reported."));
+    j.set("verified", verified);
+    j.set("path", toUtf8(destination));
+    return UiResponse::json(j.dump(2));
+  });
+
+  server.route("POST", "/api/install", [&](const UiRequest& request) {
+    const Build* build = nullptr;
+    std::string why;
+    if (!locate(request, &build, &why)) return uiFailure(why, 404);
+
+    // The gate. Everything above this line is a lookup; this is the rule.
+    if (!isRunnable(*build)) {
+      return uiFailure(build->package + " has no setup build with a valid SHA-256 digest on " +
+                       build->platform + "; refusing to install", 400);
+    }
+
+    std::wstring destination;
+    if (!installDestination(build->filename, &destination, &why)) return uiFailure(why, 500);
+    if (GetFileAttributesW(destination.c_str()) != INVALID_FILE_ATTRIBUTES) DeleteFileW(destination.c_str());
+
+    bool verified = false;
+    if (!downloadBuild(*build, token, destination, &verified, &why)) return uiFailure(why, 502);
+    if (!verified) {
+      DeleteFileW(destination.c_str());
+      return uiFailure("the SHA-256 could not be verified; the installer was deleted and not run", 400);
+    }
+
+    HINSTANCE launched = ShellExecuteW(nullptr, L"open", destination.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    if (reinterpret_cast<INT_PTR>(launched) <= 32) {
+      return uiFailure("the verified installer was downloaded but could not be opened", 500);
+    }
+    Json j = Json::object();
+    j.set("message", "Verified " + build->filename + " and started it.");
+    return UiResponse::json(j.dump(2));
+  });
+
+  server.route("POST", "/api/open-folder", [&](const UiRequest&) {
+    std::wstring directory;
+    std::string why;
+    if (!downloadsDirectory(&directory, &why)) return uiFailure(why, 500);
+    ShellExecuteW(nullptr, L"open", directory.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    Json j = Json::object();
+    j.set("message", "Opened " + toUtf8(directory));
+    return UiResponse::json(j.dump(2));
+  });
+
+  if (!server.start(port, &error)) {
+    out(color(C_RED, "cannot start the interface server: " + error));
+    return 1;
+  }
+  out(color(C_GREEN, session.gh.login()) + "  " + color(C_DIM, "via " + session.tokenSourceName));
+  out("InfinityPackageManager interface  " + server.url());
+  out("open it in the window, or point a browser at it; close this to stop.");
+  server.wait();
+  return 0;
+}
+
+// ---------------------------------------------------------------- gui
+
+const int ID_STATUS = 3001;
+const int ID_FILTER = 3002;
+const int ID_REFRESH = 3003;
+const int ID_INSTALL = 3004;
+const int ID_DOWNLOAD = 3005;
+const int ID_FOLDER = 3006;
+const int ID_LIST = 3007;
+
+// IDC_ARROW and IDC_WAIT are the ANSI forms here, because this file does not
+// define UNICODE; the wide resource ids are what LoadCursorW wants.
+#define IPM_CURSOR_ARROW MAKEINTRESOURCEW(32512)
+#define IPM_CURSOR_WAIT  MAKEINTRESOURCEW(32514)
+
+struct GuiState {
+  Session* session = nullptr;
+  Catalog* catalog = nullptr;
+  std::string filter;
+  std::string status;
+  std::vector<int> rows;      // index into catalog->builds, in the order shown
+  HWND statusLabel = nullptr;
+  HWND list = nullptr;
+  HWND filterEdit = nullptr;
+  HWND installButton = nullptr;
+};
+
+int selectedBuild(GuiState* st) {
+  if (!st->list) return -1;
+  int item = (int)SendMessageW(st->list, LVM_GETNEXTITEM, (WPARAM)-1, LVNI_SELECTED);
+  if (item < 0 || item >= (int)st->rows.size()) return -1;
+  return st->rows[item];
+}
+
+void updateInstallButton(GuiState* st) {
+  const int index = selectedBuild(st);
+  const bool canRun = index >= 0 && isRunnable(st->catalog->builds[index]);
+  EnableWindow(st->installButton, canRun ? TRUE : FALSE);
+}
+
+void setGuiStatus(GuiState* st, const std::string& status) {
+  st->status = status;
+  if (!st->statusLabel) return;
+  std::string text = st->catalog->summary();
+  if (!status.empty()) text += "    " + status;
+  SetWindowTextW(st->statusLabel, toWide(text).c_str());
+}
+
+// Rebuild the list from the filter. The catalogue itself is untouched: this
+// only decides which of its rows are on screen.
+void refreshGui(GuiState* st) {
+  if (!st->list) return;
+  SendMessageW(st->list, WM_SETREDRAW, FALSE, 0);
+  SendMessageW(st->list, LVM_DELETEALLITEMS, 0, 0);
+  st->rows = st->catalog->matching(st->filter);
+
+  for (size_t i = 0; i < st->rows.size(); ++i) {
+    const Build& build = st->catalog->builds[st->rows[i]];
+    LVITEMW item = {};
+    item.mask = LVIF_TEXT | LVIF_PARAM;
+    item.iItem = (int)i;
+    item.lParam = (LPARAM)i;
+    std::wstring package = toWide(build.package);
+    item.pszText = &package[0];
+    SendMessageW(st->list, LVM_INSERTITEMW, 0, (LPARAM)&item);
+
+    const std::wstring cells[4] = {
+      toWide(build.version),
+      toWide(build.platform),
+      toWide(humanSize((uint64_t)std::max(0LL, build.size))),
+      toWide(build.installKind.empty() ? "port" : build.installKind)
+    };
+    for (int column = 0; column < 4; ++column) {
+      LVITEMW sub = {};
+      sub.mask = LVIF_TEXT;
+      sub.iItem = (int)i;
+      sub.iSubItem = column + 1;
+      sub.pszText = const_cast<LPWSTR>(cells[column].c_str());
+      SendMessageW(st->list, LVM_SETITEMW, 0, (LPARAM)&sub);
+    }
+  }
+  SendMessageW(st->list, WM_SETREDRAW, TRUE, 0);
+  InvalidateRect(st->list, nullptr, TRUE);
+  updateInstallButton(st);
+}
+
+void reloadCatalog(HWND hwnd, GuiState* st) {
+  SetCursor(LoadCursorW(nullptr, IPM_CURSOR_WAIT));
+  const bool ok = st->catalog->refresh(st->session->gh.token());
+  SetCursor(LoadCursorW(nullptr, IPM_CURSOR_ARROW));
+  if (hwnd) refreshGui(st);
+  setGuiStatus(st, ok ? "" : st->catalog->error);
+}
+
+bool saveDestination(HWND hwnd, const Build& build, std::wstring* destination) {
+  std::vector<wchar_t> path(32768, L'\0');
+  const std::wstring suggested = toWide(build.filename);
+  if (suggested.size() < path.size()) std::copy(suggested.begin(), suggested.end(), path.begin());
+
+  OPENFILENAMEW dialog = {};
+  dialog.lStructSize = sizeof(dialog);
+  dialog.hwndOwner = hwnd;
+  dialog.lpstrFile = path.data();
+  dialog.nMaxFile = static_cast<DWORD>(path.size());
+  dialog.lpstrFilter = L"Installers\0*.exe;*.msi\0All files\0*.*\0\0";
+  dialog.lpstrDefExt = L"exe";
+  dialog.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+  if (!GetSaveFileNameW(&dialog)) return false;
+  *destination = path.data();
+  return true;
+}
+
+// Install and download differ in exactly one place: where the file lands, and
+// whether it is opened afterwards. The verification is the same for both.
+void runBuild(HWND hwnd, GuiState* st, bool install) {
+  const int index = selectedBuild(st);
+  if (index < 0) return;
+  const Build& build = st->catalog->builds[index];
+  if (install && !isRunnable(build)) {
+    setGuiStatus(st, build.package + " has no verified setup build on " + build.platform);
+    return;
+  }
+
+  std::wstring destination;
+  std::string error;
+  if (install) {
+    if (!installDestination(build.filename, &destination, &error)) { setGuiStatus(st, error); return; }
+    if (GetFileAttributesW(destination.c_str()) != INVALID_FILE_ATTRIBUTES) DeleteFileW(destination.c_str());
+  } else {
+    if (!saveDestination(hwnd, build, &destination)) return;
+  }
+
+  setGuiStatus(st, (install ? "Downloading and verifying " : "Downloading ") + build.filename);
+  UpdateWindow(hwnd);
+  SetCursor(LoadCursorW(nullptr, IPM_CURSOR_WAIT));
+
+  bool verified = false;
+  const bool ok = downloadBuild(build, st->session->gh.token(), destination, &verified, &error);
+  SetCursor(LoadCursorW(nullptr, IPM_CURSOR_ARROW));
+
+  if (!ok) { setGuiStatus(st, error); return; }
+  if (!install) {
+    setGuiStatus(st, "Downloaded " + build.filename + (verified ? " (SHA-256 verified)" : " (unverified; not run)"));
+    return;
+  }
+  if (!verified) {
+    DeleteFileW(destination.c_str());
+    setGuiStatus(st, "Refused: no verified SHA-256 digest for " + build.filename);
+    return;
+  }
+
+  HINSTANCE launched = ShellExecuteW(nullptr, L"open", destination.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+  if (reinterpret_cast<INT_PTR>(launched) <= 32) { setGuiStatus(st, "Verified installer downloaded but could not be opened"); return; }
+  setGuiStatus(st, "Launched verified installer " + build.filename);
+}
+
+void openDownloadsFolder(HWND hwnd, GuiState* st) {
+  std::wstring directory;
+  std::string error;
+  if (!downloadsDirectory(&directory, &error)) { setGuiStatus(st, error); return; }
+  ShellExecuteW(hwnd, L"open", directory.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+  setGuiStatus(st, "Opened the download folder");
+}
+
+LRESULT CALLBACK guiProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+  GuiState* st = (GuiState*)GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+  switch (msg) {
+    case WM_CREATE: {
+      CREATESTRUCTW* cs = (CREATESTRUCTW*)lp;
+      st = (GuiState*)cs->lpCreateParams;
+      SetWindowLongPtrW(hwnd, GWLP_USERDATA, (LONG_PTR)st);
+
+      st->statusLabel = CreateWindowExW(0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_LEFT,
+                                        12, 10, 900, 22, hwnd, (HMENU)(INT_PTR)ID_STATUS, cs->hInstance, nullptr);
+
+      CreateWindowExW(0, L"BUTTON", L"Refresh", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+                      12, 40, 82, 28, hwnd, (HMENU)(INT_PTR)ID_REFRESH, cs->hInstance, nullptr);
+      st->installButton = CreateWindowExW(0, L"BUTTON", L"Install", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+                      102, 40, 82, 28, hwnd, (HMENU)(INT_PTR)ID_INSTALL, cs->hInstance, nullptr);
+      CreateWindowExW(0, L"BUTTON", L"Download", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+                      192, 40, 96, 28, hwnd, (HMENU)(INT_PTR)ID_DOWNLOAD, cs->hInstance, nullptr);
+      CreateWindowExW(0, L"BUTTON", L"Open folder", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+                      296, 40, 108, 28, hwnd, (HMENU)(INT_PTR)ID_FOLDER, cs->hInstance, nullptr);
+      st->filterEdit = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
+                                       560, 42, 352, 24, hwnd, (HMENU)(INT_PTR)ID_FILTER, cs->hInstance, nullptr);
+      SendMessageW(st->filterEdit, EM_SETCUEBANNER, TRUE, (LPARAM)L"Filter packages");
+
+      st->list = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTVIEWW, L"",
+                                 WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS,
+                                 12, 78, 900, 470, hwnd, (HMENU)(INT_PTR)ID_LIST, cs->hInstance, nullptr);
+      ListView_SetExtendedListViewStyle(st->list, LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_LABELTIP);
+
+      LVCOLUMNW col = {};
+      col.mask = LVCF_TEXT | LVCF_WIDTH;
+      const wchar_t* titles[5] = { L"Package", L"Version", L"Platform", L"Size", L"Kind" };
+      const int widths[5] = { 300, 130, 150, 120, 90 };
+      for (int i = 0; i < 5; ++i) {
+        col.pszText = const_cast<LPWSTR>(titles[i]);
+        col.cx = widths[i];
+        ListView_InsertColumn(st->list, i, &col);
+      }
+      refreshGui(st);
+      return 0;
+    }
+    case WM_SIZE: {
+      if (!st) break;
+      const int width = LOWORD(lp), height = HIWORD(lp);
+      MoveWindow(st->statusLabel, 12, 10, width - 24, 22, TRUE);
+      MoveWindow(st->filterEdit, std::max(440, width - 364), 42, 352, 24, TRUE);
+      MoveWindow(st->list, 12, 78, width - 24, height - 112, TRUE);
+      return 0;
+    }
+    case WM_COMMAND:
+      if (!st) break;
+      switch (LOWORD(wp)) {
+        case ID_REFRESH: reloadCatalog(hwnd, st); return 0;
+        case ID_INSTALL: runBuild(hwnd, st, true); return 0;
+        case ID_DOWNLOAD: runBuild(hwnd, st, false); return 0;
+        case ID_FOLDER: openDownloadsFolder(hwnd, st); return 0;
+        case ID_FILTER:
+          if (HIWORD(wp) == EN_CHANGE) {
+            wchar_t text[256] = {};
+            GetWindowTextW(st->filterEdit, text, 256);
+            st->filter = toUtf8(text);
+            refreshGui(st);
+          }
+          return 0;
+      }
+      break;
+    case WM_NOTIFY: {
+      if (!st) break;
+      NMHDR* hdr = (NMHDR*)lp;
+      if (!hdr || hdr->idFrom != ID_LIST) break;
+      if (hdr->code == NM_DBLCLK) {
+        const int index = selectedBuild(st);
+        if (index >= 0) runBuild(hwnd, st, isRunnable(st->catalog->builds[index]));
+        return 0;
+      }
+      if (hdr->code == LVN_ITEMCHANGED) { updateInstallButton(st); return 0; }
+      break;
+    }
+    case WM_GETMINMAXINFO: {
+      MINMAXINFO* info = (MINMAXINFO*)lp;
+      info->ptMinTrackSize.x = 820;
+      info->ptMinTrackSize.y = 480;
+      return 0;
+    }
+    case WM_ERASEBKGND: {
+      HDC dc = (HDC)wp;
+      RECT rc; GetClientRect(hwnd, &rc);
+      HBRUSH b = CreateSolidBrush(RGB(245, 247, 250));
+      FillRect(dc, &rc, b); DeleteObject(b); return 1;
+    }
+    case WM_DESTROY: PostQuitMessage(0); return 0;
+  }
+  return DefWindowProcW(hwnd, msg, wp, lp);
+}
+
+int guiMain() {
+  const std::string token = tokenFromEnv();
+  if (token.empty()) { out("not signed in - set gittoken_zssx-2026_1 first."); return 1; }
+
+  Session session(token);
+  session.tokenSourceName = tokenSource();
+  std::string error;
+  if (!session.signIn(&error)) { out("not signed in (" + error + ")"); return 1; }
+
+  Catalog catalog;
+  catalog.refresh(token);  // an empty catalogue is still a usable window
+
+  INITCOMMONCONTROLSEX controls = { sizeof(controls), ICC_LISTVIEW_CLASSES };
+  InitCommonControlsEx(&controls);
+
+  GuiState state;
+  state.session = &session;
+  state.catalog = &catalog;
+  state.status = catalog.error;
+
+  WNDCLASSW wc = {};
+  wc.lpfnWndProc = guiProc;
+  wc.hInstance = GetModuleHandleW(nullptr);
+  wc.lpszClassName = L"InfinityPackageManagerWindow";
+  wc.hCursor = LoadCursorW(nullptr, MAKEINTRESOURCEW(32512));
+  wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+  RegisterClassW(&wc);
+
+  HWND hwnd = CreateWindowExW(0, wc.lpszClassName, L"InfinityPackageManager",
+                              WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
+                              1000, 700, nullptr, nullptr, wc.hInstance, &state);
+  if (!hwnd) { out("cannot create the window"); return 1; }
+  ShowWindow(hwnd, SW_SHOW);
+  UpdateWindow(hwnd);
+  MSG msg;
+  while (GetMessageW(&msg, nullptr, 0, 0) > 0) { TranslateMessage(&msg); DispatchMessageW(&msg); }
+  return 0;
+}
+
+// ---------------------------------------------------------------- launcher
+
+int launcherMain(const Mode& m) {
+  const std::string prefix = m.admin ? "ipmx" : "ipm";
+  out(APP + std::string(" [") + (m.admin ? "管理员" : "用户") + "]");
+  out("");
+  out("  1) CLI       命令行");
+  out("  2) GUI       图形界面");
+  out("");
+  out("  q) 退出");
+  out("");
+
+  HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+  if (!hIn || hIn == INVALID_HANDLE_VALUE) return 0;
+  DWORD mode = 0;
+  if (!GetConsoleMode(hIn, &mode)) {
+    out("(no console; start " + prefix + "_cli / _tui / _gui directly)");
+    return 0;
+  }
+
+  fputs("> ", stdout);
+  fflush(stdout);
+  std::string answer;
+  char buf[64];
+  if (fgets(buf, sizeof(buf), stdin)) answer = trim(buf);
+  if (answer.empty() || answer == "q" || answer == "Q") return 0;
+
+  std::string target;
+  if (answer == "1" || answer == "cli") target = "cli";
+  else if (answer == "2" || answer == "gui") target = "gui";
+  else { out("unknown choice"); return 1; }
+
+  const std::string exe = siblingExe(prefix, target);
+  STARTUPINFOW si = {};
+  si.cb = sizeof(si);
+  PROCESS_INFORMATION pi = {};
+  std::wstring cmd = toWide("\"" + exe + "\"");
+  if (!CreateProcessW(nullptr, &cmd[0], nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi)) {
+    out("cannot start " + exe);
+    return 1;
+  }
+  CloseHandle(pi.hThread);
+  CloseHandle(pi.hProcess);
+  return 0;
+}
+
 }  // namespace
 
-int main(int, char**) {
+// ---------------------------------------------------------------- entry
+
+int main(int argc, char** argv) {
+  // The console has to be asked for UTF-8 before anything is printed, or the
+  // Chinese in the interface arrives as mojibake on a code page 936 machine.
   SetConsoleOutputCP(CP_UTF8);
   SetConsoleCP(CP_UTF8);
-  int argc = 0;
-  LPWSTR* wideArgv = CommandLineToArgvW(GetCommandLineW(), &argc);
-  if (!wideArgv) { out("ipm: cannot read command line"); return 1; }
+
   std::vector<std::string> args;
-  for (int i = 1; i < argc; ++i) args.push_back(toUtf8(wideArgv[i]));
-  LocalFree(wideArgv);
-  return run(args);
+  for (int i = 1; i < argc; i++) args.push_back(argv[i]);
+
+  if (!args.empty()) {
+    if (args[0] == "--version" || args[0] == "-v") { out(std::string(APP) + " " + version()); return 0; }
+    if (args[0] == "--help" || args[0] == "-h" || args[0] == "help") { help(); return 0; }
+  }
+
+  // --serve-ui is what the Electron shell starts this program with. See the
+  // note in the ui section above for why it is a flag and not a face.
+  bool serveUiRequested = false;
+  int uiPort = 7632;
+  {
+    std::vector<std::string> rest;
+    for (const std::string& a : args) {
+      if (a == "--serve-ui") { serveUiRequested = true; continue; }
+      if (startsWith(a, "--port=")) {
+        const int asked = atoi(a.substr(7).c_str());
+        if (asked > 0 && asked < 65536) uiPort = asked;
+        serveUiRequested = true;
+        continue;
+      }
+      rest.push_back(a);
+    }
+    args.swap(rest);
+  }
+  if (serveUiRequested) return serveUi(uiPort);
+
+  Mode m = detectMode();
+
+  // `ipm gui` and friends still work when the program is started under a name
+  // that carries no mode, which is what happens from a source build.
+  if (m.mode.empty() && !args.empty()) {
+    const std::string& a = args[0];
+    std::vector<std::string> rest(args.begin() + 1, args.end());
+    if (a == "cli") return cliMain(rest);
+    if (a == "gui") return guiMain();
+    if (a == "launcher") return launcherMain(m);
+  }
+
+  if (m.mode == "launcher") return launcherMain(m);
+  if (m.mode == "gui") return guiMain();
+  if (m.mode == "cli") return cliMain(args);
+
+  if (args.empty()) return guiMain();
+  return cliMain(args);
 }

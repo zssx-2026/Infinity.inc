@@ -1,10 +1,9 @@
 /*
  * server.js - the graphical face of Infinity Cloud.
  *
- * The other two faces already exist: the CLI runs commands, the TUI draws the
- * same model in a terminal. Neither needs a window, so neither is the right
- * place to put one. This file adds the third face without touching them: a
- * loopback HTTP server that serves one page, and a small JSON API the page
+ * The command line already exists and does not need a window, so it is not
+ * the right place to put one. This file adds the window without touching it:
+ * a loopback HTTP server that serves one page, and a small JSON API the page
  * drives.
  *
  * The page is a file browser, not a console. Folders open on click, files
