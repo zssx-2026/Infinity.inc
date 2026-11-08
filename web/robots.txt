@@ -1,0 +1,6 @@
+# Infinity.Inc — https://zssx-2026.github.io/
+# 部署根 robots.txt：爬虫只读取主机根的这一份。
+User-agent: *
+Allow: /
+
+Sitemap: https://zssx-2026.github.io/sitemap.xml

@@ -1,0 +1,5 @@
+# Infinity.Inc — https://zssx-2026.github.io/
+User-agent: *
+Allow: /
+
+Sitemap: https://zssx-2026.github.io/sitemap.xml

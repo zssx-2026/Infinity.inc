@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- web/sitemap.xml - 30 indexable pages (15 bilingual pairs); the two 404 pages are noindex and excluded. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://zssx-2026.github.io/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://zssx-2026.github.io/"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://zssx-2026.github.io/cn/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://zssx-2026.github.io/"/>
+  </url>
+  <url>
+    <loc>https://zssx-2026.github.io/cn/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://zssx-2026.github.io/"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://zssx-2026.github.io/cn/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://zssx-2026.github.io/"/>
+  </url>
+  <url>
+    <loc>https://zssx-2026.github.io/cloud/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://zssx-2026.github.io/cloud/"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://zssx-2026.github.io/cn/cloud/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://zssx-2026.github.io/cloud/"/>
+  </url>
+  <url>
+    <loc>https://zssx-2026.github.io/cn/cloud/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://zssx-2026.github.io/cloud/"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://zssx-2026.github.io/cn/cloud/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://zssx-2026.github.io/cloud/"/>
+  </url>
+  <url>
+    <loc>https://zssx-2026.github.io/download/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://zssx-2026.github.io/download/"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://zssx-2026.github.io/cn/download/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://zssx-2026.github.io/download/"/>
+  </url>
+  <url>
+    <loc>https://zssx-2026.github.io/cn/download/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://zssx-2026.github.io/download/"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://zssx-2026.github.io/cn/download/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://zssx-2026.github.io/download/"/>
+  </url>
+  <url>
+    <loc>https://zssx-2026.github.io/download/infinitycloud/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://zssx-2026.github.io/download/infinitycloud/"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://zssx-2026.github.io/cn/download/infinitycloud/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://zssx-2026.github.io/download/infinitycloud/"/>
+  </url>
+  <url>
+    <loc>https://zssx-2026.github.io/cn/download/infinitycloud/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://zssx-2026.github.io/download/infinitycloud/"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://zssx-2026.github.io/cn/download/infinitycloud/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://zssx-2026.github.io/download/infinitycloud/"/>
+  </url>
+  <url>
+    <loc>https://zssx-2026.github.io/download/infinitypackagemanager/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://zssx-2026.github.io/download/infinitypackagemanager/"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://zssx-2026.github.io/cn/download/infinitypackagemanager/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://zssx-2026.github.io/download/infinitypackagemanager/"/>
+  </url>
+  <url>
+    <loc>https://zssx-2026.github.io/cn/download/infinitypackagemanager/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://zssx-2026.github.io/download/infinitypackagemanager/"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://zssx-2026.github.io/cn/download/infinitypackagemanager/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://zssx-2026.github.io/download/infinitypackagemanager/"/>
+  </url>
+</urlset>
