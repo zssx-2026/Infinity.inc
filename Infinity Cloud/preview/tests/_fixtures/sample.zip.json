@@ -1,0 +1,62 @@
+{
+  "size": 718804,
+  "commentBytes": 194,
+  "entries": [
+    {
+      "name": "hello.txt",
+      "method": 8,
+      "compressed": 142,
+      "uncompressed": 830,
+      "crc": 1076188391,
+      "headerOffset": 0,
+      "dataOffset": 39,
+      "localExtraLen": 0,
+      "centralExtraLen": 0,
+      "descriptor": false,
+      "zip64": false,
+      "placeholder": false
+    },
+    {
+      "name": "stored.txt",
+      "method": 0,
+      "compressed": 1050,
+      "uncompressed": 1050,
+      "crc": 811678784,
+      "headerOffset": 181,
+      "dataOffset": 221,
+      "localExtraLen": 0,
+      "centralExtraLen": 0,
+      "descriptor": false,
+      "zip64": false,
+      "placeholder": false
+    },
+    {
+      "name": "data.bin",
+      "method": 8,
+      "compressed": 717020,
+      "uncompressed": 716800,
+      "crc": 3714276340,
+      "headerOffset": 1271,
+      "dataOffset": 1309,
+      "localExtraLen": 0,
+      "centralExtraLen": 0,
+      "descriptor": false,
+      "zip64": false,
+      "placeholder": false
+    },
+    {
+      "name": "empty.txt",
+      "method": 0,
+      "compressed": 0,
+      "uncompressed": 0,
+      "crc": 0,
+      "headerOffset": 718329,
+      "dataOffset": 718368,
+      "localExtraLen": 0,
+      "centralExtraLen": 0,
+      "descriptor": false,
+      "zip64": false,
+      "placeholder": false
+    }
+  ]
+}

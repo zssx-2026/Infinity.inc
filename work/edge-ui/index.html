@@ -91,6 +91,9 @@
         <div class="sb-tabs" id="sbTabs"></div>
       </div>
       <div class="sb-foot">
+        <button class="sb-foot-btn" id="btn-playzone" type="button" data-icon="sparkle">
+          <span data-i18n="playzone.title">游玩区</span><span class="sb-badge" id="pzBadge" hidden>1</span>
+        </button>
         <button class="sb-foot-btn" id="btn-sb-settings" type="button" data-icon="settings"><span data-i18n="menu.settings">设置</span></button>
       </div>
     </aside>
@@ -133,6 +136,7 @@
     <button class="mi" data-action="favorites" type="button"><span class="mi-ic" data-icon="star"></span><span class="mi-t" data-i18n="menu.favorites">收藏夹</span><span class="mi-k">Ctrl+Shift+O</span></button>
     <button class="mi" data-action="downloads" type="button"><span class="mi-ic" data-icon="download"></span><span class="mi-t" data-i18n="menu.downloads">下载</span><span class="mi-k">Ctrl+J</span></button>
     <button class="mi" data-action="collections" type="button"><span class="mi-ic" data-icon="collections"></span><span class="mi-t" data-i18n="menu.collections">集锦</span><span class="mi-k">Ctrl+Shift+Y</span></button>
+    <button class="mi" data-action="playzone" type="button"><span class="mi-ic" data-icon="sparkle"></span><span class="mi-t" data-i18n="menu.playzone">游玩区</span><span class="mi-k">Ctrl+Shift+G</span></button>
     <div class="mi-sep"></div>
     <button class="mi" data-action="devtools" type="button"><span class="mi-ic" data-icon="code"></span><span class="mi-t" data-i18n="menu.devtools">开发者工具</span><span class="mi-k">F12</span></button>
     <button class="mi" data-action="protocol" type="button"><span class="mi-ic" data-icon="signal"></span><span class="mi-t" data-i18n="menu.protocol">协议消息</span><span class="mi-k">Ctrl+Shift+P</span></button>
@@ -180,13 +184,19 @@
         </section>
         <section class="set-group">
           <h3 data-i18n="settings.startup">启动与主页</h3>
-          <div class="set-row"><div class="set-label"><span data-i18n="settings.homePage">主页地址</span><small data-i18n="settings.homePageHint">点击主页按钮时打开</small></div>
-            <input class="set-input" id="setHome" type="text" value="inc://cloud" spellcheck="false" /></div>
+          <div class="set-row"><div class="set-label"><span data-i18n="settings.homePage">Home 按钮目标</span><small data-i18n="settings.homePageHint">默认新标签页，无固定主页</small></div>
+            <input class="set-input" id="setHome" type="text" value="about:home" spellcheck="false" /></div>
           <div class="set-row"><div class="set-label"><span data-i18n="settings.language">界面语言</span></div>
             <div class="seg lg" id="segLocale2">
               <button type="button" data-locale-set="zh-CN">中文</button>
               <button type="button" data-locale-set="en-US">English</button>
             </div></div>
+          <div class="set-row"><div class="set-label"><span data-i18n="settings.restore">启动时恢复上次的标签页</span><small data-i18n="settings.restoreHint">关闭窗口时保存标签列表，下次启动恢复</small></div>
+            <label class="switch"><input type="checkbox" id="setRestore" checked /><span></span></label></div>
+          <div class="set-row"><div class="set-label"><span data-i18n="settings.exitAsk">退出时不再询问</span><small data-i18n="settings.exitAskHint">关闭窗口时不再提示“保存标签页”</small></div>
+            <label class="switch"><input type="checkbox" id="setExitAsk" /><span></span></label></div>
+          <div class="set-row"><div class="set-label"><span data-i18n="settings.session">会话快照</span><small id="sessionInfo">—</small></div>
+            <div class="seg lg"><button type="button" id="btn-session-save" data-i18n="settings.sessionSave">立即保存</button><button type="button" id="btn-session-clear" data-i18n="settings.sessionClear">清除</button></div></div>
         </section>
         <section class="set-group">
           <h3 data-i18n="settings.host">宿主</h3>
@@ -221,7 +231,62 @@
       </div>
       <div class="dlg-foot"><button class="btn primary" data-close-dialog type="button" data-i18n="settings.done">完成</button></div>
     </div>
+
+    <div class="dialog narrow" id="dialog-exit" role="dialog" aria-modal="true" hidden>
+      <div class="dlg-head"><h2 data-i18n="exit.title">关闭窗口</h2><button class="tb-btn sm" data-close-dialog type="button" data-icon="close"></button></div>
+      <div class="dlg-body">
+        <p class="about-note" data-i18n="exit.body">将保存当前标签页，下次启动自动恢复。</p>
+        <div class="session-summary" id="exitSummary"></div>
+        <label class="check"><input type="checkbox" id="exitDontAsk" /><span data-i18n="exit.dontAsk">退出时不再询问</span></label>
+      </div>
+      <div class="dlg-foot">
+        <button class="btn ghost" data-close-dialog type="button" data-i18n="common.cancel">取消</button>
+        <button class="btn primary" id="btn-exit-confirm" type="button" data-i18n="exit.confirm">保存并关闭</button>
+      </div>
+    </div>
   </div>
+
+  <!-- ======================= Play Zone (one per window) ======================= -->
+  <section class="playzone" id="playzone" hidden>
+    <div class="pz-head">
+      <span class="pz-tile" data-icon="sparkle"></span>
+      <select class="pz-select" id="pzSelect" aria-label="Play Zone"></select>
+      <button class="tb-btn sm" id="pz-new" type="button" data-icon="plus" data-i18n-title="playzone.new"></button>
+      <button class="tb-btn sm" id="pz-close" type="button" data-icon="close" data-i18n-title="playzone.close"></button>
+    </div>
+    <div class="pz-body">
+      <div class="pz-preview" id="pzPreview">
+        <span class="pz-preview-tile" id="pzPreviewTile">PZ</span>
+        <span class="pz-preview-body"><strong id="pzPreviewName">Play Zone</strong><small id="pzPreviewMeta"></small></span>
+      </div>
+      <div class="pz-row"><span class="pz-label" data-i18n="playzone.name">名称</span>
+        <input class="pz-input" id="pzName" type="text" spellcheck="false" /></div>
+      <div class="pz-row"><span class="pz-label" data-i18n="playzone.theme">主题</span>
+        <div class="seg" id="pzTheme">
+          <button type="button" data-pz-theme="dark" data-i18n="menu.themeDark">深色</button>
+          <button type="button" data-pz-theme="light" data-i18n="menu.themeLight">浅色</button>
+          <button type="button" data-pz-theme="system" data-i18n="settings.themeSystem">跟随系统</button>
+        </div></div>
+      <div class="pz-row"><span class="pz-label" data-i18n="playzone.primary">主色</span><input type="color" id="pzPrimary" /></div>
+      <div class="pz-row"><span class="pz-label" data-i18n="playzone.accent">强调色</span><input type="color" id="pzAccent" /></div>
+      <div class="pz-row"><span class="pz-label" data-i18n="playzone.bg">背景色</span><input type="color" id="pzBg" /></div>
+      <div class="pz-music">
+        <div class="pz-row"><span class="pz-label" data-i18n="playzone.music">背景音乐</span>
+          <button class="btn" id="pzMusicPick" type="button" data-i18n="playzone.pick">选择本地音频…</button>
+          <input type="file" id="pzMusicFile" accept="audio/*" hidden /></div>
+        <div class="pz-music-bar">
+          <button class="tb-btn sm" id="pzPlay" type="button" data-icon="play" data-i18n-title="playzone.play"></button>
+          <span class="pz-music-name" id="pzMusicName">—</span>
+          <input type="range" id="pzVolume" min="0" max="100" value="60" data-i18n-title="playzone.volume" />
+          <span class="pz-vol" id="pzVolVal">60%</span>
+        </div>
+        <p class="pz-hint" data-i18n="playzone.musicHint">音乐由外壳播放，切换标签页时持续播放。</p>
+      </div>
+      <p class="pz-limit" data-i18n="playzone.limitHint">同一窗口最多只能打开一个游玩区。</p>
+      <div class="pz-guard"><span class="pill" id="pzGuardPill">1/1</span><span class="muted" id="pzGuardText"></span></div>
+    </div>
+  </section>
+  <audio id="pzAudio" preload="metadata"></audio>
 
   <div class="toast" id="toast" hidden></div>
 </div>
@@ -241,11 +306,12 @@
     <div class="ntp-inner">
       <header class="ntp-head">
         <span class="ntp-logo">&#8734;</span>
-        <h1 class="ntp-greeting" class="ntp-greeting">&#26089;&#19978;&#22909;</h1>
-        <p class="ntp-date" class="ntp-date"></p>
+        <h1 class="ntp-greeting">&#26089;&#19978;&#22909;</h1>
+        <p class="ntp-date"></p>
+        <p class="ntp-home-hint" data-i18n="ntp.homeHint">本地渲染的新标签页 · 无固定主页 · 无外部网络请求</p>
       </header>
 
-      <form class="ntp-search" class="ntp-search" autocomplete="off">
+      <form class="ntp-search" autocomplete="off">
         <span class="ntp-search-ic" data-icon="search"></span>
         <input class="ntp-search-input" class="ntp-search-input" type="text" spellcheck="false"
                data-i18n-placeholder="address.placeholder" />

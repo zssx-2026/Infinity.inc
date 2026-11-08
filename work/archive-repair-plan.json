@@ -1,0 +1,3167 @@
+{
+ "tool": "work/archive-repair.mjs",
+ "generated": "2026-10-06T07:44:19.333Z",
+ "archive": "D:\\dev\\DeepSeekHarnessWorkspace\\Infinity.inc\\history\\history.jsonl",
+ "archiveBytes": 294993468,
+ "archiveMtime": "2026-10-06T07:37:02.504Z",
+ "headerBefore": {
+  "f": "Infinity.Inc history archive",
+  "v": 1,
+  "created": "2026-10-03T12:20:39.974Z",
+  "root": "D:\\dev\\DeepSeekHarnessWorkspace\\Infinity.inc\\history",
+  "layout": "header|segment(chunk-lines then entry-lines), repeated; appended segments start at EOF",
+  "codec": "brotli",
+  "quality": 10,
+  "lgwin": 24,
+  "chunkBytes": 16777216,
+  "files": 26532,
+  "origBytes": 1607428829,
+  "chunks": 132,
+  "archiveBytes": 294993468,
+  "mergedFrom": [
+   "history-archive-v1.jsonl (26333 files)",
+   "dsh-archive.jsonl.pack (21 files)"
+  ],
+  "note": "Chunk indices 76..84 belong to the second pack and are offset by 76. Chunk 75 is the first pack's tail and is therefore a short non-final chunk; every other non-final chunk is exactly chunkBytes. Entry history.jsonl was renamed to history.jsonl.old to match the surviving name.",
+  "uniqueBytes": 1559182764,
+  "blobs": 23012,
+  "snapshots": 33,
+  "appended": [
+   {
+    "at": "2026-10-06T06:03:43.472Z",
+    "files": 6,
+    "bytes": 4560268,
+    "chunks": 1,
+    "firstChunk": 125,
+    "archiveBytes": 293578322,
+    "liveParts": 6
+   },
+   {
+    "at": "2026-10-06T06:07:02.210Z",
+    "files": 6,
+    "bytes": 443727,
+    "chunks": 1,
+    "firstChunk": 126,
+    "archiveBytes": 293640717,
+    "liveParts": 6
+   },
+   {
+    "at": "2026-10-06T06:22:03.211Z",
+    "files": 6,
+    "bytes": 1762200,
+    "chunks": 1,
+    "firstChunk": 127,
+    "archiveBytes": 293837125,
+    "liveParts": 6
+   },
+   {
+    "at": "2026-10-06T06:37:02.655Z",
+    "files": 7,
+    "bytes": 1741671,
+    "chunks": 1,
+    "firstChunk": 127,
+    "archiveBytes": 294110819,
+    "liveParts": 7
+   },
+   {
+    "at": "2026-10-06T06:52:05.672Z",
+    "files": 7,
+    "bytes": 3294192,
+    "chunks": 1,
+    "firstChunk": 128,
+    "archiveBytes": 294519707,
+    "liveParts": 7
+   },
+   {
+    "at": "2026-10-06T07:07:02.377Z",
+    "files": 5,
+    "bytes": 1491600,
+    "chunks": 1,
+    "firstChunk": 129,
+    "archiveBytes": 294711788,
+    "liveParts": 5
+   },
+   {
+    "at": "2026-10-06T07:22:02.377Z",
+    "files": 5,
+    "bytes": 611303,
+    "chunks": 1,
+    "firstChunk": 130,
+    "archiveBytes": 294841820,
+    "liveParts": 5
+   },
+   {
+    "at": "2026-10-06T07:37:02.489Z",
+    "files": 5,
+    "bytes": 1270828,
+    "chunks": 1,
+    "firstChunk": 131,
+    "archiveBytes": 294993468,
+    "liveParts": 5
+   }
+  ],
+  "updated": "2026-10-06T07:37:02.489Z",
+  "chunkSeq": 132
+ },
+ "scan": {
+  "chunkLines": 133,
+  "entryLines": 26532,
+  "distinctChunkIds": 124
+ },
+ "duplicateIds": {
+  "116": {
+   "lineCount": 9,
+   "rawLens": [
+    26918,
+    26918,
+    26918,
+    26918,
+    26918,
+    586887,
+    2854457,
+    3667716,
+    3808066
+   ],
+   "lineOffsets": [
+    291415156,
+    291422687,
+    291430218,
+    291437749,
+    291445280,
+    291452811,
+    291508107,
+    291904520,
+    292413400
+   ],
+   "candidates": [
+    {
+     "idx": 0,
+     "n": 26918,
+     "lineOff": 291415156,
+     "lineLen": 7322,
+     "sha256": "da5df28a8fe0cb74614fdc8ba3237252b67f6f4bd8e9a8a4589fd383f56db93b"
+    },
+    {
+     "idx": 1,
+     "n": 26918,
+     "lineOff": 291422687,
+     "lineLen": 7322,
+     "sha256": "da5df28a8fe0cb74614fdc8ba3237252b67f6f4bd8e9a8a4589fd383f56db93b"
+    },
+    {
+     "idx": 2,
+     "n": 26918,
+     "lineOff": 291430218,
+     "lineLen": 7322,
+     "sha256": "da5df28a8fe0cb74614fdc8ba3237252b67f6f4bd8e9a8a4589fd383f56db93b"
+    },
+    {
+     "idx": 3,
+     "n": 26918,
+     "lineOff": 291437749,
+     "lineLen": 7322,
+     "sha256": "da5df28a8fe0cb74614fdc8ba3237252b67f6f4bd8e9a8a4589fd383f56db93b"
+    },
+    {
+     "idx": 4,
+     "n": 26918,
+     "lineOff": 291445280,
+     "lineLen": 7322,
+     "sha256": "da5df28a8fe0cb74614fdc8ba3237252b67f6f4bd8e9a8a4589fd383f56db93b"
+    },
+    {
+     "idx": 5,
+     "n": 586887,
+     "lineOff": 291452811,
+     "lineLen": 54059,
+     "sha256": "f7a12c752279b729f3bef2fcca218059873e85f9e5a533be35d766288c8a89d7"
+    },
+    {
+     "idx": 6,
+     "n": 2854457,
+     "lineOff": 291508107,
+     "lineLen": 395164,
+     "sha256": "b1bf7161c4e1b5dc84cdc7b3aeca9d71ffe0b725bc465234e95c95e5084ae9e1"
+    },
+    {
+     "idx": 7,
+     "n": 3667716,
+     "lineOff": 291904520,
+     "lineLen": 507576,
+     "sha256": "11147ffaafb2b0f724be3085bcd947a88708c38da2066feb226e7fc6b6e7c462"
+    },
+    {
+     "idx": 8,
+     "n": 3808066,
+     "lineOff": 292413400,
+     "lineLen": 532784,
+     "sha256": "f8832d8cecbfb0123031a7a8994b5a562fdc5585cac5f91fe70e39a5d3a4bd77"
+    }
+   ]
+  },
+  "127": {
+   "lineCount": 2,
+   "rawLens": [
+    1762200,
+    1741671
+   ],
+   "lineOffsets": [
+    293640717,
+    293837125
+   ],
+   "candidates": [
+    {
+     "idx": 0,
+     "n": 1762200,
+     "lineOff": 293640717,
+     "lineLen": 195108,
+     "sha256": "80b8ced2155e293e4b2218ba3c646630128b0db07a03f3cf5e22969df5b6d2f6"
+    },
+    {
+     "idx": 1,
+     "n": 1741671,
+     "lineOff": 293837125,
+     "lineLen": 272176,
+     "sha256": "8f93b3acc705923f35da3f7d979b9ad8cc5713d7087b516d71497ce1d411670d"
+    }
+   ]
+  }
+ },
+ "affectedEntryCount": 42,
+ "affectedPathCount": 29,
+ "recoveredCount": 42,
+ "unrecoverableCount": 0,
+ "unrecoverable": [],
+ "distinctAffectedPaths": [
+  "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024.jsonl",
+  "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000.jsonl",
+  "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000.jsonl",
+  "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000.jsonl",
+  "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000.jsonl",
+  "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000.jsonl",
+  "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-caef9a38.jsonl",
+  "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000-8e6953a1.jsonl",
+  "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-2ac4ad44.jsonl",
+  "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000-5fae1e87.jsonl",
+  "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-2eaac2dd.jsonl",
+  "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-c1e7c38f.jsonl",
+  "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-e946944d.jsonl",
+  "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-f877e7ef.jsonl",
+  "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-3e65cae0.jsonl",
+  "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-e6c4f7d5.jsonl",
+  "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00002-ea53796c.jsonl",
+  "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00002-19f87ffa.jsonl",
+  "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00002-e8bdc515.jsonl",
+  "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00002-d61f5fa1.jsonl",
+  "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00002-5d294dc5.jsonl",
+  "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00026-bdb40928.jsonl",
+  "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00003-c9650d10.jsonl",
+  "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00003-e94bcab3.jsonl",
+  "live/56dceca4-7359-4881-8a03-1a73fdaba437/parts/part-00000-3481519d.jsonl",
+  "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00003-fcb609e6.jsonl",
+  "live/b2c6bc9d-8f02-4e1d-bed7-58d962379487/parts/part-00000-341ef898.jsonl",
+  "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00003-012e7183.jsonl",
+  "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00027-5467f688.jsonl"
+ ],
+ "pathPlan": [
+  {
+   "srcPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024.jsonl",
+   "occurrences": 7,
+   "distinctContents": 3,
+   "primaryOut": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-r1.jsonl",
+   "primaryHash": "da5df28a8fe0cb74614fdc8ba3237252b67f6f4bd8e9a8a4589fd383f56db93b",
+   "primaryBytes": 26918,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000.jsonl",
+   "occurrences": 2,
+   "distinctContents": 2,
+   "primaryOut": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-r1.jsonl",
+   "primaryHash": "a93910d79e7abc5ba7b4fb778cb82bee39b6949ed65cf6cba5ad4494f69940d7",
+   "primaryBytes": 77616,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000.jsonl",
+   "occurrences": 2,
+   "distinctContents": 2,
+   "primaryOut": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000-r1.jsonl",
+   "primaryHash": "e3f0c8925e7d7fb041ad0cf8a996588a702cd90f2130141673b947bd462374e0",
+   "primaryBytes": 76713,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000.jsonl",
+   "occurrences": 2,
+   "distinctContents": 2,
+   "primaryOut": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-r1.jsonl",
+   "primaryHash": "e20090a402cb198570bc81ba15097187e15521585b0529a01757ea106fec224e",
+   "primaryBytes": 116995,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000.jsonl",
+   "occurrences": 2,
+   "distinctContents": 2,
+   "primaryOut": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000-r1.jsonl",
+   "primaryHash": "b4f659af139576a14ed4359ccbcd58a38945d4a050082b2ff242c9e1cfbc3cb7",
+   "primaryBytes": 80705,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000.jsonl",
+   "occurrences": 2,
+   "distinctContents": 2,
+   "primaryOut": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-r1.jsonl",
+   "primaryHash": "7943ed401615b2182efb0c597d64de423f33c8d709a434e0f58aa5a65a36ba8b",
+   "primaryBytes": 64343,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-caef9a38.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-caef9a38-r1.jsonl",
+   "primaryHash": "caef9a38aadf0a23bb8f89cebeaf35f27f4f1bbd498b5e644ef271da1f0025d3",
+   "primaryBytes": 609119,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000-8e6953a1.jsonl",
+   "occurrences": 2,
+   "distinctContents": 1,
+   "primaryOut": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000-8e6953a1-r1.jsonl",
+   "primaryHash": "8e6953a1d4bac0f0917a2544b3aaa979cc8a81676db1cf144f2fbdee0f7963fc",
+   "primaryBytes": 646417,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-2ac4ad44.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-2ac4ad44-r1.jsonl",
+   "primaryHash": "2ac4ad441170719e622558bacd7897c7ff322a7c3704e0f44abf424373a97e3b",
+   "primaryBytes": 932654,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000-5fae1e87.jsonl",
+   "occurrences": 2,
+   "distinctContents": 1,
+   "primaryOut": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000-5fae1e87-r1.jsonl",
+   "primaryHash": "5fae1e8718942dfd8709f5d4cbf51a4fe1fac170f4e498bc014f3f9cce2977d1",
+   "primaryBytes": 542358,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-2eaac2dd.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-2eaac2dd-r1.jsonl",
+   "primaryHash": "2eaac2ddf67460d1e15bfc3230dbd30bdeb020208dffe1937cdc6cfe497d056e",
+   "primaryBytes": 431282,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-c1e7c38f.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-c1e7c38f-r1.jsonl",
+   "primaryHash": "c1e7c38ff68b42d838c5ec712d515c069bae9fd23034d3531019f75282042b08",
+   "primaryBytes": 505886,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-e946944d.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-e946944d-r1.jsonl",
+   "primaryHash": "e946944dada88456d2db3c899c906bf432713a8d0a7dd1e75a27ae91c17d5dc4",
+   "primaryBytes": 685644,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-f877e7ef.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-f877e7ef-r1.jsonl",
+   "primaryHash": "f877e7ef03c2676146afc85f109a504c2204eac46aedb5095ebfdf65e62cd746",
+   "primaryBytes": 951121,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-3e65cae0.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-3e65cae0-r1.jsonl",
+   "primaryHash": "3e65cae06f0b16e585c35cae64b8a9b5d0ff0912c252607c549edfd803bdfb49",
+   "primaryBytes": 466228,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-e6c4f7d5.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-e6c4f7d5-r1.jsonl",
+   "primaryHash": "e6c4f7d5e92aa644d4c95f3ba634d5954fbad1171df6caeda58544a21869894a",
+   "primaryBytes": 516298,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00002-ea53796c.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00002-ea53796c-r1.jsonl",
+   "primaryHash": "ea53796c4ba420e85cd6751f8d94f77b0d69db3bfccb85914be4d713ed27efb4",
+   "primaryBytes": 608800,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00002-19f87ffa.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00002-19f87ffa-r1.jsonl",
+   "primaryHash": "19f87ffa9aba827df240adffc1e413200b41e722bece8fa1c16e3dac5396f337",
+   "primaryBytes": 427704,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00002-e8bdc515.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00002-e8bdc515-r1.jsonl",
+   "primaryHash": "e8bdc51501af5af01d4d621be2ab046828f77ea53a3c468e232e82dd8d04e132",
+   "primaryBytes": 355766,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00002-d61f5fa1.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00002-d61f5fa1-r1.jsonl",
+   "primaryHash": "d61f5fa169078903334d1acac4b3403a9ca40477717b6740d67d72a66da84b26",
+   "primaryBytes": 55136,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00002-5d294dc5.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00002-5d294dc5-r1.jsonl",
+   "primaryHash": "5d294dc5b5d81d189fbedd6632028aa5ef655bfd630e129828167eaf414dbd73",
+   "primaryBytes": 18757,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00026-bdb40928.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00026-bdb40928-r1.jsonl",
+   "primaryHash": "bdb40928ef3156d0ead407f69576b6055c28529afb13c4e7027469eaee7b3f8b",
+   "primaryBytes": 296037,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00003-c9650d10.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00003-c9650d10-r1.jsonl",
+   "primaryHash": "c9650d10d32c8ffd23a2241308e9dbec9b199382e64ff57874d0828b6d1dfed8",
+   "primaryBytes": 216231,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00003-e94bcab3.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00003-e94bcab3-r1.jsonl",
+   "primaryHash": "e94bcab3f66157e4e0f64a8dd0bd49abe1abe013659d64062f12c2c259930c8f",
+   "primaryBytes": 242005,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/56dceca4-7359-4881-8a03-1a73fdaba437/parts/part-00000-3481519d.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/56dceca4-7359-4881-8a03-1a73fdaba437/parts/part-00000-3481519d-r1.jsonl",
+   "primaryHash": "3481519d013a0745efd695495fe7ecf58fc4dbb13cbc25e045bae9ec1924db9d",
+   "primaryBytes": 204142,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00003-fcb609e6.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00003-fcb609e6-r1.jsonl",
+   "primaryHash": "fcb609e6a642dc92520cfb3d9d9377f366a026d1dbd3593c106a0bb1977c87a4",
+   "primaryBytes": 208228,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/b2c6bc9d-8f02-4e1d-bed7-58d962379487/parts/part-00000-341ef898.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/b2c6bc9d-8f02-4e1d-bed7-58d962379487/parts/part-00000-341ef898-r1.jsonl",
+   "primaryHash": "341ef898a418de477efe5b6bc48c9f178aca19f99ac42b5332d87e60b4c45095",
+   "primaryBytes": 342772,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00003-012e7183.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00003-012e7183-r1.jsonl",
+   "primaryHash": "012e718312844a4df6fa4330f473454a07f47073fc351cd8cf4529c83c132f53",
+   "primaryBytes": 193830,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  },
+  {
+   "srcPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00027-5467f688.jsonl",
+   "occurrences": 1,
+   "distinctContents": 1,
+   "primaryOut": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00027-5467f688-r1.jsonl",
+   "primaryHash": "5467f6881f8eee7fe9981bdbc31da1d0bc426518cf81d65277642750c06783bf",
+   "primaryBytes": 334463,
+   "primaryFromFirstOccurrence": true,
+   "firstOccurrenceStatus": "recovered"
+  }
+ ],
+ "r1OutputCount": 36,
+ "r1OutputTotalRawBytes": 13259140,
+ "r1Outputs": [
+  {
+   "outPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-r1.jsonl",
+   "srcPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024.jsonl",
+   "h": "da5df28a8fe0cb74614fdc8ba3237252b67f6f4bd8e9a8a4589fd383f56db93b",
+   "s": 26918,
+   "kind": "primary",
+   "sourceLineOff": 291422479,
+   "segs": [
+    [
+     116,
+     0,
+     26918
+    ]
+   ],
+   "g": [
+    [
+     116,
+     0,
+     26918
+    ]
+   ],
+   "candidateIndexes": [
+    0
+   ],
+   "candidateLineOffs": [
+    291415156
+   ]
+  },
+  {
+   "outPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-r1-ff476c77.jsonl",
+   "srcPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024.jsonl",
+   "h": "ff476c77fe73332fbf02725ace3da467d2103f8836f5ba1ea58b095b3a46edf7",
+   "s": 170515,
+   "kind": "shadowed",
+   "sourceLineOff": 291507892,
+   "segs": [
+    [
+     116,
+     416372,
+     170515
+    ]
+   ],
+   "g": [
+    [
+     116,
+     416372,
+     170515
+    ]
+   ],
+   "candidateIndexes": [
+    5
+   ],
+   "candidateLineOffs": [
+    291452811
+   ]
+  },
+  {
+   "outPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-r1-e4be32f5.jsonl",
+   "srcPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024.jsonl",
+   "h": "e4be32f59f4b94c41cbae8da31863586d82b05fdc1a6b55e38142ba56ddfc396",
+   "s": 374480,
+   "kind": "shadowed",
+   "sourceLineOff": 291904304,
+   "segs": [
+    [
+     116,
+     2479977,
+     374480
+    ]
+   ],
+   "g": [
+    [
+     116,
+     2479977,
+     374480
+    ]
+   ],
+   "candidateIndexes": [
+    6
+   ],
+   "candidateLineOffs": [
+    291508107
+   ]
+  },
+  {
+   "outPath": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-r1.jsonl",
+   "srcPath": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000.jsonl",
+   "h": "a93910d79e7abc5ba7b4fb778cb82bee39b6949ed65cf6cba5ad4494f69940d7",
+   "s": 77616,
+   "kind": "primary",
+   "sourceLineOff": 291506871,
+   "segs": [
+    [
+     116,
+     0,
+     77616
+    ]
+   ],
+   "g": [
+    [
+     116,
+     0,
+     77616
+    ]
+   ],
+   "candidateIndexes": [
+    5
+   ],
+   "candidateLineOffs": [
+    291452811
+   ]
+  },
+  {
+   "outPath": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-r1-00d729d1.jsonl",
+   "srcPath": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000.jsonl",
+   "h": "00d729d1a58a8f9e31a6d9701111612d36d8801ade871843f4bc0345ee21c4b8",
+   "s": 483735,
+   "kind": "shadowed",
+   "sourceLineOff": 291903272,
+   "segs": [
+    [
+     116,
+     0,
+     483735
+    ]
+   ],
+   "g": [
+    [
+     116,
+     0,
+     483735
+    ]
+   ],
+   "candidateIndexes": [
+    6
+   ],
+   "candidateLineOffs": [
+    291508107
+   ]
+  },
+  {
+   "outPath": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000-r1.jsonl",
+   "srcPath": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000.jsonl",
+   "h": "e3f0c8925e7d7fb041ad0cf8a996588a702cd90f2130141673b947bd462374e0",
+   "s": 76713,
+   "kind": "primary",
+   "sourceLineOff": 291507071,
+   "segs": [
+    [
+     116,
+     77616,
+     76713
+    ]
+   ],
+   "g": [
+    [
+     116,
+     77616,
+     76713
+    ]
+   ],
+   "candidateIndexes": [
+    5
+   ],
+   "candidateLineOffs": [
+    291452811
+   ]
+  },
+  {
+   "outPath": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000-r1-fd46ebec.jsonl",
+   "srcPath": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000.jsonl",
+   "h": "fd46ebecc29af71ea430f6cfe8cd665e9c576f8c608e04be15439ef04d74d2fd",
+   "s": 447306,
+   "kind": "shadowed",
+   "sourceLineOff": 291903474,
+   "segs": [
+    [
+     116,
+     483735,
+     447306
+    ]
+   ],
+   "g": [
+    [
+     116,
+     483735,
+     447306
+    ]
+   ],
+   "candidateIndexes": [
+    6
+   ],
+   "candidateLineOffs": [
+    291508107
+   ]
+  },
+  {
+   "outPath": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-r1.jsonl",
+   "srcPath": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000.jsonl",
+   "h": "e20090a402cb198570bc81ba15097187e15521585b0529a01757ea106fec224e",
+   "s": 116995,
+   "kind": "primary",
+   "sourceLineOff": 291507275,
+   "segs": [
+    [
+     116,
+     154329,
+     116995
+    ]
+   ],
+   "g": [
+    [
+     116,
+     154329,
+     116995
+    ]
+   ],
+   "candidateIndexes": [
+    5
+   ],
+   "candidateLineOffs": [
+    291452811
+   ]
+  },
+  {
+   "outPath": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-r1-9432d319.jsonl",
+   "srcPath": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000.jsonl",
+   "h": "9432d31971576efb591e58eb624565f4a323f4c8cc5eb746339d7657ed39c399",
+   "s": 720445,
+   "kind": "shadowed",
+   "sourceLineOff": 291903681,
+   "segs": [
+    [
+     116,
+     931041,
+     720445
+    ]
+   ],
+   "g": [
+    [
+     116,
+     931041,
+     720445
+    ]
+   ],
+   "candidateIndexes": [
+    6
+   ],
+   "candidateLineOffs": [
+    291508107
+   ]
+  },
+  {
+   "outPath": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000-r1.jsonl",
+   "srcPath": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000.jsonl",
+   "h": "b4f659af139576a14ed4359ccbcd58a38945d4a050082b2ff242c9e1cfbc3cb7",
+   "s": 80705,
+   "kind": "primary",
+   "sourceLineOff": 291507482,
+   "segs": [
+    [
+     116,
+     271324,
+     80705
+    ]
+   ],
+   "g": [
+    [
+     116,
+     271324,
+     80705
+    ]
+   ],
+   "candidateIndexes": [
+    5
+   ],
+   "candidateLineOffs": [
+    291452811
+   ]
+  },
+  {
+   "outPath": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000-r1-86ca6acf.jsonl",
+   "srcPath": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000.jsonl",
+   "h": "86ca6acfbf25c76ef24c7e3151027ae2d26cda5111e5caf8115ec5f3c83e5085",
+   "s": 468223,
+   "kind": "shadowed",
+   "sourceLineOff": 291903888,
+   "segs": [
+    [
+     116,
+     1651486,
+     468223
+    ]
+   ],
+   "g": [
+    [
+     116,
+     1651486,
+     468223
+    ]
+   ],
+   "candidateIndexes": [
+    6
+   ],
+   "candidateLineOffs": [
+    291508107
+   ]
+  },
+  {
+   "outPath": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-r1.jsonl",
+   "srcPath": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000.jsonl",
+   "h": "7943ed401615b2182efb0c597d64de423f33c8d709a434e0f58aa5a65a36ba8b",
+   "s": 64343,
+   "kind": "primary",
+   "sourceLineOff": 291507687,
+   "segs": [
+    [
+     116,
+     352029,
+     64343
+    ]
+   ],
+   "g": [
+    [
+     116,
+     352029,
+     64343
+    ]
+   ],
+   "candidateIndexes": [
+    5
+   ],
+   "candidateLineOffs": [
+    291452811
+   ]
+  },
+  {
+   "outPath": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-r1-3002d315.jsonl",
+   "srcPath": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000.jsonl",
+   "h": "3002d315a9eba0906420b5a9bf6d1266ba565f94590596371fadf38690cd8150",
+   "s": 360268,
+   "kind": "shadowed",
+   "sourceLineOff": 291904096,
+   "segs": [
+    [
+     116,
+     2119709,
+     360268
+    ]
+   ],
+   "g": [
+    [
+     116,
+     2119709,
+     360268
+    ]
+   ],
+   "candidateIndexes": [
+    6
+   ],
+   "candidateLineOffs": [
+    291508107
+   ]
+  },
+  {
+   "outPath": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-caef9a38-r1.jsonl",
+   "srcPath": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-caef9a38.jsonl",
+   "h": "caef9a38aadf0a23bb8f89cebeaf35f27f4f1bbd498b5e644ef271da1f0025d3",
+   "s": 609119,
+   "kind": "primary",
+   "sourceLineOff": 292412097,
+   "segs": [
+    [
+     116,
+     0,
+     609119
+    ]
+   ],
+   "g": [
+    [
+     116,
+     0,
+     609119
+    ]
+   ],
+   "candidateIndexes": [
+    7
+   ],
+   "candidateLineOffs": [
+    291904520
+   ]
+  },
+  {
+   "outPath": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000-8e6953a1-r1.jsonl",
+   "srcPath": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000-8e6953a1.jsonl",
+   "h": "8e6953a1d4bac0f0917a2544b3aaa979cc8a81676db1cf144f2fbdee0f7963fc",
+   "s": 646417,
+   "kind": "primary",
+   "sourceLineOff": 292412308,
+   "segs": [
+    [
+     116,
+     609119,
+     646417
+    ]
+   ],
+   "g": [
+    [
+     116,
+     609119,
+     646417
+    ]
+   ],
+   "candidateIndexes": [
+    7
+   ],
+   "candidateLineOffs": [
+    291904520
+   ]
+  },
+  {
+   "outPath": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-2ac4ad44-r1.jsonl",
+   "srcPath": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-2ac4ad44.jsonl",
+   "h": "2ac4ad441170719e622558bacd7897c7ff322a7c3704e0f44abf424373a97e3b",
+   "s": 932654,
+   "kind": "primary",
+   "sourceLineOff": 292412524,
+   "segs": [
+    [
+     116,
+     1255536,
+     932654
+    ]
+   ],
+   "g": [
+    [
+     116,
+     1255536,
+     932654
+    ]
+   ],
+   "candidateIndexes": [
+    7
+   ],
+   "candidateLineOffs": [
+    291904520
+   ]
+  },
+  {
+   "outPath": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000-5fae1e87-r1.jsonl",
+   "srcPath": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000-5fae1e87.jsonl",
+   "h": "5fae1e8718942dfd8709f5d4cbf51a4fe1fac170f4e498bc014f3f9cce2977d1",
+   "s": 542358,
+   "kind": "primary",
+   "sourceLineOff": 292412741,
+   "segs": [
+    [
+     116,
+     2188190,
+     542358
+    ]
+   ],
+   "g": [
+    [
+     116,
+     2188190,
+     542358
+    ]
+   ],
+   "candidateIndexes": [
+    7
+   ],
+   "candidateLineOffs": [
+    291904520
+   ]
+  },
+  {
+   "outPath": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-2eaac2dd-r1.jsonl",
+   "srcPath": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-2eaac2dd.jsonl",
+   "h": "2eaac2ddf67460d1e15bfc3230dbd30bdeb020208dffe1937cdc6cfe497d056e",
+   "s": 431282,
+   "kind": "primary",
+   "sourceLineOff": 292412958,
+   "segs": [
+    [
+     116,
+     2730548,
+     431282
+    ]
+   ],
+   "g": [
+    [
+     116,
+     2730548,
+     431282
+    ]
+   ],
+   "candidateIndexes": [
+    7
+   ],
+   "candidateLineOffs": [
+    291904520
+   ]
+  },
+  {
+   "outPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-c1e7c38f-r1.jsonl",
+   "srcPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-c1e7c38f.jsonl",
+   "h": "c1e7c38ff68b42d838c5ec712d515c069bae9fd23034d3531019f75282042b08",
+   "s": 505886,
+   "kind": "primary",
+   "sourceLineOff": 292413175,
+   "segs": [
+    [
+     116,
+     3161830,
+     505886
+    ]
+   ],
+   "g": [
+    [
+     116,
+     3161830,
+     505886
+    ]
+   ],
+   "candidateIndexes": [
+    7
+   ],
+   "candidateLineOffs": [
+    291904520
+   ]
+  },
+  {
+   "outPath": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-e946944d-r1.jsonl",
+   "srcPath": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-e946944d.jsonl",
+   "h": "e946944dada88456d2db3c899c906bf432713a8d0a7dd1e75a27ae91c17d5dc4",
+   "s": 685644,
+   "kind": "primary",
+   "sourceLineOff": 292946185,
+   "segs": [
+    [
+     116,
+     0,
+     685644
+    ]
+   ],
+   "g": [
+    [
+     116,
+     0,
+     685644
+    ]
+   ],
+   "candidateIndexes": [
+    8
+   ],
+   "candidateLineOffs": [
+    292413400
+   ]
+  },
+  {
+   "outPath": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-f877e7ef-r1.jsonl",
+   "srcPath": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-f877e7ef.jsonl",
+   "h": "f877e7ef03c2676146afc85f109a504c2204eac46aedb5095ebfdf65e62cd746",
+   "s": 951121,
+   "kind": "primary",
+   "sourceLineOff": 292946612,
+   "segs": [
+    [
+     116,
+     1332061,
+     951121
+    ]
+   ],
+   "g": [
+    [
+     116,
+     1332061,
+     951121
+    ]
+   ],
+   "candidateIndexes": [
+    8
+   ],
+   "candidateLineOffs": [
+    292413400
+   ]
+  },
+  {
+   "outPath": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-3e65cae0-r1.jsonl",
+   "srcPath": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-3e65cae0.jsonl",
+   "h": "3e65cae06f0b16e585c35cae64b8a9b5d0ff0912c252607c549edfd803bdfb49",
+   "s": 466228,
+   "kind": "primary",
+   "sourceLineOff": 292947046,
+   "segs": [
+    [
+     116,
+     2825540,
+     466228
+    ]
+   ],
+   "g": [
+    [
+     116,
+     2825540,
+     466228
+    ]
+   ],
+   "candidateIndexes": [
+    8
+   ],
+   "candidateLineOffs": [
+    292413400
+   ]
+  },
+  {
+   "outPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-e6c4f7d5-r1.jsonl",
+   "srcPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-e6c4f7d5.jsonl",
+   "h": "e6c4f7d5e92aa644d4c95f3ba634d5954fbad1171df6caeda58544a21869894a",
+   "s": 516298,
+   "kind": "primary",
+   "sourceLineOff": 292947263,
+   "segs": [
+    [
+     116,
+     3291768,
+     516298
+    ]
+   ],
+   "g": [
+    [
+     116,
+     3291768,
+     516298
+    ]
+   ],
+   "candidateIndexes": [
+    8
+   ],
+   "candidateLineOffs": [
+    292413400
+   ]
+  },
+  {
+   "outPath": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00002-ea53796c-r1.jsonl",
+   "srcPath": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00002-ea53796c.jsonl",
+   "h": "ea53796c4ba420e85cd6751f8d94f77b0d69db3bfccb85914be4d713ed27efb4",
+   "s": 608800,
+   "kind": "primary",
+   "sourceLineOff": 293835826,
+   "segs": [
+    [
+     127,
+     0,
+     608800
+    ]
+   ],
+   "g": [
+    [
+     127,
+     0,
+     608800
+    ]
+   ],
+   "candidateIndexes": [
+    0
+   ],
+   "candidateLineOffs": [
+    293640717
+   ]
+  },
+  {
+   "outPath": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00002-19f87ffa-r1.jsonl",
+   "srcPath": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00002-19f87ffa.jsonl",
+   "h": "19f87ffa9aba827df240adffc1e413200b41e722bece8fa1c16e3dac5396f337",
+   "s": 427704,
+   "kind": "primary",
+   "sourceLineOff": 293836037,
+   "segs": [
+    [
+     127,
+     608800,
+     427704
+    ]
+   ],
+   "g": [
+    [
+     127,
+     608800,
+     427704
+    ]
+   ],
+   "candidateIndexes": [
+    0
+   ],
+   "candidateLineOffs": [
+    293640717
+   ]
+  },
+  {
+   "outPath": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00002-e8bdc515-r1.jsonl",
+   "srcPath": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00002-e8bdc515.jsonl",
+   "h": "e8bdc51501af5af01d4d621be2ab046828f77ea53a3c468e232e82dd8d04e132",
+   "s": 355766,
+   "kind": "primary",
+   "sourceLineOff": 293836253,
+   "segs": [
+    [
+     127,
+     1036504,
+     355766
+    ]
+   ],
+   "g": [
+    [
+     127,
+     1036504,
+     355766
+    ]
+   ],
+   "candidateIndexes": [
+    0
+   ],
+   "candidateLineOffs": [
+    293640717
+   ]
+  },
+  {
+   "outPath": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00002-d61f5fa1-r1.jsonl",
+   "srcPath": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00002-d61f5fa1.jsonl",
+   "h": "d61f5fa169078903334d1acac4b3403a9ca40477717b6740d67d72a66da84b26",
+   "s": 55136,
+   "kind": "primary",
+   "sourceLineOff": 293836470,
+   "segs": [
+    [
+     127,
+     1392270,
+     55136
+    ]
+   ],
+   "g": [
+    [
+     127,
+     1392270,
+     55136
+    ]
+   ],
+   "candidateIndexes": [
+    0
+   ],
+   "candidateLineOffs": [
+    293640717
+   ]
+  },
+  {
+   "outPath": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00002-5d294dc5-r1.jsonl",
+   "srcPath": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00002-5d294dc5.jsonl",
+   "h": "5d294dc5b5d81d189fbedd6632028aa5ef655bfd630e129828167eaf414dbd73",
+   "s": 18757,
+   "kind": "primary",
+   "sourceLineOff": 293836685,
+   "segs": [
+    [
+     127,
+     1447406,
+     18757
+    ]
+   ],
+   "g": [
+    [
+     127,
+     1447406,
+     18757
+    ]
+   ],
+   "candidateIndexes": [
+    0
+   ],
+   "candidateLineOffs": [
+    293640717
+   ]
+  },
+  {
+   "outPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00026-bdb40928-r1.jsonl",
+   "srcPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00026-bdb40928.jsonl",
+   "h": "bdb40928ef3156d0ead407f69576b6055c28529afb13c4e7027469eaee7b3f8b",
+   "s": 296037,
+   "kind": "primary",
+   "sourceLineOff": 293836900,
+   "segs": [
+    [
+     127,
+     1466163,
+     296037
+    ]
+   ],
+   "g": [
+    [
+     127,
+     1466163,
+     296037
+    ]
+   ],
+   "candidateIndexes": [
+    0
+   ],
+   "candidateLineOffs": [
+    293640717
+   ]
+  },
+  {
+   "outPath": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00003-c9650d10-r1.jsonl",
+   "srcPath": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00003-c9650d10.jsonl",
+   "h": "c9650d10d32c8ffd23a2241308e9dbec9b199382e64ff57874d0828b6d1dfed8",
+   "s": 216231,
+   "kind": "primary",
+   "sourceLineOff": 294109302,
+   "segs": [
+    [
+     127,
+     0,
+     216231
+    ]
+   ],
+   "g": [
+    [
+     127,
+     0,
+     216231
+    ]
+   ],
+   "candidateIndexes": [
+    1
+   ],
+   "candidateLineOffs": [
+    293837125
+   ]
+  },
+  {
+   "outPath": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00003-e94bcab3-r1.jsonl",
+   "srcPath": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00003-e94bcab3.jsonl",
+   "h": "e94bcab3f66157e4e0f64a8dd0bd49abe1abe013659d64062f12c2c259930c8f",
+   "s": 242005,
+   "kind": "primary",
+   "sourceLineOff": 294109513,
+   "segs": [
+    [
+     127,
+     216231,
+     242005
+    ]
+   ],
+   "g": [
+    [
+     127,
+     216231,
+     242005
+    ]
+   ],
+   "candidateIndexes": [
+    1
+   ],
+   "candidateLineOffs": [
+    293837125
+   ]
+  },
+  {
+   "outPath": "live/56dceca4-7359-4881-8a03-1a73fdaba437/parts/part-00000-3481519d-r1.jsonl",
+   "srcPath": "live/56dceca4-7359-4881-8a03-1a73fdaba437/parts/part-00000-3481519d.jsonl",
+   "h": "3481519d013a0745efd695495fe7ecf58fc4dbb13cbc25e045bae9ec1924db9d",
+   "s": 204142,
+   "kind": "primary",
+   "sourceLineOff": 294109729,
+   "segs": [
+    [
+     127,
+     458236,
+     204142
+    ]
+   ],
+   "g": [
+    [
+     127,
+     458236,
+     204142
+    ]
+   ],
+   "candidateIndexes": [
+    1
+   ],
+   "candidateLineOffs": [
+    293837125
+   ]
+  },
+  {
+   "outPath": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00003-fcb609e6-r1.jsonl",
+   "srcPath": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00003-fcb609e6.jsonl",
+   "h": "fcb609e6a642dc92520cfb3d9d9377f366a026d1dbd3593c106a0bb1977c87a4",
+   "s": 208228,
+   "kind": "primary",
+   "sourceLineOff": 294109945,
+   "segs": [
+    [
+     127,
+     662378,
+     208228
+    ]
+   ],
+   "g": [
+    [
+     127,
+     662378,
+     208228
+    ]
+   ],
+   "candidateIndexes": [
+    1
+   ],
+   "candidateLineOffs": [
+    293837125
+   ]
+  },
+  {
+   "outPath": "live/b2c6bc9d-8f02-4e1d-bed7-58d962379487/parts/part-00000-341ef898-r1.jsonl",
+   "srcPath": "live/b2c6bc9d-8f02-4e1d-bed7-58d962379487/parts/part-00000-341ef898.jsonl",
+   "h": "341ef898a418de477efe5b6bc48c9f178aca19f99ac42b5332d87e60b4c45095",
+   "s": 342772,
+   "kind": "primary",
+   "sourceLineOff": 294110161,
+   "segs": [
+    [
+     127,
+     870606,
+     342772
+    ]
+   ],
+   "g": [
+    [
+     127,
+     870606,
+     342772
+    ]
+   ],
+   "candidateIndexes": [
+    1
+   ],
+   "candidateLineOffs": [
+    293837125
+   ]
+  },
+  {
+   "outPath": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00003-012e7183-r1.jsonl",
+   "srcPath": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00003-012e7183.jsonl",
+   "h": "012e718312844a4df6fa4330f473454a07f47073fc351cd8cf4529c83c132f53",
+   "s": 193830,
+   "kind": "primary",
+   "sourceLineOff": 294110377,
+   "segs": [
+    [
+     127,
+     1213378,
+     193830
+    ]
+   ],
+   "g": [
+    [
+     127,
+     1213378,
+     193830
+    ]
+   ],
+   "candidateIndexes": [
+    1
+   ],
+   "candidateLineOffs": [
+    293837125
+   ]
+  },
+  {
+   "outPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00027-5467f688-r1.jsonl",
+   "srcPath": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00027-5467f688.jsonl",
+   "h": "5467f6881f8eee7fe9981bdbc31da1d0bc426518cf81d65277642750c06783bf",
+   "s": 334463,
+   "kind": "primary",
+   "sourceLineOff": 294110594,
+   "segs": [
+    [
+     127,
+     1407208,
+     334463
+    ]
+   ],
+   "g": [
+    [
+     127,
+     1407208,
+     334463
+    ]
+   ],
+   "candidateIndexes": [
+    1
+   ],
+   "candidateLineOffs": [
+    293837125
+   ]
+  }
+ ],
+ "entries": [
+  {
+   "p": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024.jsonl",
+   "s": 26918,
+   "h": "da5df28a8fe0cb74614fdc8ba3237252b67f6f4bd8e9a8a4589fd383f56db93b",
+   "g": [
+    [
+     116,
+     0,
+     26918
+    ]
+   ],
+   "lineOff": 291422479,
+   "lineLen": 207,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     0
+    ],
+    [
+     1
+    ],
+    [
+     2
+    ],
+    [
+     3
+    ],
+    [
+     4
+    ]
+   ],
+   "hitCount": 5,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": true,
+   "chosen": {
+    "candidateIndexes": [
+     0
+    ],
+    "candidateLineOffs": [
+     291415156
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024.jsonl",
+   "s": 26918,
+   "h": "da5df28a8fe0cb74614fdc8ba3237252b67f6f4bd8e9a8a4589fd383f56db93b",
+   "g": [
+    [
+     116,
+     0,
+     26918
+    ]
+   ],
+   "lineOff": 291430010,
+   "lineLen": 207,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     0
+    ],
+    [
+     1
+    ],
+    [
+     2
+    ],
+    [
+     3
+    ],
+    [
+     4
+    ]
+   ],
+   "hitCount": 5,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": true,
+   "chosen": {
+    "candidateIndexes": [
+     0
+    ],
+    "candidateLineOffs": [
+     291415156
+    ]
+   },
+   "pathOccurrence": 1,
+   "firstOfPath": false
+  },
+  {
+   "p": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024.jsonl",
+   "s": 26918,
+   "h": "da5df28a8fe0cb74614fdc8ba3237252b67f6f4bd8e9a8a4589fd383f56db93b",
+   "g": [
+    [
+     116,
+     0,
+     26918
+    ]
+   ],
+   "lineOff": 291437541,
+   "lineLen": 207,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     0
+    ],
+    [
+     1
+    ],
+    [
+     2
+    ],
+    [
+     3
+    ],
+    [
+     4
+    ]
+   ],
+   "hitCount": 5,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": true,
+   "chosen": {
+    "candidateIndexes": [
+     0
+    ],
+    "candidateLineOffs": [
+     291415156
+    ]
+   },
+   "pathOccurrence": 2,
+   "firstOfPath": false
+  },
+  {
+   "p": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024.jsonl",
+   "s": 26918,
+   "h": "da5df28a8fe0cb74614fdc8ba3237252b67f6f4bd8e9a8a4589fd383f56db93b",
+   "g": [
+    [
+     116,
+     0,
+     26918
+    ]
+   ],
+   "lineOff": 291445072,
+   "lineLen": 207,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     0
+    ],
+    [
+     1
+    ],
+    [
+     2
+    ],
+    [
+     3
+    ],
+    [
+     4
+    ]
+   ],
+   "hitCount": 5,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": true,
+   "chosen": {
+    "candidateIndexes": [
+     0
+    ],
+    "candidateLineOffs": [
+     291415156
+    ]
+   },
+   "pathOccurrence": 3,
+   "firstOfPath": false
+  },
+  {
+   "p": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024.jsonl",
+   "s": 26918,
+   "h": "da5df28a8fe0cb74614fdc8ba3237252b67f6f4bd8e9a8a4589fd383f56db93b",
+   "g": [
+    [
+     116,
+     0,
+     26918
+    ]
+   ],
+   "lineOff": 291452603,
+   "lineLen": 207,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     0
+    ],
+    [
+     1
+    ],
+    [
+     2
+    ],
+    [
+     3
+    ],
+    [
+     4
+    ]
+   ],
+   "hitCount": 5,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": true,
+   "chosen": {
+    "candidateIndexes": [
+     0
+    ],
+    "candidateLineOffs": [
+     291415156
+    ]
+   },
+   "pathOccurrence": 4,
+   "firstOfPath": false
+  },
+  {
+   "p": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000.jsonl",
+   "s": 77616,
+   "h": "a93910d79e7abc5ba7b4fb778cb82bee39b6949ed65cf6cba5ad4494f69940d7",
+   "g": [
+    [
+     116,
+     0,
+     77616
+    ]
+   ],
+   "lineOff": 291506871,
+   "lineLen": 199,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     5
+    ],
+    [
+     6
+    ],
+    [
+     7
+    ],
+    [
+     8
+    ]
+   ],
+   "hitCount": 4,
+   "conventionalLastCandidate": true,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     5
+    ],
+    "candidateLineOffs": [
+     291452811
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000.jsonl",
+   "s": 76713,
+   "h": "e3f0c8925e7d7fb041ad0cf8a996588a702cd90f2130141673b947bd462374e0",
+   "g": [
+    [
+     116,
+     77616,
+     76713
+    ]
+   ],
+   "lineOff": 291507071,
+   "lineLen": 203,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     5
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     5
+    ],
+    "candidateLineOffs": [
+     291452811
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000.jsonl",
+   "s": 116995,
+   "h": "e20090a402cb198570bc81ba15097187e15521585b0529a01757ea106fec224e",
+   "g": [
+    [
+     116,
+     154329,
+     116995
+    ]
+   ],
+   "lineOff": 291507275,
+   "lineLen": 206,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     5
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     5
+    ],
+    "candidateLineOffs": [
+     291452811
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000.jsonl",
+   "s": 80705,
+   "h": "b4f659af139576a14ed4359ccbcd58a38945d4a050082b2ff242c9e1cfbc3cb7",
+   "g": [
+    [
+     116,
+     271324,
+     80705
+    ]
+   ],
+   "lineOff": 291507482,
+   "lineLen": 204,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     5
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     5
+    ],
+    "candidateLineOffs": [
+     291452811
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000.jsonl",
+   "s": 64343,
+   "h": "7943ed401615b2182efb0c597d64de423f33c8d709a434e0f58aa5a65a36ba8b",
+   "g": [
+    [
+     116,
+     352029,
+     64343
+    ]
+   ],
+   "lineOff": 291507687,
+   "lineLen": 204,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     5
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     5
+    ],
+    "candidateLineOffs": [
+     291452811
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024.jsonl",
+   "s": 170515,
+   "h": "ff476c77fe73332fbf02725ace3da467d2103f8836f5ba1ea58b095b3a46edf7",
+   "g": [
+    [
+     116,
+     416372,
+     170515
+    ]
+   ],
+   "lineOff": 291507892,
+   "lineLen": 214,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     5
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     5
+    ],
+    "candidateLineOffs": [
+     291452811
+    ]
+   },
+   "pathOccurrence": 5,
+   "firstOfPath": false
+  },
+  {
+   "p": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000.jsonl",
+   "s": 483735,
+   "h": "00d729d1a58a8f9e31a6d9701111612d36d8801ade871843f4bc0345ee21c4b8",
+   "g": [
+    [
+     116,
+     0,
+     483735
+    ]
+   ],
+   "lineOff": 291903272,
+   "lineLen": 201,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     6
+    ],
+    [
+     7
+    ],
+    [
+     8
+    ]
+   ],
+   "hitCount": 3,
+   "conventionalLastCandidate": true,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     6
+    ],
+    "candidateLineOffs": [
+     291508107
+    ]
+   },
+   "pathOccurrence": 1,
+   "firstOfPath": false
+  },
+  {
+   "p": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000.jsonl",
+   "s": 447306,
+   "h": "fd46ebecc29af71ea430f6cfe8cd665e9c576f8c608e04be15439ef04d74d2fd",
+   "g": [
+    [
+     116,
+     483735,
+     447306
+    ]
+   ],
+   "lineOff": 291903474,
+   "lineLen": 206,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     6
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     6
+    ],
+    "candidateLineOffs": [
+     291508107
+    ]
+   },
+   "pathOccurrence": 1,
+   "firstOfPath": false
+  },
+  {
+   "p": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000.jsonl",
+   "s": 720445,
+   "h": "9432d31971576efb591e58eb624565f4a323f4c8cc5eb746339d7657ed39c399",
+   "g": [
+    [
+     116,
+     931041,
+     720445
+    ]
+   ],
+   "lineOff": 291903681,
+   "lineLen": 206,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     6
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     6
+    ],
+    "candidateLineOffs": [
+     291508107
+    ]
+   },
+   "pathOccurrence": 1,
+   "firstOfPath": false
+  },
+  {
+   "p": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000.jsonl",
+   "s": 468223,
+   "h": "86ca6acfbf25c76ef24c7e3151027ae2d26cda5111e5caf8115ec5f3c83e5085",
+   "g": [
+    [
+     116,
+     1651486,
+     468223
+    ]
+   ],
+   "lineOff": 291903888,
+   "lineLen": 207,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     6
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     6
+    ],
+    "candidateLineOffs": [
+     291508107
+    ]
+   },
+   "pathOccurrence": 1,
+   "firstOfPath": false
+  },
+  {
+   "p": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000.jsonl",
+   "s": 360268,
+   "h": "3002d315a9eba0906420b5a9bf6d1266ba565f94590596371fadf38690cd8150",
+   "g": [
+    [
+     116,
+     2119709,
+     360268
+    ]
+   ],
+   "lineOff": 291904096,
+   "lineLen": 207,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     6
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     6
+    ],
+    "candidateLineOffs": [
+     291508107
+    ]
+   },
+   "pathOccurrence": 1,
+   "firstOfPath": false
+  },
+  {
+   "p": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024.jsonl",
+   "s": 374480,
+   "h": "e4be32f59f4b94c41cbae8da31863586d82b05fdc1a6b55e38142ba56ddfc396",
+   "g": [
+    [
+     116,
+     2479977,
+     374480
+    ]
+   ],
+   "lineOff": 291904304,
+   "lineLen": 215,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     6
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     6
+    ],
+    "candidateLineOffs": [
+     291508107
+    ]
+   },
+   "pathOccurrence": 6,
+   "firstOfPath": false
+  },
+  {
+   "p": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-caef9a38.jsonl",
+   "s": 609119,
+   "h": "caef9a38aadf0a23bb8f89cebeaf35f27f4f1bbd498b5e644ef271da1f0025d3",
+   "g": [
+    [
+     116,
+     0,
+     609119
+    ]
+   ],
+   "lineOff": 292412097,
+   "lineLen": 210,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     7
+    ],
+    [
+     8
+    ]
+   ],
+   "hitCount": 2,
+   "conventionalLastCandidate": true,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     7
+    ],
+    "candidateLineOffs": [
+     291904520
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000-8e6953a1.jsonl",
+   "s": 646417,
+   "h": "8e6953a1d4bac0f0917a2544b3aaa979cc8a81676db1cf144f2fbdee0f7963fc",
+   "g": [
+    [
+     116,
+     609119,
+     646417
+    ]
+   ],
+   "lineOff": 292412308,
+   "lineLen": 215,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     7
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     7
+    ],
+    "candidateLineOffs": [
+     291904520
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-2ac4ad44.jsonl",
+   "s": 932654,
+   "h": "2ac4ad441170719e622558bacd7897c7ff322a7c3704e0f44abf424373a97e3b",
+   "g": [
+    [
+     116,
+     1255536,
+     932654
+    ]
+   ],
+   "lineOff": 292412524,
+   "lineLen": 216,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     7
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     7
+    ],
+    "candidateLineOffs": [
+     291904520
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000-5fae1e87.jsonl",
+   "s": 542358,
+   "h": "5fae1e8718942dfd8709f5d4cbf51a4fe1fac170f4e498bc014f3f9cce2977d1",
+   "g": [
+    [
+     116,
+     2188190,
+     542358
+    ]
+   ],
+   "lineOff": 292412741,
+   "lineLen": 216,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     7
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     7
+    ],
+    "candidateLineOffs": [
+     291904520
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-2eaac2dd.jsonl",
+   "s": 431282,
+   "h": "2eaac2ddf67460d1e15bfc3230dbd30bdeb020208dffe1937cdc6cfe497d056e",
+   "g": [
+    [
+     116,
+     2730548,
+     431282
+    ]
+   ],
+   "lineOff": 292412958,
+   "lineLen": 216,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     7
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     7
+    ],
+    "candidateLineOffs": [
+     291904520
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-c1e7c38f.jsonl",
+   "s": 505886,
+   "h": "c1e7c38ff68b42d838c5ec712d515c069bae9fd23034d3531019f75282042b08",
+   "g": [
+    [
+     116,
+     3161830,
+     505886
+    ]
+   ],
+   "lineOff": 292413175,
+   "lineLen": 224,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     7
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     7
+    ],
+    "candidateLineOffs": [
+     291904520
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-e946944d.jsonl",
+   "s": 685644,
+   "h": "e946944dada88456d2db3c899c906bf432713a8d0a7dd1e75a27ae91c17d5dc4",
+   "g": [
+    [
+     116,
+     0,
+     685644
+    ]
+   ],
+   "lineOff": 292946185,
+   "lineLen": 210,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     8
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": true,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     8
+    ],
+    "candidateLineOffs": [
+     292413400
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000-8e6953a1.jsonl",
+   "s": 646417,
+   "h": "8e6953a1d4bac0f0917a2544b3aaa979cc8a81676db1cf144f2fbdee0f7963fc",
+   "g": [
+    [
+     116,
+     685644,
+     646417
+    ]
+   ],
+   "lineOff": 292946396,
+   "lineLen": 215,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     8
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": true,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     8
+    ],
+    "candidateLineOffs": [
+     292413400
+    ]
+   },
+   "pathOccurrence": 1,
+   "firstOfPath": false
+  },
+  {
+   "p": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-f877e7ef.jsonl",
+   "s": 951121,
+   "h": "f877e7ef03c2676146afc85f109a504c2204eac46aedb5095ebfdf65e62cd746",
+   "g": [
+    [
+     116,
+     1332061,
+     951121
+    ]
+   ],
+   "lineOff": 292946612,
+   "lineLen": 216,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     8
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": true,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     8
+    ],
+    "candidateLineOffs": [
+     292413400
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000-5fae1e87.jsonl",
+   "s": 542358,
+   "h": "5fae1e8718942dfd8709f5d4cbf51a4fe1fac170f4e498bc014f3f9cce2977d1",
+   "g": [
+    [
+     116,
+     2283182,
+     542358
+    ]
+   ],
+   "lineOff": 292946829,
+   "lineLen": 216,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     8
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": true,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     8
+    ],
+    "candidateLineOffs": [
+     292413400
+    ]
+   },
+   "pathOccurrence": 1,
+   "firstOfPath": false
+  },
+  {
+   "p": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-3e65cae0.jsonl",
+   "s": 466228,
+   "h": "3e65cae06f0b16e585c35cae64b8a9b5d0ff0912c252607c549edfd803bdfb49",
+   "g": [
+    [
+     116,
+     2825540,
+     466228
+    ]
+   ],
+   "lineOff": 292947046,
+   "lineLen": 216,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     8
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": true,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     8
+    ],
+    "candidateLineOffs": [
+     292413400
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-e6c4f7d5.jsonl",
+   "s": 516298,
+   "h": "e6c4f7d5e92aa644d4c95f3ba634d5954fbad1171df6caeda58544a21869894a",
+   "g": [
+    [
+     116,
+     3291768,
+     516298
+    ]
+   ],
+   "lineOff": 292947263,
+   "lineLen": 224,
+   "dupIdsUsed": [
+    116
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     8
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": true,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     8
+    ],
+    "candidateLineOffs": [
+     292413400
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00002-ea53796c.jsonl",
+   "s": 608800,
+   "h": "ea53796c4ba420e85cd6751f8d94f77b0d69db3bfccb85914be4d713ed27efb4",
+   "g": [
+    [
+     127,
+     0,
+     608800
+    ]
+   ],
+   "lineOff": 293835826,
+   "lineLen": 210,
+   "dupIdsUsed": [
+    127
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     0
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": true,
+   "chosen": {
+    "candidateIndexes": [
+     0
+    ],
+    "candidateLineOffs": [
+     293640717
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00002-19f87ffa.jsonl",
+   "s": 427704,
+   "h": "19f87ffa9aba827df240adffc1e413200b41e722bece8fa1c16e3dac5396f337",
+   "g": [
+    [
+     127,
+     608800,
+     427704
+    ]
+   ],
+   "lineOff": 293836037,
+   "lineLen": 215,
+   "dupIdsUsed": [
+    127
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     0
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": true,
+   "chosen": {
+    "candidateIndexes": [
+     0
+    ],
+    "candidateLineOffs": [
+     293640717
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00002-e8bdc515.jsonl",
+   "s": 355766,
+   "h": "e8bdc51501af5af01d4d621be2ab046828f77ea53a3c468e232e82dd8d04e132",
+   "g": [
+    [
+     127,
+     1036504,
+     355766
+    ]
+   ],
+   "lineOff": 293836253,
+   "lineLen": 216,
+   "dupIdsUsed": [
+    127
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     0
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": true,
+   "chosen": {
+    "candidateIndexes": [
+     0
+    ],
+    "candidateLineOffs": [
+     293640717
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00002-d61f5fa1.jsonl",
+   "s": 55136,
+   "h": "d61f5fa169078903334d1acac4b3403a9ca40477717b6740d67d72a66da84b26",
+   "g": [
+    [
+     127,
+     1392270,
+     55136
+    ]
+   ],
+   "lineOff": 293836470,
+   "lineLen": 214,
+   "dupIdsUsed": [
+    127
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     0
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": true,
+   "chosen": {
+    "candidateIndexes": [
+     0
+    ],
+    "candidateLineOffs": [
+     293640717
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00002-5d294dc5.jsonl",
+   "s": 18757,
+   "h": "5d294dc5b5d81d189fbedd6632028aa5ef655bfd630e129828167eaf414dbd73",
+   "g": [
+    [
+     127,
+     1447406,
+     18757
+    ]
+   ],
+   "lineOff": 293836685,
+   "lineLen": 214,
+   "dupIdsUsed": [
+    127
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     0
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": true,
+   "chosen": {
+    "candidateIndexes": [
+     0
+    ],
+    "candidateLineOffs": [
+     293640717
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00026-bdb40928.jsonl",
+   "s": 296037,
+   "h": "bdb40928ef3156d0ead407f69576b6055c28529afb13c4e7027469eaee7b3f8b",
+   "g": [
+    [
+     127,
+     1466163,
+     296037
+    ]
+   ],
+   "lineOff": 293836900,
+   "lineLen": 224,
+   "dupIdsUsed": [
+    127
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     0
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": false,
+   "conventionalFirstCandidate": true,
+   "chosen": {
+    "candidateIndexes": [
+     0
+    ],
+    "candidateLineOffs": [
+     293640717
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00003-c9650d10.jsonl",
+   "s": 216231,
+   "h": "c9650d10d32c8ffd23a2241308e9dbec9b199382e64ff57874d0828b6d1dfed8",
+   "g": [
+    [
+     127,
+     0,
+     216231
+    ]
+   ],
+   "lineOff": 294109302,
+   "lineLen": 210,
+   "dupIdsUsed": [
+    127
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     1
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": true,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     1
+    ],
+    "candidateLineOffs": [
+     293837125
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00003-e94bcab3.jsonl",
+   "s": 242005,
+   "h": "e94bcab3f66157e4e0f64a8dd0bd49abe1abe013659d64062f12c2c259930c8f",
+   "g": [
+    [
+     127,
+     216231,
+     242005
+    ]
+   ],
+   "lineOff": 294109513,
+   "lineLen": 215,
+   "dupIdsUsed": [
+    127
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     1
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": true,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     1
+    ],
+    "candidateLineOffs": [
+     293837125
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/56dceca4-7359-4881-8a03-1a73fdaba437/parts/part-00000-3481519d.jsonl",
+   "s": 204142,
+   "h": "3481519d013a0745efd695495fe7ecf58fc4dbb13cbc25e045bae9ec1924db9d",
+   "g": [
+    [
+     127,
+     458236,
+     204142
+    ]
+   ],
+   "lineOff": 294109729,
+   "lineLen": 215,
+   "dupIdsUsed": [
+    127
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     1
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": true,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     1
+    ],
+    "candidateLineOffs": [
+     293837125
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00003-fcb609e6.jsonl",
+   "s": 208228,
+   "h": "fcb609e6a642dc92520cfb3d9d9377f366a026d1dbd3593c106a0bb1977c87a4",
+   "g": [
+    [
+     127,
+     662378,
+     208228
+    ]
+   ],
+   "lineOff": 294109945,
+   "lineLen": 215,
+   "dupIdsUsed": [
+    127
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     1
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": true,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     1
+    ],
+    "candidateLineOffs": [
+     293837125
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/b2c6bc9d-8f02-4e1d-bed7-58d962379487/parts/part-00000-341ef898.jsonl",
+   "s": 342772,
+   "h": "341ef898a418de477efe5b6bc48c9f178aca19f99ac42b5332d87e60b4c45095",
+   "g": [
+    [
+     127,
+     870606,
+     342772
+    ]
+   ],
+   "lineOff": 294110161,
+   "lineLen": 215,
+   "dupIdsUsed": [
+    127
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     1
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": true,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     1
+    ],
+    "candidateLineOffs": [
+     293837125
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00003-012e7183.jsonl",
+   "s": 193830,
+   "h": "012e718312844a4df6fa4330f473454a07f47073fc351cd8cf4529c83c132f53",
+   "g": [
+    [
+     127,
+     1213378,
+     193830
+    ]
+   ],
+   "lineOff": 294110377,
+   "lineLen": 216,
+   "dupIdsUsed": [
+    127
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     1
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": true,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     1
+    ],
+    "candidateLineOffs": [
+     293837125
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  },
+  {
+   "p": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00027-5467f688.jsonl",
+   "s": 334463,
+   "h": "5467f6881f8eee7fe9981bdbc31da1d0bc426518cf81d65277642750c06783bf",
+   "g": [
+    [
+     127,
+     1407208,
+     334463
+    ]
+   ],
+   "lineOff": 294110594,
+   "lineLen": 224,
+   "dupIdsUsed": [
+    127
+   ],
+   "status": "recovered",
+   "hitCombos": [
+    [
+     1
+    ]
+   ],
+   "hitCount": 1,
+   "conventionalLastCandidate": true,
+   "conventionalFirstCandidate": false,
+   "chosen": {
+    "candidateIndexes": [
+     1
+    ],
+    "candidateLineOffs": [
+     293837125
+    ]
+   },
+   "pathOccurrence": 0,
+   "firstOfPath": true
+  }
+ ],
+ "notes": [
+  "candidate index 0..N-1 is the file order of chunk lines with the duplicated id",
+  "conventionalLastCandidate mirrors work/restore-history.ps1 behaviour (last chunk line wins for a duplicated id)",
+  "chosen.candidateLineOffs are absolute byte offsets of the winning chunk line; stable under append-only growth"
+ ]
+}

@@ -21,22 +21,40 @@
       all: 'All products', product: 'Product', version: 'Version', published: 'Published',
       platform: 'Platform', files: 'Files', bundle: 'Archive (.zst)', noBundle: 'the .zst for this platform is not built yet',
       sizes: 'Total', open: 'Release page', recentNote: 'Releases from the last year are on the download page.',
-      count: 'releases'
+      count: 'releases',
+      snapshotNotice: 'Note: the Chinese site reads Gitee, but the Gitee mirror is not published yet; this archive comes from the local snapshot built into this site and the links may not work until the mirror exists. Manual exit (a hand click; this page never requests GitHub automatically):',
+      githubExit: 'Open the matching repository on GitHub'
     },
     zh: {
       loading: '正在加载归档…', failed: '暂时无法获取归档。',
       all: '全部产品', product: '产品', version: '版本', published: '发布时间',
       platform: '平台', files: '文件', bundle: '归档（.zst）', noBundle: '该平台的 .zst 归档包尚未生成',
       sizes: '合计', open: 'Release 页', recentNote: '一年内的版本在下载页。',
-      count: '个版本'
+      count: '个版本',
+      snapshotNotice: '注意：中文站的内容源为 Gitee，但 Gitee 镜像尚未就绪，以下归档来自本站内置的本地快照，链接在镜像就绪前可能不可用。人工出口（需手动点击，本站不会自动请求 GitHub）：',
+      githubExit: '在 GitHub 上打开对应仓库'
     }
   };
   function lang() {
+    if (window.INFINITY && window.INFINITY.i18n && window.INFINITY.i18n.lang) return window.INFINITY.i18n.lang();
+    var path = '';
+    try { path = String(location.pathname || ''); } catch (e) { path = ''; }
+    if (/(^|\/)cn(\/|$)/.test(path)) return 'zh';
     var l = (document.documentElement.getAttribute('lang') || 'en').toLowerCase();
     return l.indexOf('zh') === 0 ? 'zh' : 'en';
   }
   function t(k) { return TEXT[lang()][k] || k; }
   function el(tag, attrs, kids) { return I.el(tag, attrs, kids); }
+  /* The archive reads the local snapshot, whose URLs were written for GitHub.
+   * Every link is resolved for this page's language here: GitHub in English,
+   * Gitee in Chinese. */
+  function M(url) {
+    if (window.INFINITY && window.INFINITY.sources &&
+        typeof window.INFINITY.sources.mirror === 'function') {
+      return window.INFINITY.sources.mirror(url, lang());
+    }
+    return url;
+  }
   function bytes(n) {
     if (!n && n !== 0) return '';
     var u = ['B', 'KB', 'MB', 'GB'], i = 0;
@@ -51,6 +69,23 @@
     return d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate());
   }
 
+  /* See download.js: the archive reads the local snapshot, so on a Chinese
+   * page whose Gitee mirror is not published yet, say so and offer the GitHub
+   * page as a hand-clicked exit. No request is made to GitHub. */
+  function pending(host) {
+    if (lang() !== 'zh') return;
+    var other = (I.sources && typeof I.sources.other === 'function') ? I.sources.other() : null;
+    var note = el('p', { class: 'small faint' });
+    note.appendChild(document.createTextNode(t('snapshotNotice')));
+    if (other) {
+      note.appendChild(el('a', {
+        class: 'github-exit',
+        href: other.web, target: '_blank', rel: 'noopener', text: t('githubExit')
+      }));
+    }
+    host.appendChild(note);
+  }
+
   function render(host) {
     var box = el('div', { class: 'arc' });
     host.appendChild(box);
@@ -61,7 +96,8 @@
       .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function (data) {
         I.clear(box);
-        var products = (I.products || []).filter(function (p) { return data.repos[p.repo]; });
+        pending(box);
+        var products = (I.PRODUCTS || []).filter(function (p) { return data.repos[p.repo]; });
         if (!products.length) { box.appendChild(el('p', { class: 'dl-state', text: t('failed') })); return; }
         products.forEach(function (p) {
           box.appendChild(productSection(p, data.repos[p.repo], (data.bundles && data.bundles[p.repo]) || []));
@@ -129,7 +165,7 @@
         line.appendChild(el('span', { class: 'dl-date', text: when(group.release.published_at) }));
         if (bundle.length) {
           bundle.forEach(function (f) {
-            var url = f.asset ? f.asset.browser_download_url : f.url;
+            var url = M(f.asset ? f.asset.browser_download_url : f.url);
             var size = f.asset ? f.asset.size : f.size;
             var label = t('bundle') + ' \u00b7 ' + bytes(size);
             if (f.sha256) label += ' \u00b7 sha256:' + String(f.sha256).slice(0, 10) + '\u2026';
@@ -139,10 +175,10 @@
           var bits = group.files.filter(function (f) { return f.parsed.ext !== 'zst'; });
           line.appendChild(el('span', { class: 'faint small', text: t('noBundle') }));
           bits.forEach(function (f) {
-            line.appendChild(el('a', { class: 'arc-file', href: f.asset.browser_download_url, text: f.asset.name + ' (' + bytes(f.asset.size) + ')' }));
+            line.appendChild(el('a', { class: 'arc-file', href: M(f.asset.browser_download_url), text: f.asset.name + ' (' + bytes(f.asset.size) + ')' }));
           });
         }
-        line.appendChild(el('a', { class: 'dl-openrel', href: group.release.html_url, text: t('open') }));
+        line.appendChild(el('a', { class: 'dl-openrel', href: M(group.release.html_url), text: t('open') }));
         body.appendChild(line);
       });
 

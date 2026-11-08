@@ -1,0 +1,2 @@
+InfinityCloud_1.0.0-pre5_win64_setup.exe Infinity.Inc InfinityCloud setup Infinity.Inc win64
+InfinityPackageManager_1.0.0-pre5_win64_setup.exe Infinity.Inc InfinityPackageManager setup Infinity.Inc win64

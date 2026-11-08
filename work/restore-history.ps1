@@ -1,4 +1,4 @@
-<#
+﻿<#
   restore-history.ps1 - Independent restore tool for the Infinity.Inc history archive.
   Author: hist-restorer. Independent implementation; does NOT call work/unpack-history.mjs.
 
@@ -36,6 +36,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 $script:sw = [System.Diagnostics.Stopwatch]::StartNew()
 
@@ -47,8 +48,47 @@ $Archive  = [IO.Path]::GetFullPath($Archive)
 $Manifest = [IO.Path]::GetFullPath($Manifest)
 $OutDir   = [IO.Path]::GetFullPath($OutDir)
 
+# `node` is not on PATH in every host that runs this script (the scheduled sync task
+# starts with a stripped environment), and a missing interpreter used to surface as a
+# CommandNotFoundException in the middle of the brotli decode. Resolve one here instead.
+if (-not (Get-Command $NodeExe -ErrorAction SilentlyContinue)) {
+    $candidates = New-Object System.Collections.Generic.List[string]
+    [void]$candidates.Add((Join-Path $repoRoot 'temp\tools\runtimes\win-x64\node-v22.11.0-win-x64\node.exe'))
+    [void]$candidates.Add('D:\program\nodejs\node.exe')
+    if ($env:ProgramFiles) { [void]$candidates.Add((Join-Path $env:ProgramFiles 'nodejs\node.exe')) }
+    if ($env:SystemDrive)  { [void]$candidates.Add((Join-Path $env:SystemDrive 'program\nodejs\node.exe')) }
+    foreach ($c in $candidates) {
+        if ($c -and (Test-Path -LiteralPath $c)) { $NodeExe = $c; break }
+    }
+}
+if (-not (Get-Command $NodeExe -ErrorAction SilentlyContinue)) {
+    throw "no node interpreter found (looked for '$NodeExe' and the bundled runtimes)"
+}
+
 function Write-Info([string]$msg) { Write-Host $msg }
 
+# Runs the node helper and returns its exit code.
+#
+# A plain `& $NodeExe ...` silently does nothing when this script is started by a host
+# that hands PowerShell no usable stdio pipes - the scheduled sync task and the e2e
+# harness both do, and the symptom is a chunk decode that 'fails' without any output.
+# Start-Process -Wait is the form that actually launches the child in those hosts.
+function Invoke-Node([string]$scriptPath, [object[]]$nodeArgs) {
+    $stamp = [Guid]::NewGuid().ToString('N')
+    $errFile = Join-Path ([IO.Path]::GetTempPath()) ('hist-restore-err-' + $stamp + '.txt')
+    $outFile = Join-Path ([IO.Path]::GetTempPath()) ('hist-restore-out-' + $stamp + '.txt')
+    $argList = New-Object System.Collections.Generic.List[string]
+    [void]$argList.Add($scriptPath)
+    foreach ($a in $nodeArgs) { [void]$argList.Add([string]$a) }
+    $p = Start-Process -FilePath $NodeExe -ArgumentList $argList -Wait -PassThru -NoNewWindow `
+        -RedirectStandardError $errFile -RedirectStandardOutput $outFile
+    $rc = $p.ExitCode
+    if ($rc -ne 0) {
+        if (Test-Path -LiteralPath $errFile) { Write-Info ('[node stderr] ' + (Get-Content -LiteralPath $errFile -Raw)) }
+    }
+    Remove-Item -LiteralPath $errFile,$outFile -Force -ErrorAction SilentlyContinue
+    return $rc
+}
 function ConvertFrom-JsonEscaped([string]$s) {
     if ($s.IndexOf([char]92) -lt 0) { return $s }
     $sb = New-Object System.Text.StringBuilder ($s.Length + 8)
@@ -105,13 +145,30 @@ Write-Info ("[header] files={0} blobs={1} chunks={2} chunkBytes={3} uniqueBytes=
 
 # ---------------------------------------------------------------- load manifest
 $manifestHash = @{}
+$manifestAlias = @{}
 if (Test-Path -LiteralPath $Manifest) {
     $raw = [IO.File]::ReadAllText($Manifest, [Text.Encoding]::UTF8)
     $rx = [regex]'"p":"((?:[^"\\]|\\.)*)","s":(\d+),"m":(\d+),"h":"([0-9a-f]{64})"'
     foreach ($m in $rx.Matches($raw)) {
         $p = ConvertFrom-JsonEscaped $m.Groups[1].Value
-        $manifestHash[$p] = $m.Groups[4].Value
+        # First occurrence wins, matching Add-Pick below: in an append-only archive a path can
+        # appear more than once, and the restored bytes come from the first occurrence. Taking the
+        # last hash here made every multi-entry path report a false mismatch.
+        if (-not $manifestHash.ContainsKey($p)) { $manifestHash[$p] = $m.Groups[4].Value }
     }
+    # Optional alias table (work/history-manifest-aliases.json): for historical paths whose
+    # entry references a duplicated chunk id, point the entry pointer at the repaired copy
+    # (-r1) so the path still restores its authoritative bytes.
+    # Producer: work/build-manifest.mjs; evidence: work/archive-resolution-map.json.
+    $manifestDir = [IO.Path]::GetDirectoryName($Manifest)
+    $aliasFile = if ($manifestDir) { [IO.Path]::Combine($manifestDir, 'history-manifest-aliases.json') } else { $null }
+    if ($aliasFile -and (Test-Path -LiteralPath $aliasFile)) {
+        try {
+            $aj = [IO.File]::ReadAllText($aliasFile, [Text.Encoding]::UTF8) | ConvertFrom-Json
+            foreach ($prop in $aj.PSObject.Properties) { $manifestAlias[[string]$prop.Name] = [string]$prop.Value }
+        } catch { Write-Info ('[alias] alias file not parsed: ' + $_.Exception.Message) }
+    }
+    if ($manifestAlias.Count -gt 0) { Write-Info ("[alias] manifest carries {0} path alias(es)" -f $manifestAlias.Count) }
     Write-Info ("[manifest] {0} sha256 entries (header.files={1})" -f $manifestHash.Count, $header.files)
     if ($manifestHash.Count -ne [int]$header.files) {
         Write-Info ("[warn] manifest entries {0} != header files {1}" -f $manifestHash.Count, $header.files)
@@ -162,12 +219,12 @@ while ($true) {
                     $g = $mm.Groups[5].Value
                     $ck = New-Object 'System.Collections.Generic.HashSet[int]'
                     foreach ($sm in $segRx.Matches($g)) { [void]$ck.Add([int]$sm.Groups[1].Value) }
-                    $e = New-Object psobject -Property @{ P = $p; S = $s; ChunkCount = $ck.Count; LineOff = $lineOff; LineLen = $lineLen }
+                    $e = New-Object psobject -Property @{ P = $p; S = $s; H = $mm.Groups[4].Value; M = [int64]$mm.Groups[3].Value; ChunkCount = $ck.Count; LineOff = $lineOff; LineLen = $lineLen }
                 } else {
                     $o = $line | ConvertFrom-Json
                     $ck = New-Object 'System.Collections.Generic.HashSet[int]'
                     foreach ($sg in @($o.g)) { [void]$ck.Add([int]$sg[0]) }
-                    $e = New-Object psobject -Property @{ P = [string]$o.p; S = [int64]$o.s; ChunkCount = $ck.Count; LineOff = $lineOff; LineLen = $lineLen }
+                    $e = New-Object psobject -Property @{ P = [string]$o.p; S = [int64]$o.s; H = [string]$o.h; M = [int64]$o.m; ChunkCount = $ck.Count; LineOff = $lineOff; LineLen = $lineLen }
                 }
                 [void]$entries.Add($e)
                 $entrySeen++
@@ -185,6 +242,45 @@ if ($carry -gt 0) { throw "trailing partial line at EOF (carry=$carry)" }
 $fs.Close()
 $scanSw.Stop()
 Write-Info ("[scan] done entries={0} chunks={1} in {2:N1}s" -f $entries.Count, $chunkMap.Count, $scanSw.Elapsed.TotalSeconds)
+
+# ---------------------------------------------------------------- duplicate paths
+# 归档是追加式的：同一路径可能有多条条目。build-manifest.mjs 与文档约定都是
+# "首次出现为准"，还原必须一致——否则同一路径的后续条目会覆盖先前输出，
+# 让还原结果与 manifest 的哈希比对出现假失败。
+$byPath = @{}
+$unique = New-Object 'System.Collections.Generic.List[object]'
+$dupeExtra = 0
+$dupeDiffer = 0
+foreach ($e in $entries) {
+    if ($byPath.ContainsKey($e.P)) {
+        $dupeExtra++
+        if ($byPath[$e.P].H -ne $e.H) { $dupeDiffer++ }
+    } else {
+        $byPath[$e.P] = $e
+        [void]$unique.Add($e)
+    }
+}
+if ($dupeExtra -gt 0) {
+    Write-Info ("[dedupe] {0} extra entry(ies) for repeated path(s); kept the first occurrence ({1} differ from a later version)" -f $dupeExtra, $dupeDiffer)
+}
+
+# ---------------------------------------------------------------- path aliases
+if ($manifestAlias -and $manifestAlias.Count -gt 0) {
+    # $byPath 已在扫描后按"首次出现"建好，这里直接复用
+    $appliedAlias = 0
+    foreach ($e in $entries) {
+        if ($manifestAlias.ContainsKey($e.P)) {
+            $ap = $manifestAlias[$e.P]
+            if ($byPath.ContainsKey($ap)) {
+                $ae = $byPath[$ap]
+                $e.LineOff = $ae.LineOff; $e.LineLen = $ae.LineLen; $e.S = $ae.S; $e.ChunkCount = $ae.ChunkCount
+                $appliedAlias++
+            }
+            [void]$manifestAlias.Remove($e.P)
+        }
+    }
+    Write-Info ("[alias] applied {0} alias(es)" -f $appliedAlias)
+}
 
 # ---------------------------------------------------------------- sampling
 $selSw = [System.Diagnostics.Stopwatch]::StartNew()
@@ -210,41 +306,41 @@ $stats = @{ largest = 0; zeroTotal = 0; zeroPicked = 0; chineseTotal = 0; chines
 if ($Path -and $Path.Count -gt 0) {
     $want = New-Object 'System.Collections.Generic.HashSet[string]'
     foreach ($x in $Path) { [void]$want.Add($x.Replace('\', '/')) }
-    foreach ($e in $entries) { if ($want.Contains($e.P)) { Add-Pick $e } }
+    foreach ($e in $unique) { if ($want.Contains($e.P)) { Add-Pick $e } }
     foreach ($x in $want) { if (-not $picked.Contains($x)) { Write-Info ("[warn] path not found in archive: {0}" -f $x) } }
 } elseif ($All) {
-    foreach ($e in $entries) { Add-Pick $e }
-    $stats.largest = [Math]::Min($TopLargest, $entries.Count)
+    foreach ($e in $unique) { Add-Pick $e }
+    $stats.largest = [Math]::Min($TopLargest, $unique.Count)
 } else {
     $bySize = New-Object 'System.Collections.Generic.List[object]'
-    foreach ($e in ($entries | Sort-Object -Property @{Expression={$_.S};Descending=$true}, @{Expression={$_.P};Descending=$false})) { [void]$bySize.Add($e) }
+    foreach ($e in ($unique | Sort-Object -Property @{Expression={$_.S};Descending=$true}, @{Expression={$_.P};Descending=$false})) { [void]$bySize.Add($e) }
     $topN = [Math]::Min($TopLargest, $bySize.Count)
     for ($i = 0; $i -lt $topN; $i++) { Add-Pick $bySize[$i] }
     $stats.largest = $topN
 
     $zeros = New-Object 'System.Collections.Generic.List[object]'
-    foreach ($e in $entries) { if ($e.S -eq 0) { [void]$zeros.Add($e) } }
+    foreach ($e in $unique) { if ($e.S -eq 0) { [void]$zeros.Add($e) } }
     $stats.zeroTotal = $zeros.Count
     $before = $sel.Count
     foreach ($e in $zeros) { Add-Pick $e }
     $stats.zeroPicked = $sel.Count - $before
 
     $cn = New-Object 'System.Collections.Generic.List[object]'
-    foreach ($e in $entries) { if ($e.P -match '[^\x00-\x7F]') { [void]$cn.Add($e) } }
+    foreach ($e in $unique) { if ($e.P -match '[^\x00-\x7F]') { [void]$cn.Add($e) } }
     $stats.chineseTotal = $cn.Count
     $before = $sel.Count
     Pick-Evenly $cn $ChineseSample
     $stats.chinesePicked = $sel.Count - $before
 
     $cross = New-Object 'System.Collections.Generic.List[object]'
-    foreach ($e in $entries) { if ($e.ChunkCount -ge 2) { [void]$cross.Add($e) } }
+    foreach ($e in $unique) { if ($e.ChunkCount -ge 2) { [void]$cross.Add($e) } }
     $stats.crossTotal = $cross.Count
     $before = $sel.Count
     Pick-Evenly $cross $CrossChunkSample
     $stats.crossPicked = $sel.Count - $before
 
     $pool = New-Object 'System.Collections.Generic.List[object]'
-    foreach ($e in $entries) { if (-not $picked.Contains($e.P)) { [void]$pool.Add($e) } }
+    foreach ($e in $unique) { if (-not $picked.Contains($e.P)) { [void]$pool.Add($e) } }
     $rnd = New-Object System.Random($Seed)
     $target = [Math]::Max($MinSample, $sel.Count + $RandomFill)
     while ($sel.Count -lt $target -and $pool.Count -gt 0) {
@@ -314,8 +410,8 @@ $decoded = 0
 foreach ($ci in $need) {
     $info = $chunkMap[$ci]
     $outChunk = Join-Path $tempRoot ("chunk_$ci.bin")
-    & $NodeExe $jsPath $Archive $info.Off $info.Len $outChunk $info.N
-    if ($LASTEXITCODE -ne 0) { throw "chunk $ci brotli decode failed exit=$LASTEXITCODE" }
+    $rc = Invoke-Node $jsPath @($Archive, $info.Off, $info.Len, $outChunk, $info.N)
+    if ($rc -ne 0) { throw "chunk $ci brotli decode failed exit=$rc" }
     $chunkFiles[$ci] = $outChunk
     $decoded++
     if (($decoded % 20) -eq 0) { Write-Info ("[decompress] {0}/{1} chunks, {2:N1}s" -f $decoded, $need.Count, $decSw.Elapsed.TotalSeconds) }

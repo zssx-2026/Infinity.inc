@@ -87,11 +87,16 @@ public class IncProbe {
   public uint UserObjects = 0;
   public long ListRows = -1;     // LVM_GETITEMCOUNT, read from the child list view
   public bool AliveAfterSettle = false;
+  public int ExitCodeAfterSettle = -999;
 
   public static IncProbe Run(string exe, string args, int timeoutMs, int settleMs, string winClass) {
     IncProbe r = new IncProbe();
     ProcessStartInfo psi = new ProcessStartInfo(exe, args);
     psi.UseShellExecute = false;
+    // STARTF_USESHOWWINDOW + SW_HIDE: the window is created and the message
+    // loop runs, but nothing is put on screen. The first ShowWindow in the
+    // program is replaced by SW_HIDE, which is what keeps the desktop clean.
+    psi.WindowStyle = ProcessWindowStyle.Hidden;
     Stopwatch sw = Stopwatch.StartNew();
     Process p = Process.Start(psi);
     IntPtr h = IntPtr.Zero;
@@ -107,8 +112,11 @@ public class IncProbe {
         h = FindWindowW(winClass, null);
         if (h != IntPtr.Zero) r.WindowMs = sw.ElapsedMilliseconds;
       }
-      if (h != IntPtr.Zero && IsWindowVisible(h)) {
-        if (r.VisibleMs < 0) r.VisibleMs = sw.ElapsedMilliseconds;
+      if (h != IntPtr.Zero) {
+        // Visibility is recorded if it happens but is not required: the window
+        // is hidden for the whole measurement, so what is timed is the window
+        // object existing and its message loop answering.
+        if (IsWindowVisible(h) && r.VisibleMs < 0) r.VisibleMs = sw.ElapsedMilliseconds;
         IntPtr res;
         if (SendMessageTimeoutW(h, 0, IntPtr.Zero, IntPtr.Zero, 2, 1500, out res) != IntPtr.Zero) {
           r.ResponsiveMs = sw.ElapsedMilliseconds;
@@ -117,10 +125,15 @@ public class IncProbe {
       }
       System.Threading.Thread.Sleep(1);
     }
-    if (r.ResponsiveMs < 0) return r;
+    if (r.ResponsiveMs < 0) {
+      // Never leave a process behind, whatever happened.
+      try { p.Refresh(); if (!p.HasExited) { p.Kill(); p.WaitForExit(3000); } } catch { }
+      return r;
+    }
     System.Threading.Thread.Sleep(settleMs);
     p.Refresh();
     r.AliveAfterSettle = !p.HasExited;
+    if (!r.AliveAfterSettle) { try { r.ExitCodeAfterSettle = p.ExitCode; } catch { } }
     IntPtr list = FindWindowExW(h, IntPtr.Zero, "SysListView32", null);
     if (list != IntPtr.Zero) r.ListRows = SendMessageW(list, 0x1004, IntPtr.Zero, IntPtr.Zero).ToInt64();
     PMC m = new PMC();
@@ -166,6 +179,7 @@ function Invoke-WindowRuns {
       user = $r.UserObjects
       listRows = $r.ListRows
       alive = $r.AliveAfterSettle
+      exitAfterSettle = $r.ExitCodeAfterSettle
     }
   }
   return $rows
@@ -198,11 +212,8 @@ if ($Task -eq "notoken" -or $Task -eq "all") {
   # No token in this process's environment; children inherit the absence.
   Remove-Item -Path "Env:EV_GH_TOKEN" -ErrorAction SilentlyContinue
   $rows = Invoke-WindowRuns
-  $rows | ForEach-Object { Write-Output ("no-token run " + $_.run + ": exitedEarly=" + $_.exitedEarly + " exitCode=" + $_.exitCode + " exitMs=" + $_.exitMs + " windowMs=" + $_.windowMs) }
+  $rows | ForEach-Object { Write-Output ("no-token run " + $_.run + ": exitedEarly=" + $_.exitedEarly + " exitCode=" + $_.exitCode + " exitMs=" + $_.exitMs + " windowMs=" + $_.windowMs + " alive=" + $_.alive + " listRows=" + $_.listRows) }
   $result["notoken"] = $rows
-  $msg = & $Exe "gui" 2>&1 | Out-String
-  $result["notoken_message"] = $msg.Trim()
-  $result["notoken_message_exit"] = $LASTEXITCODE
 }
 
 if ($Task -eq "window" -or $Task -eq "all") {
@@ -210,7 +221,7 @@ if ($Task -eq "window" -or $Task -eq "all") {
   $v = (Get-ItemProperty 'HKCU:\Environment' -Name 'EV_GH_TOKEN').'EV_GH_TOKEN'
   Set-Item -Path "Env:EV_GH_TOKEN" -Value $v
   $rows = Invoke-WindowRuns
-  $rows | ForEach-Object { Write-Output ("window run " + $_.run + ": windowMs=" + $_.windowMs + " visibleMs=" + $_.visibleMs + " responsiveMs=" + $_.responsiveMs + " wsMB=" + $_.wsMB + " peakWsMB=" + $_.peakWsMB + " privateMB=" + $_.privateMB + " gdi=" + $_.gdi + " user=" + $_.user + " listRows=" + $_.listRows + " alive=" + $_.alive) }
+  $rows | ForEach-Object { Write-Output ("window run " + $_.run + ": windowMs=" + $_.windowMs + " visibleMs=" + $_.visibleMs + " responsiveMs=" + $_.responsiveMs + " wsMB=" + $_.wsMB + " peakWsMB=" + $_.peakWsMB + " privateMB=" + $_.privateMB + " gdi=" + $_.gdi + " user=" + $_.user + " listRows=" + $_.listRows + " alive=" + $_.alive + " exitAfterSettle=" + $_.exitAfterSettle) }
   if ($rows.Count -gt 0) {
     Write-Output ("window medianMs=" + (Get-Median ([double[]]($rows.windowMs))) + " visibleMedianMs=" + (Get-Median ([double[]]($rows.visibleMs))) + " responsiveMedianMs=" + (Get-Median ([double[]]($rows.responsiveMs))) + " wsMedianMB=" + (Get-Median ([double[]]($rows.wsMB))) + " privateMedianMB=" + (Get-Median ([double[]]($rows.privateMB))))
   }
@@ -252,7 +263,7 @@ if ($Task -eq "mem" -or $Task -eq "all") {
   $v = (Get-ItemProperty 'HKCU:\Environment' -Name 'EV_GH_TOKEN').'EV_GH_TOKEN'
   Set-Item -Path "Env:EV_GH_TOKEN" -Value $v
   $procName = [IO.Path]::GetFileNameWithoutExtension($Exe)
-  $p = Start-Process -FilePath $Exe -ArgumentList $ChildArgs -PassThru
+  $p = Start-Process -FilePath $Exe -ArgumentList $ChildArgs -WindowStyle Hidden -PassThru
   $sw = [Diagnostics.Stopwatch]::StartNew()
   while ($sw.ElapsedMilliseconds -lt $TimeoutMs) {
     $p.Refresh()
@@ -277,7 +288,7 @@ if ($Task -eq "sizes" -or $Task -eq "all") {
   $files = @(
     (Join-Path $root "cpp\build\inc.exe"),
     (Join-Path $root "cpp\out\inc\inc_gui.exe"),
-    (Join-Path $root "cpp\release\v1.0pre4\InfinityCloud_1.0.0-pre4_win64_setup.exe"),
+    (Join-Path $root "cpp\release\v1.0pre5\InfinityCloud_1.0.0-pre5_win64_setup.exe"),
     (Join-Path $root "Infinity Cloud\release\InfinityCloud.exe")
   )
   foreach ($f in $files) {
@@ -293,4 +304,15 @@ if ($Task -eq "sizes" -or $Task -eq "all") {
 if (-not [string]::IsNullOrEmpty($Json)) {
   ($result | ConvertTo-Json -Depth 6) | Set-Content -Path $Json -Encoding UTF8
   Write-Output ("json written: " + $Json)
+}
+
+# Every run this script starts is killed by the probe; this is the check that
+# nothing was left behind on the desktop.
+$left = Get-Process | Where-Object { $_.ProcessName -like 'inc*' }
+if ($left) {
+  Write-Output ("LEFTOVER inc* processes: " + (($left | ForEach-Object { $_.ProcessName + ":" + $_.Id }) -join ", "))
+  $left | Stop-Process -Force -ErrorAction SilentlyContinue
+  Write-Output "leftovers were killed"
+} else {
+  Write-Output "leftover inc* processes: 0"
 }

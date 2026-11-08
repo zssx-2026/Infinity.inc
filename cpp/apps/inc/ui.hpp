@@ -25,7 +25,7 @@ namespace inc {
 
 inline const char* uiHtml() {
   return R"HTML(<!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -34,57 +34,74 @@ inline const char* uiHtml() {
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="logo"></span><b>Infinity Cloud</b><span class="ver" id="version"></span></div>
+  <div class="brand"><span class="logo"></span><b>Infinity Cloud</b></div>
   <div class="who">
     <span class="acct" id="account">&hellip;</span>
-    <span class="src" id="tokenSource"></span>
-    <span class="plat" id="platform"></span>
+    <details class="meta"><summary>连接信息</summary>
+      <div class="meta-body">
+        <span class="ver" id="version"></span>
+        <span class="src" id="tokenSource"></span>
+        <span class="plat" id="platform"></span>
+      </div>
+    </details>
   </div>
 </header>
 
 <nav class="tabs">
-  <button class="tab on" id="tabFiles">My Cloud Drive</button>
-  <button class="tab" id="tabTrash">Recycle Bin</button>
+  <button class="tab on" id="tabFiles">我的云盘</button>
+  <button class="tab" id="tabTrash">回收站</button>
 </nav>
 
 <div class="toolbar" id="toolbar">
-  <button class="btn" data-act="up" title="Up one level">Up</button>
-  <button class="btn" data-act="mkdir">New folder</button>
-  <button class="btn" data-act="refresh">Refresh</button>
-  <button class="btn" data-act="delete">Delete</button>
-  <button class="btn primary" data-act="upload">Upload</button>
+  <button class="btn primary" data-act="upload">上传</button>
+  <button class="btn" data-act="mkdir">新建文件夹</button>
+  <button class="btn" data-act="refresh">刷新</button>
+  <button class="btn" data-act="delete">删除</button>
+  <button class="btn" data-act="up" title="返回上一级">上一级</button>
   <input type="file" id="file" multiple hidden>
 </div>
 <div class="toolbar" id="trashbar" hidden>
-  <button class="btn danger" data-act="purgeAll">Empty recycle bin</button>
-  <button class="btn" data-act="refresh">Refresh</button>
+  <button class="btn danger" data-act="purgeAll">清空回收站</button>
+  <button class="btn" data-act="refresh">刷新</button>
 </div>
 
 <div class="crumbs" id="crumbs"></div>
 
+<p class="tip" id="tip"><b>选</b> 上方面包屑是当前位置 · <b>做</b> 双击文件夹进入、单击文件下载、拖入文件上传 · <b>看</b> 底部状态行给出结果</p>
+
 <div class="tablewrap">
   <table class="files">
     <thead>
-      <tr><th class="c-name">Name</th><th class="c-size">Size</th><th class="c-mod">Modified</th><th class="c-act"></th></tr>
+      <tr><th class="c-name">名称</th><th class="c-size">大小</th><th class="c-mod">修改时间</th><th class="c-act"></th></tr>
     </thead>
     <tbody id="rows"></tbody>
   </table>
   <div class="empty" id="empty" hidden></div>
 </div>
 
-<footer class="status"><span id="status">Ready</span></footer>
+<footer class="status"><span id="status">就绪。</span></footer>
 
 <div class="modal" id="modal" hidden>
   <div class="box">
-    <h3 id="modalTitle">New folder</h3>
-    <input id="modalInput" placeholder="Folder name" autocomplete="off">
+    <h3 id="modalTitle">新建文件夹</h3>
+    <input id="modalInput" placeholder="文件夹名称" autocomplete="off">
     <div class="row">
-      <button class="btn" id="modalCancel">Cancel</button>
-      <button class="btn primary" id="modalOk">OK</button>
+      <button class="btn" id="modalCancel">取消</button>
+      <button class="btn primary" id="modalOk">确定</button>
     </div>
   </div>
 </div>
 
+<div class="preview" id="preview" hidden>
+  <div class="pv-head">
+    <b id="pvName">预览</b>
+    <span class="pv-meta" id="pvMeta"></span>
+    <label class="pv-follow"><input type="checkbox" id="pvFollow" checked> 跟随末尾</label>
+    <button class="btn" id="pvClose">关闭</button>
+  </div>
+  <div class="pv-body" id="pvBody"></div>
+  <div class="pv-note" id="pvNote"></div>
+</div>
 <script src="/app.js"></script>
 </body>
 </html>
@@ -112,10 +129,21 @@ body{margin:0;background:var(--bg);color:var(--fg);
   background:linear-gradient(135deg,var(--acc),#7c3aed)}
 .brand b{font-size:15px}
 .ver{color:var(--dim);font-size:12px}
-.who{margin-left:auto;display:flex;gap:14px;align-items:center;
+.who{margin-left:auto;display:flex;gap:14px;align-items:center;position:relative;
   color:var(--dim);font-size:12.5px;white-space:nowrap}
 .who .acct{color:var(--ok);font-weight:600}
 .who .src{font-family:ui-monospace,Consolas,monospace}
+/* connection details: version, credential source, platform - diagnostics folded away */
+.who .meta{position:relative}
+.who .meta summary{cursor:pointer;list-style:none;outline:none;color:var(--dim);font-size:12.5px}
+.who .meta summary::-webkit-details-marker{display:none}
+.who .meta summary:hover{color:var(--fg)}
+.who .meta summary::after{content:" \25BE"}
+.who .meta[open] summary::after{content:" \25B4"}
+.who .meta-body{position:absolute;right:0;top:calc(100% + 8px);z-index:60;
+  display:flex;flex-direction:column;gap:5px;padding:10px 12px;
+  background:var(--panel);border:1px solid var(--line);border-radius:9px;
+  color:var(--dim);font-size:12px;box-shadow:0 8px 24px #0008}
 
 /* tabs: the cloud and the recycle bin are two views of the same table */
 .tabs{display:flex;gap:2px;padding:0 14px;background:var(--panel);
@@ -128,6 +156,7 @@ body{margin:0;background:var(--bg);color:var(--fg);
 /* toolbar: the verbs that act on the current folder */
 .toolbar{display:flex;align-items:center;gap:8px;padding:10px 18px;
   border-bottom:1px solid var(--line);flex-wrap:wrap}
+.toolbar[hidden]{display:none}
 .btn{background:var(--card);border:1px solid var(--line);color:var(--fg);
   border-radius:7px;padding:6px 13px;cursor:pointer;font-size:13px}
 .btn:hover{border-color:var(--acc)}
@@ -163,12 +192,12 @@ body{margin:0;background:var(--bg);color:var(--fg);
   border-radius:5px;width:26px;height:26px;cursor:pointer;font-size:13px;line-height:1}
 .act:hover{color:var(--fg);border-color:var(--acc);background:#0b1017}
 .empty{padding:70px 20px;text-align:center;color:var(--dim)}
+.tip{margin:0;padding:8px 18px;color:var(--dim);font-size:12px;border-bottom:1px solid var(--line)}
+.tip b{color:var(--fg);font-weight:600}
 
 /* status line: progress and errors */
 .status{padding:8px 18px;border-top:1px solid var(--line);color:var(--dim);
   font-size:12px;display:flex;gap:16px;min-height:33px;align-items:center}
-.status .ok{color:var(--ok)}
-.status .err{color:var(--err)}
 #status.ok{color:var(--ok)}
 #status.err{color:var(--err)}
 
@@ -184,6 +213,22 @@ body{margin:0;background:var(--bg);color:var(--fg);
   outline:none;font:13px inherit}
 .modal input:focus{border-color:var(--acc)}
 .modal .row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.preview{position:fixed;inset:0;background:#0f1115;color:#e8ecf1;display:flex;flex-direction:column;z-index:50}
+.preview[hidden]{display:none}
+.preview .pv-head{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid #2a2f3a}
+.preview .pv-meta{color:#9aa4b2;font-size:12px;margin-left:auto}
+.preview .pv-body{flex:1;overflow:auto;padding:12px 14px;position:relative}
+.preview pre{margin:0;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word}
+.preview .pv-lines{position:relative;min-height:100%;font:12px/18px ui-monospace,Consolas,monospace}
+.preview .pv-line{position:absolute;left:0;white-space:pre}
+.preview img,.preview video{max-width:100%;max-height:80vh;display:block;margin:0 auto}
+.preview iframe{border:0;width:100%;height:75vh;background:#fff}
+.preview table{border-collapse:collapse;font-size:13px}
+.preview td,.preview th{border-bottom:1px solid #2a2f3a;padding:4px 10px;text-align:left}
+.preview tr.pv-entry{cursor:pointer}
+.preview tr.pv-entry:hover td{background:#1a1f29}
+.preview .pv-note{padding:6px 14px;border-top:1px solid #2a2f3a;color:#9aa4b2;font-size:12px}
+.preview .pv-hex{font:12px/18px ui-monospace,Consolas,monospace;white-space:pre}
 )CSS";
 }
 
@@ -243,11 +288,11 @@ inline const char* uiJs() {
     var el = $('crumbs'); el.innerHTML = '';
     if (state.view === 'trash') {
       var only = document.createElement('span');
-      only.className = 'crumb last'; only.textContent = 'Recycle Bin';
+      only.className = 'crumb last'; only.textContent = '回收站';
       el.appendChild(only); return;
     }
     var parts = String(path || '/').split('/').filter(Boolean);
-    var segs = [{ name: 'My Cloud Drive', path: '/' }], acc = '';
+    var segs = [{ name: '我的云盘', path: '/' }], acc = '';
     parts.forEach(function (s) { acc += '/' + s; segs.push({ name: s, path: acc }); });
     segs.forEach(function (s, i) {
       if (i) { var sp = document.createElement('span'); sp.className = 'sep'; sp.textContent = '/'; el.appendChild(sp); }
@@ -260,10 +305,10 @@ inline const char* uiJs() {
   }
   function rowHtml(e) {
     var isDir = e.type === 'folder';
-    var size = isDir ? 'Folder' : human(e.size);
+    var size = isDir ? '文件夹' : human(e.size);
     var acts = isDir
-      ? '<button class="act" data-act="open" title="Open">\u2197</button><button class="act" data-act="remove" title="Delete">\uD83D\uDDD1</button>'
-      : '<button class="act" data-act="download" title="Download">\u2193</button><button class="act" data-act="remove" title="Delete">\uD83D\uDDD1</button>';
+      ? '<button class="act" data-act="open" title="打开">\u2197</button><button class="act" data-act="remove" title="删除">\uD83D\uDDD1</button>'
+      : '<button class="act" data-act="download" title="下载">\u2193</button><button class="act" data-act="remove" title="删除">\uD83D\uDDD1</button>';
     return '<tr class="row" data-path="' + esc(e.path) + '" data-name="' + esc(e.name) + '" data-type="' + (isDir ? 'folder' : 'file') + '">' +
       '<td class="c-name"><span class="ic">' + (isDir ? '\uD83D\uDCC1' : icon(e.name)) + '</span><span class="nm">' + esc(e.name) + '</span></td>' +
       '<td class="c-size">' + size + '</td>' +
@@ -274,9 +319,9 @@ inline const char* uiJs() {
     var isDir = e.type === 'folder';
     return '<tr class="row" data-path="' + esc(e.path) + '" data-name="' + esc(e.name) + '" data-type="' + (isDir ? 'folder' : 'file') + '">' +
       '<td class="c-name"><span class="ic">' + (isDir ? '\uD83D\uDCC1' : icon(e.name)) + '</span><span class="nm">' + esc(e.name) + '</span></td>' +
-      '<td class="c-size">' + (isDir ? 'Folder' : human(e.size)) + '</td>' +
+      '<td class="c-size">' + (isDir ? '文件夹' : human(e.size)) + '</td>' +
       '<td class="c-mod">' + when(e.deletedAt || e.modified) + '</td>' +
-      '<td class="c-act"><button class="act" data-act="restore" title="Restore">\u21A9</button><button class="act" data-act="purge" title="Delete permanently">\u2715</button></td></tr>';
+      '<td class="c-act"><button class="act" data-act="restore" title="恢复">\u21A9</button><button class="act" data-act="purge" title="彻底删除">\u2715</button></td></tr>';
   }
   function paint(html, emptyText) {
     var rows = $('rows');
@@ -290,23 +335,23 @@ inline const char* uiJs() {
   function load() { return state.view === 'trash' ? loadTrash() : loadFiles(); }
 
   function loadFiles() {
-    status('Loading\u2026');
+    status('加载中\u2026');
     return api('/api/list?path=' + encodeURIComponent(state.path)).then(function (j) {
       state.path = j.path || state.path;
       renderCrumbs(state.path);
       var items = j.entries || [];
-      paint(items.map(rowHtml).join(''), 'This folder is empty');
-      status(items.length + ' items \u00B7 ' + human(j.totalBytes));
+      paint(items.map(rowHtml).join(''), '这个文件夹是空的。');
+      status('共 ' + items.length + ' 项 \u00B7 总计 ' + human(j.totalBytes));
     }).catch(function (e) { status(e.message, 'err'); });
   }
 
   function loadTrash() {
-    status('Loading\u2026');
+    status('加载中\u2026');
     return api('/api/state').then(function (j) {
       renderCrumbs('/');
       var items = j.trash || [];
-      paint(items.map(trashRowHtml).join(''), 'The recycle bin is empty');
-      status(items.length + ' items');
+      paint(items.map(trashRowHtml).join(''), '回收站是空的。');
+      status('共 ' + items.length + ' 项');
     }).catch(function (e) { status(e.message, 'err'); });
   }
 
@@ -326,56 +371,56 @@ inline const char* uiJs() {
     a.href = '/api/download?path=' + encodeURIComponent(path);
     a.download = name || '';
     document.body.appendChild(a); a.click(); a.remove();
-    status('Downloading ' + name);
+    status('正在下载 ' + name);
   }
   function newFolder() {
-    ask('New folder', '', function (name) {
+    ask('新建文件夹', '', function (name) {
       var full = (state.path === '/' ? '' : state.path) + '/' + name;
-      status('Creating ' + name + '\u2026');
+      status('正在新建 ' + name + '\u2026');
       post('/api/mkdir?path=' + encodeURIComponent(full))
-        .then(function () { status('Created ' + name, 'ok'); return load(); })
+        .then(function () { status('已创建 ' + name, 'ok'); return load(); })
         .catch(function (e) { status(e.message, 'err'); });
     });
   }
   function removePath(p, n) {
-    if (!confirm('Delete “' + n + '”? It will be moved to the recycle bin.')) return;
-    status('Deleting ' + n + '\u2026');
+    if (!confirm('删除「' + n + '」？文件将移入回收站。')) return;
+    status('正在删除 ' + n + '\u2026');
     post('/api/remove?path=' + encodeURIComponent(p))
-      .then(function () { status('Moved to the recycle bin', 'ok'); return load(); })
+      .then(function () { status('已移到回收站。', 'ok'); return load(); })
       .catch(function (e) { status(e.message, 'err'); });
   }
   function restorePath(p, n) {
-    status('Restoring ' + n + '\u2026');
+    status('正在恢复 ' + n + '\u2026');
     post('/api/trash/restore?path=' + encodeURIComponent(p))
-      .then(function () { status('Restored ' + n, 'ok'); return load(); })
+      .then(function () { status('已恢复 ' + n, 'ok'); return load(); })
       .catch(function (e) { status(e.message, 'err'); });
   }
   function purgeAll() {
-    if (!confirm('Empty the recycle bin? This cannot be undone.')) return;
-    status('Emptying\u2026');
+    if (!confirm('清空回收站？此操作无法撤销。')) return;
+    status('正在清空\u2026');
     post('/api/trash/purge')
-      .then(function () { status('Recycle bin emptied', 'ok'); return load(); })
+      .then(function () { status('回收站已清空。', 'ok'); return load(); })
       .catch(function (e) { status(e.message, 'err'); });
   }
   function refresh() {
-    status('Refreshing\u2026');
+    status('正在刷新\u2026');
     post('/api/refresh')
       .then(function () { return load(); })
-      .then(function () { status('Refreshed', 'ok'); })
+      .then(function () { status('已刷新', 'ok'); })
       .catch(function (e) { status(e.message, 'err'); });
   }
   function uploadAll(files) {
-    if (state.view === 'trash') { status('Cannot upload to the recycle bin', 'err'); return; }
+    if (state.view === 'trash') { status('不能上传到回收站。', 'err'); return; }
     if (!files.length) return;
     var i = 0, done = 0;
     (function next() {
-      if (i >= files.length) { status('Uploaded ' + done + '/' + files.length, 'ok'); load(); return; }
+      if (i >= files.length) { status('已上传 ' + done + '/' + files.length, 'ok'); load(); return; }
       var f = files[i++];
-      status('Uploading ' + f.name + ' (' + i + '/' + files.length + ')\u2026');
+      status('正在上传 ' + f.name + '（' + i + '/' + files.length + '）\u2026');
       fetch('/api/upload?path=' + encodeURIComponent(state.path) + '&name=' + encodeURIComponent(f.name),
             { method: 'POST', body: f })
         .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j && j.error ? j.error : ('HTTP ' + r.status)); done++; }); })
-        .then(next, function (e) { status('Upload failed ' + f.name + ': ' + e.message, 'err'); next(); });
+        .then(next, function (e) { status('上传失败 ' + f.name + '：' + e.message, 'err'); next(); });
     })();
   }
   function doRow(act, tr) {
@@ -416,7 +461,7 @@ inline const char* uiJs() {
       if (act === 'up') { if (state.path !== '/') open(parentOf(state.path)); }
       else if (act === 'mkdir') newFolder();
       else if (act === 'refresh') refresh();
-      else if (act === 'delete') { if (state.selected) removePath(state.selected.path, state.selected.name); else status('Select an item first', 'err'); }
+      else if (act === 'delete') { if (state.selected) removePath(state.selected.path, state.selected.name); else status('请先选中一项', 'err'); }
       else if (act === 'upload') $('file').click();
       else if (act === 'purgeAll') purgeAll();
     };
@@ -437,12 +482,402 @@ inline const char* uiJs() {
   // ---- boot ----------------------------------------------------------
   api('/api/state').then(function (j) {
     $('version').textContent = j.version || '';
-    $('account').textContent = j.login ? j.login : 'not signed in';
-    $('tokenSource').textContent = j.tokenSource ? ('via ' + j.tokenSource) : '';
+    $('account').textContent = j.login ? j.login : '未登录';
+    $('tokenSource').textContent = j.tokenSource ? ('来自 ' + j.tokenSource) : '';
     $('platform').textContent = j.platform || '';
     if (j.error) status(j.error, 'err');
   }).catch(function (e) { status(e.message, 'err'); })
     .then(function () { load(); });
+// preview-math.js - the arithmetic behind the streaming preview, kept apart
+// from the DOM so it can be exercised without a browser.
+//
+// It is inlined into the page by apply-preview.mjs and it also exports itself
+// for node, which is how "Infinity Cloud/preview/tests/ui-preview.test.mjs"
+// checks the windowing and the byte counts.
+(function (root) {
+  'use strict';
+
+  var PV_CHUNK = 256 * 1024;                  // one Range window
+  var PV_ROW = 18;                            // a fixed line box, in CSS pixels
+  var PV_MAX_LINES = 20000;                   // the line ceiling of a preview
+  var PV_MAX_BYTES = 64 * 1024 * 1024;        // the byte ceiling of a preview
+  var PV_OVERSCAN = 8;                        // rows kept above and below
+
+  // The slice of a long list worth putting in the document: what the viewport
+  // shows, plus a little on each side. This is what keeps the DOM at a few
+  // dozen nodes when the file has 20000 lines.
+  function pvWindow(total, scrollTop, viewH, rowH, overscan) {
+    rowH = rowH > 0 ? rowH : PV_ROW;
+    overscan = overscan >= 0 ? overscan : PV_OVERSCAN;
+    if (total <= 0) return { start: 0, end: 0, topPad: 0, bottomPad: 0, rows: 0 };
+    var first = Math.floor((scrollTop > 0 ? scrollTop : 0) / rowH) - overscan;
+    if (first < 0) first = 0;
+    if (first > total) first = total;
+    var visible = Math.ceil((viewH > 0 ? viewH : rowH) / rowH) + overscan * 2 + 1;
+    var end = first + visible;
+    if (end > total) end = total;
+    return { start: first, end: end, topPad: first * rowH,
+             bottomPad: (total - end) * rowH, rows: end - first };
+  }
+
+  // Where the compressed bytes of a zip entry begin: the offset of the local
+  // file header plus the header itself plus the two lengths it carries.
+  function pvDataOffset(headerOffset, nameLen, extraLen) {
+    return Number(headerOffset) + 30 + Number(nameLen) + Number(extraLen);
+  }
+
+  // The next window to ask for: never past the end, never larger than a window.
+  function pvChunk(offset, size, chunk) {
+    chunk = chunk > 0 ? chunk : PV_CHUNK;
+    offset = Number(offset) || 0;
+    size = Number(size) || 0;
+    if (offset < 0 || offset >= size) return 0;
+    var left = size - offset;
+    return left < chunk ? left : chunk;
+  }
+
+  // 20000 lines is the preview's line ceiling: the oldest line is dropped so a
+  // vast log cannot grow the list without bound. Returns the kept list and the
+  // index of its first line in the file.
+  function pvRetain(lines, first, incoming, cap) {
+    cap = cap > 0 ? cap : PV_MAX_LINES;
+    var all = lines.concat(incoming);
+    if (all.length <= cap) return { lines: all, first: first };
+    var drop = all.length - cap;
+    return { lines: all.slice(drop), first: first + drop };
+  }
+
+  root.PV = {
+    PV_CHUNK: PV_CHUNK, PV_ROW: PV_ROW, PV_MAX_LINES: PV_MAX_LINES,
+    PV_MAX_BYTES: PV_MAX_BYTES, PV_OVERSCAN: PV_OVERSCAN,
+    pvWindow: pvWindow, pvDataOffset: pvDataOffset, pvChunk: pvChunk, pvRetain: pvRetain
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = root.PV;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+  // ---- streaming preview ---------------------------------------------
+  //
+  // The file is read in 256 KiB windows over /api/preview/chunk, so the first
+  // window can be on screen while the rest is still in the cloud. Text is kept
+  // as a list of lines and only the rows the viewport shows are put in the
+  // document: 20000 lines cost a few dozen nodes. Closing the preview aborts
+  // the request and tells the reader, by epoch, to stop; nothing is kept.
+  var PV_CHUNK = PV.PV_CHUNK;
+  var PV_ROW = PV.PV_ROW;
+  var PV_MAX_LINES = PV.PV_MAX_LINES;
+  var PV_MAX_BYTES = PV.PV_MAX_BYTES;
+  var PV_TEXT = /[.](txt|md|json|csv|tsv|log|xml|ya?ml|ini|conf|cfg|toml|sql|c|h|hpp|cpp|cc|cs|java|js|mjs|cjs|jsx|tsx?|py|rb|go|rs|php|sh|bash|ps1|bat|cmd|css|html?|srt|vtt)$/i;
+  var PV_IMAGE = /[.](png|jpe?g|webp|gif|bmp)$/i;
+  var PV_MEDIA = /[.](mp3|wav|ogg|m4a|flac|aac|mp4|webm|mkv|mov)$/i;
+  var PV_PDF = /[.]pdf$/i;
+  var PV_ZIP = /[.]zip$/i;
+  var pv = null;
+
+  function pvKind(name) {
+    if (PV_ZIP.test(name)) return 'zip';
+    if (PV_TEXT.test(name)) return 'text';
+    if (PV_IMAGE.test(name)) return 'image';
+    if (PV_MEDIA.test(name)) return 'media';
+    if (PV_PDF.test(name)) return 'pdf';
+    return null;
+  }
+
+  function pvNote(text) { $('pvNote').textContent = text || ''; }
+
+  function pvClose() {
+    if (!pv) return;
+    var closing = pv;
+    pv = null;
+    closing.cancelled = true;
+    if (closing.controller) { try { closing.controller.abort(); } catch (e) {} }
+    if (closing.url) { try { URL.revokeObjectURL(closing.url); } catch (e) {} }
+    $('preview').hidden = true;
+    $('pvBody').innerHTML = '';
+    // The reader is told to stop by epoch: a window in flight ends within its
+    // own 8 s timeout, and no further window is asked for.
+    fetch('/api/preview/cancel?epoch=' + encodeURIComponent(closing.epoch || 0),
+          { method: 'POST' }).catch(function () {});
+  }
+
+  // ---- text: all the lines in an array, a window of rows in the document
+  function pvStage() {
+    $('pvBody').innerHTML = '<div class="pv-lines" id="pvLines"></div>';
+    pv.stage = $('pvLines');
+  }
+
+  function pvRenderText() {
+    if (!pv || !pv.stage) return;
+    var body = $('pvBody');
+    var w = PV.pvWindow(pv.lines.length, body.scrollTop, body.clientHeight, PV_ROW, PV.PV_OVERSCAN);
+    var html = '';
+    for (var i = w.start; i < w.end; i++) {
+      html += '<div class="pv-line" style="top:' + (i * PV_ROW) + 'px">' + esc(pv.lines[i]) + '</div>';
+    }
+    pv.stage.style.height = (pv.lines.length * PV_ROW) + 'px';
+    pv.stage.innerHTML = html;
+    pv.rendered = w.rows;
+  }
+
+  function pvOnScroll() {
+    if (!pv || pv.kind !== 'text' || pv.raf) return;
+    pv.raf = requestAnimationFrame(function () { pv.raf = 0; pvRenderText(); });
+  }
+
+  function pvAppendText(bytes) {
+    if (!bytes.length) return;
+    var piece = pv.text ? pv.text.decode(bytes, { stream: true })
+                        : String.fromCharCode.apply(null, bytes);
+    pv.tail += piece;
+    var cut = pv.tail.lastIndexOf('\n');
+    if (cut < 0) return;
+    var lines = pv.tail.slice(0, cut).split('\n');
+    pv.tail = pv.tail.slice(cut + 1);
+    var kept = PV.pvRetain(pv.lines, pv.lineFirst, lines, PV_MAX_LINES);
+    pv.lines = kept.lines;
+    pv.lineFirst = kept.first;
+    pvRenderText();
+    if ($('pvFollow').checked) $('pvBody').scrollTop = $('pvBody').scrollHeight;
+  }
+
+  // ---- binary: re-decode the bytes so far after every window
+  function pvAppendBinary(bytes) {
+    pv.parts.push(bytes);
+    if (pv.url) { try { URL.revokeObjectURL(pv.url); } catch (e) {} pv.url = null; }
+    pv.url = URL.createObjectURL(new Blob(pv.parts));
+    var el = $('pvBody').firstChild;
+    if (!el || el.tagName === 'DIV') {
+      el = document.createElement(pv.kind === 'image' ? 'img' : (pv.kind === 'media' ? 'video' : 'iframe'));
+      if (pv.kind === 'media') el.controls = true;
+      $('pvBody').innerHTML = '';
+      $('pvBody').appendChild(el);
+    }
+    el.onload = function () {
+      pvNote('解码耗时 ' + Math.round(pv.first) + ' ms，已下载 ' + human(pv.bytes) + '。');
+    };
+    el.onerror = function () {
+      pvNote('等待足够的字节以解码\u2026 目前 ' + human(pv.bytes) + '。');
+    };
+    el.src = pv.url;
+  }
+
+  function pvNext() {
+    if (!pv || pv.done || pv.cancelled) return;
+    var at = pv.offset;
+    var want = PV.pvChunk(at, pv.total, PV_CHUNK);
+    status('加载中\u2026 ' + human(pv.bytes));
+    fetch('/api/preview/chunk?path=' + encodeURIComponent(pv.path) + '&offset=' + at +
+          '&length=' + want + '&epoch=' + pv.epoch, { signal: pv.controller.signal })
+      .then(function (r) {
+        if (!r.ok) {
+          return r.json().then(function (j) {
+            throw new Error(j && j.error ? j.error : ('HTTP ' + r.status));
+          });
+        }
+        var total = Number(r.headers.get('X-Preview-Total') || pv.total || 0);
+        return r.arrayBuffer().then(function (buf) { return { buf: buf, total: total }; });
+      })
+      .then(function (chunk) {
+        if (!pv) return;
+        if (pv.first === null) pv.first = performance.now() - pv.started;
+        var bytes = new Uint8Array(chunk.buf);
+        pv.bytes += bytes.length;
+        pv.offset = at + bytes.length;
+        if (chunk.total) pv.total = chunk.total;
+        if (pv.kind === 'text') pvAppendText(bytes); else pvAppendBinary(bytes);
+        $('pvMeta').textContent = human(pv.bytes) + (pv.total ? (' / ' + human(pv.total)) : '') +
+                                  ' \u00b7 首内容 ' + Math.round(pv.first) + ' ms' +
+                                  (pv.kind === 'text' ? (' \u00b7 ' + pv.lines.length + ' 行') : '');
+        if (bytes.length < want) {
+          pv.done = true;
+          pvNote('已读完：' + human(pv.bytes) + '，首内容耗时 ' + Math.round(pv.first) + ' ms。');
+          status('就绪。');
+          return;
+        }
+        if (pv.bytes >= PV_MAX_BYTES) {
+          pv.done = true;
+          pvNote('预览上限 64 MiB 已停止；其余请用下载。');
+          return;
+        }
+        pvNext();
+      })
+      .catch(function (e) {
+        if (!pv || e.name === 'AbortError') return;
+        pvNote(e.message);
+        status(e.message, 'err');
+      });
+  }
+
+  // ---- zip: the central directory first, one entry only when it is wanted
+  function pvZip() {
+    status('正在读取压缩包目录…');
+    fetch('/api/preview/zip?path=' + encodeURIComponent(pv.path) + '&epoch=' + pv.epoch,
+          { signal: pv.controller.signal })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!pv) return;
+        if (j && j.error) throw new Error(j.error);
+        var list = (j && j.list) || [];
+        var html = '<table><thead><tr><th>Name</th><th>Size</th><th>Stored</th><th>Method</th></tr></thead><tbody>';
+        for (var i = 0; i < list.length; i++) {
+          html += '<tr class="pv-entry" data-name="' + esc(list[i].name) + '"><td>' + esc(list[i].name) +
+                  '</td><td>' + human(list[i].uncompressed) + '</td><td>' + human(list[i].compressed) +
+                  '</td><td>' + (list[i].method === 0 ? 'stored' : 'deflate') + '</td></tr>';
+        }
+        html += '</tbody></table>';
+        $('pvBody').innerHTML = html;
+        $('pvMeta').textContent = '共 ' + list.length + ' 个条目 \u00b7 仅读中央目录 \u00b7 ' +
+                                  Math.round(performance.now() - pv.started) + ' ms';
+        pvNote('点某一条即可单独取出该条目。');
+        status('就绪。');
+      })
+      .catch(function (e) {
+        if (!pv || e.name === 'AbortError') return;
+        pvNote(e.message);
+        status(e.message, 'err');
+      });
+  }
+
+  function pvShowHex(bytes, name) {
+    var out = '';
+    var n = Math.min(bytes.length, 4096);
+    for (var i = 0; i < n; i += 16) {
+      var hex = '', ascii = '';
+      for (var k = 0; k < 16; k++) {
+        if (i + k < n) {
+          var b = bytes[i + k];
+          hex += (b < 16 ? '0' : '') + b.toString(16) + ' ';
+          ascii += (b >= 32 && b < 127) ? String.fromCharCode(b) : '.';
+        } else { hex += '   '; }
+      }
+      out += hex + ' ' + ascii + '\n';
+    }
+    $('pvBody').innerHTML = '<div class="pv-hex">' + esc(out) + '</div>';
+    pvNote(name + '：' + human(bytes.length) + '，以十六进制显示' +
+           (bytes.length > 4096 ? '（前 4 KiB）' : '') + '。');
+  }
+
+  function pvShowEntry(name, method, bytes) {
+    if (!pv) return;
+    if (pvKind(name) === 'text') {
+      pv.kind = 'text';
+      pv.text = (typeof TextDecoder !== 'undefined') ? new TextDecoder('utf-8') : null;
+      pv.tail = '';
+      pv.lines = [];
+      pv.lineFirst = 0;
+      pvStage();
+      pvAppendText(bytes);
+      $('pvMeta').textContent = name + ' \u00b7 ' + human(bytes.length) + ' \u00b7 ' +
+                                pv.lines.length + ' 行';
+      pvNote('该条目按需取出' + (method === 0 ? '（已存储）。' : '，并在页面内解压。'));
+    } else if (pvKind(name) === 'image') {
+      var url = URL.createObjectURL(new Blob([bytes]));
+      $('pvBody').innerHTML = '';
+      var img = document.createElement('img');
+      img.src = url;
+      $('pvBody').appendChild(img);
+      pvNote(name + '：' + human(bytes.length) + '，按需取出。');
+    } else {
+      pvShowHex(bytes, name);
+    }
+    status('就绪。');
+  }
+
+  function pvOpenEntry(name) {
+    if (!pv) return;
+    pvNote('正在取出 ' + name + '\u2026');
+    var method = 0;
+    fetch('/api/preview/zip/entry?path=' + encodeURIComponent(pv.path) +
+          '&name=' + encodeURIComponent(name) + '&epoch=' + pv.epoch,
+          { signal: pv.controller.signal })
+      .then(function (r) {
+        if (!r.ok) {
+          return r.text().then(function (t) {
+            var message = t;
+            try { var j = JSON.parse(t); if (j && j.error) message = j.error; } catch (e) {}
+            throw new Error(message || ('HTTP ' + r.status));
+          });
+        }
+        method = Number(r.headers.get('X-Zip-Method') || 0);
+        return r.arrayBuffer();
+      })
+      .then(function (ab) {
+        if (!pv) return null;
+        if (method !== 0 && typeof DecompressionStream !== 'undefined') {
+          // The bytes crossed the wire compressed; the page inflates them.
+          var stream = new Blob([ab]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+          return new Response(stream).arrayBuffer();
+        }
+        return ab;
+      })
+      .then(function (out) {
+        if (!pv || !out) return;
+        pvShowEntry(name, method, new Uint8Array(out));
+      })
+      .catch(function (e) {
+        if (!pv || e.name === 'AbortError') return;
+        pvNote(e.message);
+        status(e.message, 'err');
+      });
+  }
+
+  function pvOpen(path, name) {
+    pvClose();
+    var kind = pvKind(name);
+    pv = { path: path, name: name, kind: kind, epoch: 0, offset: 0, bytes: 0, total: 0,
+           started: performance.now(), first: null, controller: new AbortController(),
+           text: (typeof TextDecoder !== 'undefined') ? new TextDecoder('utf-8') : null,
+           tail: '', lines: [], lineFirst: 0, parts: [], url: null, done: false,
+           cancelled: false, stage: null, raf: 0, rendered: 0 };
+    $('preview').hidden = false;
+    $('pvName').textContent = name;
+    $('pvMeta').textContent = '正在打开\u2026';
+    $('pvBody').innerHTML = '';
+    $('pvNote').textContent = '';
+    $('pvFollow').parentNode.style.display = (kind === 'text') ? '' : 'none';
+    if (!kind) {
+      pvNote('此类型不支持边下边读；下载仍可用。');
+      return;
+    }
+    if (kind === 'text') pvStage();
+    api('/api/preview/meta?path=' + encodeURIComponent(path)).then(function (m) {
+      if (!pv) return;
+      pv.epoch = Number(m.epoch) || 0;
+      pv.total = Number(m.size) || 0;
+      if (kind !== 'text') pv.kind = kind;
+      if (kind === 'zip') { pvZip(); return; }
+      pvNext();
+    }).catch(function (e) {
+      if (!pv) return;
+      pvNote(e.message);
+      status(e.message, 'err');
+    });
+  }
+
+  $('pvClose').onclick = pvClose;
+  $('pvBody').addEventListener('scroll', pvOnScroll);
+  $('pvBody').addEventListener('click', function (ev) {
+    if (!pv || pv.kind !== 'zip') return;
+    var tr = ev.target;
+    while (tr && tr.tagName !== 'TR') tr = tr.parentNode;
+    if (!tr || !tr.getAttribute('data-name')) return;
+    ev.preventDefault();
+    pvOpenEntry(tr.getAttribute('data-name'));
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && pv) pvClose();
+  });
+  // 双击可预览文件会流式打开：捕获阶段先于行处理器，因此不会再触发下载。
+  $('rows').addEventListener('dblclick', function (ev) {
+    var tr = ev.target;
+    while (tr && tr.tagName !== 'TR') tr = tr.parentNode;
+    if (!tr || tr.getAttribute('data-type') !== 'file') return;
+    var name = tr.getAttribute('data-name');
+    if (!pvKind(name)) return;
+    ev.stopPropagation();
+    ev.preventDefault();
+    if (typeof select === 'function') select(tr);
+    pvOpen(tr.getAttribute('data-path'), name);
+  }, true);
 })();
 )JS";
 }

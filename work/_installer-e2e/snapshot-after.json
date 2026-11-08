@@ -1,0 +1,256 @@
+﻿{
+    "environment":  {
+                        "def_fm":  {
+                                       "present":  true,
+                                       "kind":  "String",
+                                       "value":  "def"
+                                   },
+                        "proxy_ip":  {
+                                         "present":  true,
+                                         "kind":  "String",
+                                         "value":  ""
+                                     },
+                        "inccli":  {
+                                       "present":  false,
+                                       "kind":  null,
+                                       "value":  null
+                                   },
+                        "incgui":  {
+                                       "present":  false,
+                                       "kind":  null,
+                                       "value":  null
+                                   },
+                        "inclauncher":  {
+                                            "present":  false,
+                                            "kind":  null,
+                                            "value":  null
+                                        },
+                        "inxcli":  {
+                                       "present":  false,
+                                       "kind":  null,
+                                       "value":  null
+                                   },
+                        "inxgui":  {
+                                       "present":  false,
+                                       "kind":  null,
+                                       "value":  null
+                                   },
+                        "inxlauncher":  {
+                                            "present":  false,
+                                            "kind":  null,
+                                            "value":  null
+                                        },
+                        "ifmcli":  {
+                                       "present":  false,
+                                       "kind":  null,
+                                       "value":  null
+                                   },
+                        "ifmgui":  {
+                                       "present":  false,
+                                       "kind":  null,
+                                       "value":  null
+                                   },
+                        "ifmlauncher":  {
+                                            "present":  false,
+                                            "kind":  null,
+                                            "value":  null
+                                        },
+                        "ifmxcli":  {
+                                        "present":  false,
+                                        "kind":  null,
+                                        "value":  null
+                                    },
+                        "ifmxgui":  {
+                                        "present":  false,
+                                        "kind":  null,
+                                        "value":  null
+                                    },
+                        "ifmxlauncher":  {
+                                             "present":  false,
+                                             "kind":  null,
+                                             "value":  null
+                                         },
+                        "ipmcli":  {
+                                       "present":  false,
+                                       "kind":  null,
+                                       "value":  null
+                                   },
+                        "ipmgui":  {
+                                       "present":  false,
+                                       "kind":  null,
+                                       "value":  null
+                                   },
+                        "ipmlauncher":  {
+                                            "present":  false,
+                                            "kind":  null,
+                                            "value":  null
+                                        },
+                        "ipmxcli":  {
+                                        "present":  false,
+                                        "kind":  null,
+                                        "value":  null
+                                    },
+                        "ipmxgui":  {
+                                        "present":  false,
+                                        "kind":  null,
+                                        "value":  null
+                                    },
+                        "ipmxlauncher":  {
+                                             "present":  false,
+                                             "kind":  null,
+                                             "value":  null
+                                         },
+                        "iimcli":  {
+                                       "present":  false,
+                                       "kind":  null,
+                                       "value":  null
+                                   },
+                        "iimgui":  {
+                                       "present":  false,
+                                       "kind":  null,
+                                       "value":  null
+                                   },
+                        "iimxcli":  {
+                                        "present":  false,
+                                        "kind":  null,
+                                        "value":  null
+                                    },
+                        "iimxgui":  {
+                                        "present":  false,
+                                        "kind":  null,
+                                        "value":  null
+                                    },
+                        "intcli":  {
+                                       "present":  false,
+                                       "kind":  null,
+                                       "value":  null
+                                   },
+                        "intgui":  {
+                                       "present":  false,
+                                       "kind":  null,
+                                       "value":  null
+                                   },
+                        "intxcli":  {
+                                        "present":  false,
+                                        "kind":  null,
+                                        "value":  null
+                                    },
+                        "intxgui":  {
+                                        "present":  false,
+                                        "kind":  null,
+                                        "value":  null
+                                    },
+                        "ingcli":  {
+                                       "present":  false,
+                                       "kind":  null,
+                                       "value":  null
+                                   },
+                        "inggui":  {
+                                       "present":  false,
+                                       "kind":  null,
+                                       "value":  null
+                                   },
+                        "ingxcli":  {
+                                        "present":  false,
+                                        "kind":  null,
+                                        "value":  null
+                                    },
+                        "ingxgui":  {
+                                        "present":  false,
+                                        "kind":  null,
+                                        "value":  null
+                                    }
+                    },
+    "uninstallKeys":  {
+                          "Infinity.Inc.InfinityCloud":  {
+                                                             "present":  false,
+                                                             "values":  {
+
+                                                                        }
+                                                         },
+                          "Infinity.Inc.InfinityFileManager":  {
+                                                                   "present":  false,
+                                                                   "values":  {
+
+                                                                              }
+                                                               },
+                          "Infinity.Inc.InfinityPackageManager":  {
+                                                                      "present":  false,
+                                                                      "values":  {
+
+                                                                                 }
+                                                                  },
+                          "Infinity.Inc.InfinityInstallerManager":  {
+                                                                        "present":  false,
+                                                                        "values":  {
+
+                                                                                   }
+                                                                    },
+                          "Infinity.Inc.InfinityToolbox":  {
+                                                               "present":  false,
+                                                               "values":  {
+
+                                                                          }
+                                                           },
+                          "Infinity.Inc.InfinityGames":  {
+                                                             "present":  false,
+                                                             "values":  {
+
+                                                                        }
+                                                         }
+                      },
+    "startMenu":  {
+                      "parentExists":  true,
+                      "defaultProgramsExists":  true,
+                      "productDirs":  {
+                                          "inc":  {
+                                                      "path":  "C:\\Users\\REDMI\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Infinity.Inc\\Infinity Cloud",
+                                                      "product":  "Infinity Cloud",
+                                                      "exists":  false,
+                                                      "files":  [
+
+                                                                ]
+                                                  },
+                                          "ifm":  {
+                                                      "path":  "C:\\Users\\REDMI\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Infinity.Inc\\Infinity File Manager",
+                                                      "product":  "Infinity File Manager",
+                                                      "exists":  false,
+                                                      "files":  [
+
+                                                                ]
+                                                  },
+                                          "ipm":  {
+                                                      "path":  "C:\\Users\\REDMI\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Infinity.Inc\\InfinityPackageManager",
+                                                      "product":  "InfinityPackageManager",
+                                                      "exists":  false,
+                                                      "files":  [
+
+                                                                ]
+                                                  },
+                                          "iim":  {
+                                                      "path":  "C:\\Users\\REDMI\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Infinity.Inc\\Infinity Installer Manager",
+                                                      "product":  "Infinity Installer Manager",
+                                                      "exists":  false,
+                                                      "files":  [
+
+                                                                ]
+                                                  },
+                                          "int":  {
+                                                      "path":  "C:\\Users\\REDMI\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Infinity.Inc\\Infinity Toolbox",
+                                                      "product":  "Infinity Toolbox",
+                                                      "exists":  false,
+                                                      "files":  [
+
+                                                                ]
+                                                  },
+                                          "ing":  {
+                                                      "path":  "C:\\Users\\REDMI\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Infinity.Inc\\Infinity Games",
+                                                      "product":  "Infinity Games",
+                                                      "exists":  false,
+                                                      "files":  [
+
+                                                                ]
+                                                  }
+                                      }
+                  }
+}

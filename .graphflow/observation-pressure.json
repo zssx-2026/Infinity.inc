@@ -1,0 +1,12 @@
+{
+  "sessions": {
+    "session-5eef8819-22e0-4858-90e3-f05298822866": {
+      "sessionId": "session-5eef8819-22e0-4858-90e3-f05298822866",
+      "rawBytes": 103224,
+      "visibleBytes": 103224,
+      "observations": 103,
+      "usedTokensEstimate": 25806,
+      "updatedAt": "2026-10-15T13:06:39.517Z"
+    }
+  }
+}

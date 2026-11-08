@@ -1,0 +1,28 @@
+# auth-worker/wrangler.toml - optional; pasting into the dashboard editor needs none of this.
+# Deploy:  npx wrangler deploy   then for each secret:  npx wrangler secret put <NAME>
+
+name = "infinity-account-auth-worker"
+main = "worker.zh.mjs"              # or worker.en.mjs - identical logic, pick one
+compatibility_date = "2026-10-01"
+
+[vars]
+GATE_TTL_SECONDS = "600"
+# DL_MAP: JSON object asset -> real download URL; the worker 302s to it only with a valid gate pass
+DL_MAP = '{"InfinityCloud-setup":"https://github.com/zssx-2026/Infinity-Cloud/releases/latest/download/InfinityCloud-setup.exe","InfinityPackageManager-setup":"https://github.com/zssx-2026/InfinityPackageManager/releases/latest/download/InfinityPackageManager-setup.exe"}'
+GITHUB_CLIENT_ID = "Iv1.your_oauth_app_client_id"
+AUTH_DATA_REPO = "zssx-2026/auth-data"
+FRONTEND_URL = "https://zssx-2026.github.io/infinity/login/"
+MIN_POW_BITS = "20"
+CHALLENGE_TTL_SECONDS = "600"
+# TURNSTILE_SITE_KEY = "0x4AAAAAAA..."   # optional, only if TURNSTILE_SECRET is set
+
+# Optional: makes challenge single-use global and counters cross-isolate
+# [[kv_namespaces]]
+# binding = "AUTH_KV"
+# id = "<your-kv-namespace-id>"
+
+# Secrets - set with: npx wrangler secret put <NAME>
+#   GITHUB_CLIENT_SECRET   OAuth App 的 Client Secret
+#   GITHUB_PAT             操作 auth-data 的令牌
+#   CHALLENGE_SECRET       人机验证签名密钥，openssl rand -hex 32
+#   TURNSTILE_SECRET       可选

@@ -61,3 +61,21 @@ shell/build/
 .DS_Store
 Thumbs.db
 *.swp
+# --- never published: local toolchains, binary runtimes, retired builds ---
+Chormium/
+Python/
+work/chromium-trim/
+work/webview2/
+work/_retired-products/
+work/_retired-iim/
+work/_retired-*/
+work/archive/
+work/_append-segment/
+IPM Applications/
+ITB Tools/
+ITB Tools.retired-*/
+cpp/apps/int.retired-*/
+*.itbt
+%SystemDrive%/
+workitbt_sandbox.retired-*/
+

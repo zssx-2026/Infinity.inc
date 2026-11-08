@@ -1,0 +1,101 @@
+{
+  "tag": "live-cn",
+  "normalUrl": "https://zssx-2026.github.io/infinity/cn/?verify=reset",
+  "timeoutUrl": "https://zssx-2026.github.io/infinity/cn/?verify=reset&difficulty=64",
+  "steps": [
+    {
+      "file": "live-cn-01-t0.5s.png",
+      "at": 550,
+      "state": {
+        "gate": {
+          "mode": "gate",
+          "startedAt": 1791106440597,
+          "revealedAt": null,
+          "elapsedMs": null,
+          "result": "pending",
+          "reason": "",
+          "solvedAt": null,
+          "zeros": 5
+        },
+        "overlay": true,
+        "bodyVisibility": "hidden",
+        "title": "Infinity.Inc — Infinity 套件",
+        "text": ""
+      }
+    },
+    {
+      "file": "live-cn-02-t2.9s.png",
+      "at": 2966,
+      "state": {
+        "gate": {
+          "mode": "gate",
+          "startedAt": 1791106440597,
+          "revealedAt": null,
+          "elapsedMs": null,
+          "result": "pending",
+          "reason": "",
+          "solvedAt": 1791106442236,
+          "zeros": 4
+        },
+        "overlay": true,
+        "bodyVisibility": "hidden",
+        "title": "Infinity.Inc — Infinity 套件",
+        "text": ""
+      }
+    },
+    {
+      "file": "live-cn-03-t3.5s.png",
+      "at": 3541,
+      "state": {
+        "gate": {
+          "mode": "gate",
+          "startedAt": 1791106440597,
+          "revealedAt": 1791106443603,
+          "elapsedMs": 3005,
+          "result": "shown",
+          "reason": "",
+          "solvedAt": 1791106442236,
+          "zeros": 4
+        },
+        "overlay": false,
+        "bodyVisibility": "visible",
+        "title": "Infinity.Inc — Infinity 套件",
+        "text": "Infinity.Inc 概览 下载 文档 云盘 设置 English Sign in Sign up Infinity 套件 六款只需要 Windows 的 Windows 应用。没有运行时，没有要一并安装的 DLL，也不需要安装程序才能跑起来 —— 每个产品都是一个几百 KB"
+      }
+    }
+  ],
+  "navToGateMs": 36,
+  "gate": {
+    "gate": {
+      "mode": "gate",
+      "startedAt": 1791106440597,
+      "revealedAt": 1791106443603,
+      "elapsedMs": 3005,
+      "result": "shown",
+      "reason": "",
+      "solvedAt": 1791106442236,
+      "zeros": 4
+    },
+    "overlay": false,
+    "bodyVisibility": "visible",
+    "title": "Infinity.Inc — Infinity 套件",
+    "text": "Infinity.Inc 概览 下载 文档 云盘 设置 English Sign in Sign up Infinity 套件 六款只需要 Windows 的 Windows 应用。没有运行时，没有要一并安装的 DLL，也不需要安装程序才能跑起来 —— 每个产品都是一个几百 KB"
+  },
+  "timeout": {
+    "gate": {
+      "mode": "gate",
+      "startedAt": 1791106444508,
+      "revealedAt": 1791106449516,
+      "elapsedMs": 5008,
+      "result": "timeout",
+      "reason": "max-time",
+      "solvedAt": null,
+      "zeros": 64
+    },
+    "overlay": false,
+    "bodyVisibility": "visible",
+    "title": "响应时间过长",
+    "text": "响应时间过长 该网页暂时无法访问，请稍后重试。"
+  },
+  "timeoutFile": "live-cn-05-timed-out.png"
+}

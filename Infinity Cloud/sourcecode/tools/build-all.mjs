@@ -25,7 +25,9 @@ import { makeBundle } from './bundle.mjs';
 const NL = String.fromCharCode(10);
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
-const RUNTIMES = 'D:/temp/tools/runtimes';
+/* The runtime cache lives in the workspace, next to this project - not on a
+ * drive that may not exist on the next machine. */
+const RUNTIMES = path.resolve(ROOT, '..', '..', 'temp', 'tools', 'runtimes');
 const WORK = path.join(ROOT, 'build');
 const OUT = path.join(ROOT, 'build', 'out');
 
@@ -110,7 +112,7 @@ function makeBlob() {
     useCodeCache: false
   }, null, 2), 'utf8');
 
-  run('D:/temp/tools/node.exe', ['--experimental-sea-config', cfg], 'sea-config');
+  run(process.execPath, ['--experimental-sea-config', cfg], 'sea-config');
   const blob = path.join(WORK, 'sea-prep.blob');
   if (!fs.existsSync(blob)) throw new Error('the blob was not produced');
   log('blob    ' + fs.statSync(blob).size + ' B');

@@ -20,6 +20,10 @@
  * that reads the vault stops accepting the old one - anything the old secret
  * was already pasted into keeps working, which is true of every key that has
  * left its owner's hands.
+ *
+ * This file makes no content request at all: nothing here reads a release, an
+ * asset, a document or a tag, so the language rule that sends a Chinese page's
+ * content to Gitee has nothing to route here. The keys stay in localStorage.
  */
 (function () {
   'use strict';
@@ -75,7 +79,9 @@
     imported: '已导入：新增 {n} 个，跳过 {m} 个。',
     importFailed: '这个文件不是本站导出的密钥 JSON。',
     saveFailed: '这个浏览器不允许写 localStorage，密钥无法保存。',
-    footerNote: '本页不需要登录：密钥是本浏览器里的东西，与 GitHub 账户无关。'
+    confirmDelete: '再点一次确认',
+    importedLabel: '导入的密钥',
+    footerNote: '本页不需要登录：密钥是本浏览器里的东西，与 GitHub 账户无关（中文站的内容读取自 Gitee，同样不涉及这里的密钥）。'
   } : {
     title: 'Token keys',
     lede: 'Token keys are how a program signs in to the suite\u2019s product APIs. This site has no server, so a key is created, shown, copied, rotated and deleted in this browser only \u2014 nothing is uploaded and nothing is checked here.',
@@ -121,6 +127,8 @@
     imported: 'Imported: {n} added, {m} skipped.',
     importFailed: 'That file is not a key export from this site.',
     saveFailed: 'This browser will not let the page write to localStorage, so keys cannot be saved.',
+    confirmDelete: 'click again to confirm',
+    importedLabel: 'imported',
     footerNote: 'This page needs no sign-in: the keys belong to this browser, not to a GitHub account.'
   };
 
@@ -252,7 +260,7 @@
     del.addEventListener('click', function () {
       if (!armed) {
         armed = true;
-        del.textContent = zh ? '再点一次确认' : 'click again to confirm';
+        del.textContent = S.confirmDelete;
         del.classList.add('danger');
         disarm = setTimeout(function () { armed = false; del.textContent = S.remove; del.classList.remove('danger'); }, 6000);
         return;
@@ -366,7 +374,7 @@
         data.tokens.forEach(function (t) {
           if (!t || typeof t.secret !== 'string' || t.secret.indexOf(PREFIX) !== 0 || (t.id && have[t.id])) { skipped++; return; }
           var rowOut = {
-            id: t.id || newId(), label: String(t.label || 'imported'), secret: t.secret,
+            id: t.id || newId(), label: String(t.label || S.importedLabel), secret: t.secret,
             createdAt: t.createdAt || new Date().toISOString(), rotatedAt: t.rotatedAt || null,
             lastUsedAt: t.lastUsedAt || null,
             scopes: (t.scopes && t.scopes.length) ? t.scopes.slice() : ['read']

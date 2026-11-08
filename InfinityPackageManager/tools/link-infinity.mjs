@@ -31,7 +31,7 @@ const REPO_ROOT = path.resolve(ROOT, '..');
 
 const OWNER = 'zssx-2026';
 const CATALOGUE = 'applications';
-const TAG = process.argv[2] || 'infinity-v1.0pre2';
+const TAG = process.argv[2] || 'infinity-v1.0pre5';
 const VERSION = TAG.replace(/^infinity-/, '');
 const TOKEN = process.env.EV_GH_TOKEN || '';
 

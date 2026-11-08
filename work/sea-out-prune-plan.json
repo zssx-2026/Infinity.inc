@@ -1,0 +1,157 @@
+{
+  "at": "2026-10-17T03:28:33.075Z",
+  "apply": false,
+  "rows": [
+    {
+      "product": "ifm",
+      "target": "darwin-arm64",
+      "bytes": 637365960,
+      "dead": false,
+      "reason": "no layout for this target; still the live payload fallback"
+    },
+    {
+      "product": "ifm",
+      "target": "darwin-x64",
+      "bytes": 663325776,
+      "dead": false,
+      "reason": "no layout for this target; still the live payload fallback"
+    },
+    {
+      "product": "ifm",
+      "target": "linux-arm64",
+      "bytes": 690112896,
+      "dead": false,
+      "reason": "no layout for this target; still the live payload fallback"
+    },
+    {
+      "product": "ifm",
+      "target": "linux-x64",
+      "bytes": 705841920,
+      "dead": false,
+      "reason": "no layout for this target; still the live payload fallback"
+    },
+    {
+      "product": "ifm",
+      "target": "win-arm64",
+      "bytes": 432577536,
+      "dead": false,
+      "reason": "no layout for this target; still the live payload fallback"
+    },
+    {
+      "product": "ifm",
+      "target": "win-ia32",
+      "bytes": 432046080,
+      "dead": false,
+      "reason": "no layout for this target; still the live payload fallback"
+    },
+    {
+      "product": "ifm",
+      "target": "win-x64",
+      "bytes": 484730880,
+      "dead": true,
+      "reason": "a layout exists for this target; build/out copy is stale"
+    },
+    {
+      "product": "inc",
+      "target": "darwin-arm64",
+      "bytes": 637267656,
+      "dead": false,
+      "reason": "no layout for this target; still the live payload fallback"
+    },
+    {
+      "product": "inc",
+      "target": "darwin-x64",
+      "bytes": 663178320,
+      "dead": false,
+      "reason": "no layout for this target; still the live payload fallback"
+    },
+    {
+      "product": "inc",
+      "target": "linux-arm64",
+      "bytes": 689719680,
+      "dead": false,
+      "reason": "no layout for this target; still the live payload fallback"
+    },
+    {
+      "product": "inc",
+      "target": "linux-x64",
+      "bytes": 705448704,
+      "dead": false,
+      "reason": "no layout for this target; still the live payload fallback"
+    },
+    {
+      "product": "inc",
+      "target": "win-arm64",
+      "bytes": 432445440,
+      "dead": false,
+      "reason": "no layout for this target; still the live payload fallback"
+    },
+    {
+      "product": "inc",
+      "target": "win-ia32",
+      "bytes": 431913984,
+      "dead": false,
+      "reason": "no layout for this target; still the live payload fallback"
+    },
+    {
+      "product": "inc",
+      "target": "win-x64",
+      "bytes": 484598784,
+      "dead": true,
+      "reason": "a layout exists for this target; build/out copy is stale"
+    },
+    {
+      "product": "ipm",
+      "target": "darwin-arm64",
+      "bytes": 638545608,
+      "dead": false,
+      "reason": "no layout for this target; still the live payload fallback"
+    },
+    {
+      "product": "ipm",
+      "target": "darwin-x64",
+      "bytes": 664431696,
+      "dead": false,
+      "reason": "no layout for this target; still the live payload fallback"
+    },
+    {
+      "product": "ipm",
+      "target": "linux-arm64",
+      "bytes": 691292544,
+      "dead": false,
+      "reason": "no layout for this target; still the live payload fallback"
+    },
+    {
+      "product": "ipm",
+      "target": "linux-x64",
+      "bytes": 707021568,
+      "dead": false,
+      "reason": "no layout for this target; still the live payload fallback"
+    },
+    {
+      "product": "ipm",
+      "target": "win-arm64",
+      "bytes": 433680384,
+      "dead": false,
+      "reason": "no layout for this target; still the live payload fallback"
+    },
+    {
+      "product": "ipm",
+      "target": "win-ia32",
+      "bytes": 433148928,
+      "dead": false,
+      "reason": "no layout for this target; still the live payload fallback"
+    },
+    {
+      "product": "ipm",
+      "target": "win-x64",
+      "bytes": 485833728,
+      "dead": true,
+      "reason": "a layout exists for this target; build/out copy is stale"
+    }
+  ],
+  "deadBytes": 1455163392,
+  "keepBytes": 10689364680,
+  "deadText": "1.36 GiB",
+  "keepText": "9.96 GiB"
+}

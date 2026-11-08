@@ -16,9 +16,8 @@
 // suite to keep correct. What is left is a command line for scripts and a
 // window for people.
 //
-// Infinity Installer Manager ships without the launcher as well - it has
-// exactly two faces, cli and gui, and nothing to choose between. Infinity
-// Toolbox and Infinity Games do the same.
+// Infinity Toolbox and Infinity Games ship without the launcher as well -
+// each has exactly two faces, cli and gui, and nothing to choose between.
 
 #pragma once
 
@@ -35,7 +34,7 @@
 namespace inc {
 
 struct Mode {
-  std::string app;      // inc / ifm / ipm / iim / int / ing, or empty when the name matched nothing
+  std::string app;      // inc / ifm / ipm / int / ing, or empty when the name matched nothing
   std::string mode;     // cli / gui / launcher, or empty
   bool admin = false;
   std::string exe;      // the base name it was started as
@@ -61,21 +60,14 @@ inline Mode detectMode() {
 
   if (prefix == "inc") { m.app = "inc"; m.admin = false; }
   else if (prefix == "inx") { m.app = "inc"; m.admin = true; }
-  else if (prefix == "ifm") { m.app = "ifm"; m.admin = false; }
-  else if (prefix == "ifmx") { m.app = "ifm"; m.admin = true; }
   else if (prefix == "ipm") { m.app = "ipm"; m.admin = false; }
   else if (prefix == "ipmx") { m.app = "ipm"; m.admin = true; }
-  else if (prefix == "iim") { m.app = "iim"; m.admin = false; }
-  else if (prefix == "iimx") { m.app = "iim"; m.admin = true; }
   else if (prefix == "int") { m.app = "int"; m.admin = false; }
   else if (prefix == "intx") { m.app = "int"; m.admin = true; }
-  else if (prefix == "ing") { m.app = "ing"; m.admin = false; }
-  else if (prefix == "ingx") { m.app = "ing"; m.admin = true; }
   else return m;
 
-  // Infinity Installer Manager, Infinity Toolbox and Infinity Games have two
-  // faces; the others have three.
-  const bool twoFaced = m.app == "iim" || m.app == "int" || m.app == "ing";
+  // Infinity Toolbox and Infinity Games have two faces; the others have three.
+  const bool twoFaced = m.app == "int";
   const bool known = twoFaced
       ? (mode == "cli" || mode == "gui")
       : (mode == "cli" || mode == "gui" || mode == "launcher");

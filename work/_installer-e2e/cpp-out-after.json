@@ -1,0 +1,152 @@
+﻿[
+    {
+        "path":  "cpp\\out\\ifm\\ifm_cli.exe",
+        "bytes":  521216,
+        "sha256":  "8EADC46453D62DB12958A3C08824B099E781D437E17B312A841583CF9232ADA2"
+    },
+    {
+        "path":  "cpp\\out\\ifm\\ifm_gui.exe",
+        "bytes":  521216,
+        "sha256":  "8EADC46453D62DB12958A3C08824B099E781D437E17B312A841583CF9232ADA2"
+    },
+    {
+        "path":  "cpp\\out\\ifm\\ifm_launcher.exe",
+        "bytes":  521216,
+        "sha256":  "8EADC46453D62DB12958A3C08824B099E781D437E17B312A841583CF9232ADA2"
+    },
+    {
+        "path":  "cpp\\out\\ifm\\ifmx_cli.exe",
+        "bytes":  521216,
+        "sha256":  "8EADC46453D62DB12958A3C08824B099E781D437E17B312A841583CF9232ADA2"
+    },
+    {
+        "path":  "cpp\\out\\ifm\\ifmx_gui.exe",
+        "bytes":  521216,
+        "sha256":  "8EADC46453D62DB12958A3C08824B099E781D437E17B312A841583CF9232ADA2"
+    },
+    {
+        "path":  "cpp\\out\\ifm\\ifmx_launcher.exe",
+        "bytes":  521216,
+        "sha256":  "8EADC46453D62DB12958A3C08824B099E781D437E17B312A841583CF9232ADA2"
+    },
+    {
+        "path":  "cpp\\out\\iim\\iim_cli.exe",
+        "bytes":  728064,
+        "sha256":  "2AE09E17E91A5DF504CAC5693F0F1A535D3A234578A814A5215F62EAE0BFD483"
+    },
+    {
+        "path":  "cpp\\out\\iim\\iim_gui.exe",
+        "bytes":  728064,
+        "sha256":  "2AE09E17E91A5DF504CAC5693F0F1A535D3A234578A814A5215F62EAE0BFD483"
+    },
+    {
+        "path":  "cpp\\out\\iim\\iimx_cli.exe",
+        "bytes":  728064,
+        "sha256":  "2AE09E17E91A5DF504CAC5693F0F1A535D3A234578A814A5215F62EAE0BFD483"
+    },
+    {
+        "path":  "cpp\\out\\iim\\iimx_gui.exe",
+        "bytes":  728064,
+        "sha256":  "2AE09E17E91A5DF504CAC5693F0F1A535D3A234578A814A5215F62EAE0BFD483"
+    },
+    {
+        "path":  "cpp\\out\\inc\\inc_cli.exe",
+        "bytes":  1559552,
+        "sha256":  "2296CE390C115989AF574ECE81FA251477004FA76020C58C489F7B871E7D651E"
+    },
+    {
+        "path":  "cpp\\out\\inc\\inc_gui.exe",
+        "bytes":  1559552,
+        "sha256":  "2296CE390C115989AF574ECE81FA251477004FA76020C58C489F7B871E7D651E"
+    },
+    {
+        "path":  "cpp\\out\\inc\\inc_launcher.exe",
+        "bytes":  1559552,
+        "sha256":  "2296CE390C115989AF574ECE81FA251477004FA76020C58C489F7B871E7D651E"
+    },
+    {
+        "path":  "cpp\\out\\inc\\inx_cli.exe",
+        "bytes":  1559552,
+        "sha256":  "2296CE390C115989AF574ECE81FA251477004FA76020C58C489F7B871E7D651E"
+    },
+    {
+        "path":  "cpp\\out\\inc\\inx_gui.exe",
+        "bytes":  1559552,
+        "sha256":  "2296CE390C115989AF574ECE81FA251477004FA76020C58C489F7B871E7D651E"
+    },
+    {
+        "path":  "cpp\\out\\inc\\inx_launcher.exe",
+        "bytes":  1559552,
+        "sha256":  "2296CE390C115989AF574ECE81FA251477004FA76020C58C489F7B871E7D651E"
+    },
+    {
+        "path":  "cpp\\out\\ing\\ing_cli.exe",
+        "bytes":  611840,
+        "sha256":  "CC8BB3193518ECEC7F4C128FE910FC5F0CFF0C491B7D003A134901FA447AABE4"
+    },
+    {
+        "path":  "cpp\\out\\ing\\ing_gui.exe",
+        "bytes":  611840,
+        "sha256":  "CC8BB3193518ECEC7F4C128FE910FC5F0CFF0C491B7D003A134901FA447AABE4"
+    },
+    {
+        "path":  "cpp\\out\\ing\\ingx_cli.exe",
+        "bytes":  611840,
+        "sha256":  "CC8BB3193518ECEC7F4C128FE910FC5F0CFF0C491B7D003A134901FA447AABE4"
+    },
+    {
+        "path":  "cpp\\out\\ing\\ingx_gui.exe",
+        "bytes":  611840,
+        "sha256":  "CC8BB3193518ECEC7F4C128FE910FC5F0CFF0C491B7D003A134901FA447AABE4"
+    },
+    {
+        "path":  "cpp\\out\\int\\int_cli.exe",
+        "bytes":  684544,
+        "sha256":  "1E1E8A23FFA35861B0F13B716563301EAB013E82E1DFDB339AFDD7751A20F96E"
+    },
+    {
+        "path":  "cpp\\out\\int\\int_gui.exe",
+        "bytes":  684544,
+        "sha256":  "1E1E8A23FFA35861B0F13B716563301EAB013E82E1DFDB339AFDD7751A20F96E"
+    },
+    {
+        "path":  "cpp\\out\\int\\intx_cli.exe",
+        "bytes":  684544,
+        "sha256":  "1E1E8A23FFA35861B0F13B716563301EAB013E82E1DFDB339AFDD7751A20F96E"
+    },
+    {
+        "path":  "cpp\\out\\int\\intx_gui.exe",
+        "bytes":  684544,
+        "sha256":  "1E1E8A23FFA35861B0F13B716563301EAB013E82E1DFDB339AFDD7751A20F96E"
+    },
+    {
+        "path":  "cpp\\out\\ipm\\ipm_cli.exe",
+        "bytes":  658944,
+        "sha256":  "FCCE903D6CD907827A9AA90C34DF2FF607AAEAA84DFD11A82D52EC9BCD995EC9"
+    },
+    {
+        "path":  "cpp\\out\\ipm\\ipm_gui.exe",
+        "bytes":  658944,
+        "sha256":  "FCCE903D6CD907827A9AA90C34DF2FF607AAEAA84DFD11A82D52EC9BCD995EC9"
+    },
+    {
+        "path":  "cpp\\out\\ipm\\ipm_launcher.exe",
+        "bytes":  658944,
+        "sha256":  "FCCE903D6CD907827A9AA90C34DF2FF607AAEAA84DFD11A82D52EC9BCD995EC9"
+    },
+    {
+        "path":  "cpp\\out\\ipm\\ipmx_cli.exe",
+        "bytes":  658944,
+        "sha256":  "FCCE903D6CD907827A9AA90C34DF2FF607AAEAA84DFD11A82D52EC9BCD995EC9"
+    },
+    {
+        "path":  "cpp\\out\\ipm\\ipmx_gui.exe",
+        "bytes":  658944,
+        "sha256":  "FCCE903D6CD907827A9AA90C34DF2FF607AAEAA84DFD11A82D52EC9BCD995EC9"
+    },
+    {
+        "path":  "cpp\\out\\ipm\\ipmx_launcher.exe",
+        "bytes":  658944,
+        "sha256":  "FCCE903D6CD907827A9AA90C34DF2FF607AAEAA84DFD11A82D52EC9BCD995EC9"
+    }
+]

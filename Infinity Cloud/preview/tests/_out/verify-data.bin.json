@@ -1,0 +1,16 @@
+{
+  "entry": "data.bin",
+  "method": 8,
+  "compressedBytes": 717020,
+  "expectedCompressed": 717020,
+  "inflatedBytes": 716800,
+  "expectedUncompressed": 716800,
+  "crc": 3714276340,
+  "expectedCrc": 3714276340,
+  "sha256": "4f62c8b2c71d94977a7085fed1c260fe18193890be0a5a9904d793238f244899",
+  "sizeOk": true,
+  "bytesOk": true,
+  "crcOk": true,
+  "error": "",
+  "pass": true
+}

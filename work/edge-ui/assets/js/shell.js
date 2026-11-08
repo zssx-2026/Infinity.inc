@@ -46,7 +46,9 @@
     locale: "zh-CN",
     sidebar: true,
     acrylic: true,
-    home: "inc://cloud",
+    restoreSession: true,
+    exitAsk: false,
+    home: "about:home",
     favorites: APPS.map(function (a) { return { labelKey: a.nameKey, label: "", url: a.url, code: a.code, color: a.color }; })
   };
   var settings = JSON.parse(JSON.stringify(DEFAULTS));
@@ -79,7 +81,9 @@
     if (window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === "function") {
       host.kind = "webview2"; host.api = "window.chrome.webview.postMessage"; return;
     }
-    if (forced === "cef" || forced === "host") { host.kind = "cef"; host.api = "window.parent.postMessage"; return; }
+    if (forced === "cef" || forced === "host" || forced === "1" || forced === "true" || forced === "yes") {
+      host.kind = "cef"; host.api = "window.parent.postMessage"; return;
+    }
     host.kind = "demo"; host.api = "demo://iframe";
   }
 
@@ -172,6 +176,7 @@
   var state = {
     tabs: [],
     activeTab: null,
+    renderIframe: false,
     menuOpen: false,
     devtoolsOpen: false,
     devtoolsTab: "protocol",
@@ -266,7 +271,7 @@
     };
     state.tabs.push(tab);
     if (opts.activate !== false) { state.activeTab = tab.id; }
-    renderTabs();
+    renderTabs({ instant: !!opts.instant });
     if (opts.activate !== false) { showTab(tab.id); } else { renderSidebar(); }
     return tab;
   }
@@ -275,24 +280,41 @@
     var idx = -1;
     for (var i = 0; i < state.tabs.length; i++) { if (state.tabs[i].id === id) { idx = i; } }
     if (idx < 0) { return; }
+    var prevRects = TabAnim.measure();          // boxes before the strip reflows
+    var node = TabAnim.nodeFor(id);
     var tab = state.tabs[idx];
     if (tab.view && tab.view.parentNode) { tab.view.parentNode.removeChild(tab.view); }
     state.tabs.splice(idx, 1);
+    if (node) { TabAnim.exit(node); }           // collapse + fade, removes itself
     if (state.tabs.length === 0) { newTab("about:home"); return; }
     if (state.activeTab === id) {
       var next = state.tabs[Math.min(idx, state.tabs.length - 1)];
-      showTab(next.id);
-    } else { renderTabs(); renderSidebar(); }
+      state.activeTab = next.id;
+      revealView(next);
+      send("shell.activate-tab", { tabId: next.id, url: next.url });
+    }
+    renderTabs({ prevRects: prevRects });       // FLIP: remaining tabs slide
+    renderSidebar();
+    syncOmnibox();
+    updateNavButtons();
+  }
+
+  function revealView(tab) {
+    state.tabs.forEach(function (tb) { if (tb.view) { tb.view.hidden = tb.id !== tab.id; } });
+    if (!tab.view) { renderView(tab); }
+    tab.view.hidden = false;
+    tab.view.classList.remove("view-enter");
+    void tab.view.offsetWidth;
+    tab.view.classList.add("view-enter");
+    window.clearTimeout(tab.view._vt);
+    tab.view._vt = window.setTimeout(function () { tab.view.classList.remove("view-enter"); }, 300);
   }
 
   function showTab(id) {
     var tab = tabById(id);
     if (!tab) { return; }
     state.activeTab = id;
-    state.tabs.forEach(function (tb) {
-      if (tb.view) { tb.view.hidden = tb.id !== id; }
-    });
-    if (!tab.view) { renderView(tab); tab.view.hidden = false; }
+    revealView(tab);
     renderTabs();
     renderSidebar();
     syncOmnibox();
@@ -361,26 +383,174 @@
   /* ------------------------------------------------------------------ *
    * rendering
    * ------------------------------------------------------------------ */
-  function renderTabs() {
+
+  /* Tab strip animation engine. renderTabs() below reconciles DOM nodes
+   * (reuses them instead of rebuilding the strip) so enter / exit / FLIP
+   * shift / sliding indicator / drag-sort transitions can actually run.
+   * Timings live in the CSS variables --anim-* (shell.css). */
+  var TabAnim = (function () {
+    var indicator = null;
+    var suppressClick = false;
+
+    function tabNodes() {
+      return $all(".tab", els.tabs).filter(function (n) { return !n.classList.contains("exit"); });
+    }
+    function nodeFor(id) {
+      var found = null;
+      $all(".tab", els.tabs).forEach(function (n) { if (n.dataset.tabId === id) { found = n; } });
+      return found;
+    }
+    function measure() {
+      var out = {};
+      tabNodes().forEach(function (n) { out[n.dataset.tabId] = n.getBoundingClientRect(); });
+      return out;
+    }
+    /* FLIP: put every reused node back at its old spot, then transition home. */
+    function flip(nodes, prev) {
+      if (!prev) { return; }
+      var moved = [];
+      nodes.forEach(function (n) {
+        if (n.classList.contains("dragging")) { return; }
+        var p = prev[n.dataset.tabId];
+        if (!p) { return; }
+        var r = n.getBoundingClientRect();
+        var dx = p.left - r.left, dy = p.top - r.top;
+        if (Math.abs(dx) < .5 && Math.abs(dy) < .5) { return; }
+        n.style.transition = "none";
+        n.style.transform = "translate3d(" + dx + "px," + dy + "px,0)";
+        void n.offsetWidth;
+        n.classList.add("flip");
+        n.style.transition = "";
+        n.style.transform = "";
+        moved.push(n);
+      });
+      if (!moved.length) { return; }
+      window.setTimeout(function () {
+        moved.forEach(function (n) { n.classList.remove("flip"); });
+      }, 340);
+    }
+    function enter(node) {
+      node.classList.remove("flip");
+      node.classList.add("enter");
+      var done = function () { node.classList.remove("enter"); node.removeEventListener("animationend", done); };
+      node.addEventListener("animationend", done);
+      window.setTimeout(done, 700);
+    }
+    /* Pin the closing tab out of flow at its current box, then collapse it. */
+    function exit(node) {
+      var r = node.getBoundingClientRect();
+      var pr = els.tabs.getBoundingClientRect();
+      node.style.setProperty("--exit-w", Math.max(0, r.width) + "px");
+      node.style.position = "absolute";
+      node.style.left = (r.left - pr.left) + "px";
+      node.style.top = (r.top - pr.top) + "px";
+      node.style.width = Math.max(0, r.width) + "px";
+      node.style.height = Math.max(0, r.height) + "px";
+      node.style.flex = "0 0 auto";
+      node.style.minWidth = "0";
+      node.style.maxWidth = "none";
+      node.style.margin = "0";
+      node.style.zIndex = "3";
+      node.classList.remove("active");
+      node.classList.add("exit");
+      var finish = function () {
+        node.removeEventListener("animationend", finish);
+        if (node.parentNode) { node.parentNode.removeChild(node); }
+        TabAnim.updateIndicator(state.activeTab);
+      };
+      node.addEventListener("animationend", finish);
+      window.setTimeout(finish, 600);
+    }
+    /* Sliding active-tab highlight bar: transform + width transition. */
+    function updateIndicator(activeId) {
+      if (indicator && indicator.parentNode !== els.tabs) { indicator = null; }
+      if (!indicator) {
+        indicator = document.getElementById("tabIndicator");
+        if (!indicator) {
+          indicator = document.createElement("span");
+          indicator.id = "tabIndicator";
+          indicator.className = "tab-indicator";
+          indicator.setAttribute("aria-hidden", "true");
+        }
+        els.tabs.appendChild(indicator);
+      }
+      var node = nodeFor(activeId);
+      if (!node) { indicator.style.opacity = "0"; return; }
+      var r = node.getBoundingClientRect();
+      var pr = els.tabs.getBoundingClientRect();
+      var x = r.left - pr.left + 10;
+      var w = Math.max(0, r.width - 20);
+      if (!indicator.dataset.ready) {
+        indicator.style.transition = "none";
+        indicator.style.width = w + "px";
+        indicator.style.transform = "translate3d(" + x + "px,0,0)";
+        void indicator.offsetWidth;
+        indicator.style.transition = "";
+        indicator.dataset.ready = "1";
+      } else {
+        indicator.style.width = w + "px";
+        indicator.style.transform = "translate3d(" + x + "px,0,0)";
+      }
+      indicator.style.top = (r.top - pr.top + 1) + "px";
+      indicator.style.opacity = "1";
+      indicator.dataset.x = String(Math.round(x));
+    }
+    return {
+      tabNodes: tabNodes, nodeFor: nodeFor, measure: measure, flip: flip,
+      enter: enter, exit: exit, updateIndicator: updateIndicator,
+      suppressClick: function () { suppressClick = true; },
+      consumeClickSuppress: function () { var s = suppressClick; suppressClick = false; return s; }
+    };
+  })();
+
+  function updateTabNode(node, tab) {
+    var active = tab.id === state.activeTab;
+    node.classList.toggle("active", active);
+    node.setAttribute("aria-selected", active ? "true" : "false");
+    var fav = node.querySelector(".tab-fav");
+    var sig = faviconHtml(tab, 16);
+    if (fav.getAttribute("data-sig") !== sig) { fav.setAttribute("data-sig", sig); fav.innerHTML = sig; }
+    var titleText = tab.title || titleFor(tab.url);
+    var titleEl = node.querySelector(".tab-title");
+    if (titleEl.textContent !== titleText) { titleEl.textContent = titleText; }
+    node.title = titleText + "\n" + tab.url;
+    node.classList.toggle("loading", !!tab.loading);
+    var close = node.querySelector(".tab-close");
+    if (!close.dataset.bound) { close.dataset.bound = "1"; close.setAttribute("title", t("tab.close")); }
+  }
+
+  function renderTabs(opts) {
+    opts = opts || {};
     if (!els.tabs) { return; }
     var tpl = $("#tpl-tab");
-    els.tabs.innerHTML = "";
+    var existing = $all(".tab", els.tabs);
+    var byId = {};
+    existing.forEach(function (n) { if (!n.classList.contains("exit")) { byId[n.dataset.tabId] = n; } });
+    var created = [];
+    var order = [];
     state.tabs.forEach(function (tab) {
-      var node = tpl.content.firstElementChild.cloneNode(true);
-      node.dataset.tabId = tab.id;
-      node.classList.toggle("active", tab.id === state.activeTab);
-      node.setAttribute("aria-selected", tab.id === state.activeTab ? "true" : "false");
-      var fav = node.querySelector(".tab-fav");
-      fav.innerHTML = faviconHtml(tab, 16);
-      var title = node.querySelector(".tab-title");
-      title.textContent = tab.title || titleFor(tab.url);
-      node.title = title.textContent + "\n" + tab.url;
-      if (tab.loading) { node.classList.add("loading"); }
-      var close = node.querySelector(".tab-close");
-      close.setAttribute("title", t("tab.close"));
-      els.tabs.appendChild(node);
+      var node = byId[tab.id];
+      if (!node) {
+        node = tpl.content.firstElementChild.cloneNode(true);
+        node.dataset.tabId = tab.id;
+        created.push(node);
+      }
+      updateTabNode(node, tab);
+      order.push(node);
     });
+    var wanted = {};
+    order.forEach(function (n) { wanted[n.dataset.tabId] = true; });
+    existing.forEach(function (n) {
+      if (wanted[n.dataset.tabId] || n.classList.contains("exit")) { return; }
+      if (opts.instantExit) { if (n.parentNode) { n.parentNode.removeChild(n); } }
+      else { TabAnim.exit(n); }
+    });
+    order.forEach(function (n) { els.tabs.appendChild(n); });
     Icons.hydrate(els.tabs);
+    if (created.length && !opts.instant) { created.forEach(function (n) { TabAnim.enter(n); }); }
+    TabAnim.flip(order, opts.prevRects);
+    TabAnim.updateIndicator(state.activeTab);
+    if (opts.after) { opts.after(); }
   }
 
   function faviconHtml(tab, size) {
@@ -514,7 +684,7 @@
     tab.view.innerHTML = "";
     if (tab.kind === "ntp") { tab.view.appendChild(buildNtp(tab)); }
     else if (tab.kind === "app" || tab.kind === "web" || tab.kind === "page") {
-      tab.view.appendChild(host.kind === "demo" ? buildFrame(tab) : buildHostPlaceholder(tab));
+      tab.view.appendChild(state.renderIframe ? buildFrame(tab) : buildHostPlaceholder(tab));
     } else { tab.view.appendChild(buildInterstitial(tab)); }
     tab.view.hidden = tab.id !== state.activeTab;
   }
@@ -720,12 +890,16 @@
     els.overlay.hidden = false;
     $("#dialog-settings").hidden = name !== "settings";
     $("#dialog-about").hidden = name !== "about";
+    $("#dialog-exit").hidden = name !== "exit";
     state.dialog = name;
     Icons.hydrate(els.overlay);
     if (name === "settings") {
       $("#setHome").value = settings.home;
       $("#setAcrylic").checked = !!settings.acrylic;
       $("#setSidebar").checked = !!settings.sidebar;
+      $("#setRestore").checked = !!settings.restoreSession;
+      $("#setExitAsk").checked = !!settings.exitAsk;
+      updateSessionInfo();
       applyTheme(settings.themeMode, { silent: true, noRerender: true });
     }
   }
@@ -837,11 +1011,22 @@
         if (p.acrylic !== undefined) { settings.acrylic = !!p.acrylic; applyTheme(settings.themeMode, { silent: true, noRerender: true }); }
         if (p.home) { settings.home = p.home; }
         if (p.frame === false) { document.documentElement.dataset.frame = "0"; }
+        if (p.render === "iframe") { state.renderIframe = true; }
+        if (p.render === "native") { state.renderIframe = false; }
+        if (activeTab()) { renderView(activeTab()); }
         break;
       case "host.command-result":
         toast(esc(p.name) + ": " + (p.ok ? "ok" : (p.reason || "unavailable")));
         break;
       case "host.search-result":
+        break;
+      case "host.session-restore":
+        if (p && p.tabs && p.tabs.length) { restoreSession(p); }
+        break;
+      case "host.playzone":
+        if (p && p.action === "close") { pzClose(); }
+        else if (p && p.action === "open") { pzOpen(); }
+        else if (p && p.music && p.music.src) { pzSetMusic(p.music.src, p.music.name); }
         break;
       default:
         break;
@@ -866,6 +1051,7 @@
       case "favorites": openUrl("about:home", "current"); toggleMenu(false); break;
       case "downloads": send("shell.command", { name: "downloads" }); toast("shell.command · downloads"); toggleMenu(false); break;
       case "collections": send("shell.command", { name: "collections" }); toast("shell.command · collections"); toggleMenu(false); break;
+      case "playzone": pzToggle(); toggleMenu(false); break;
       case "print": send("shell.command", { name: "print" }); toast("shell.command · print"); toggleMenu(false); break;
       case "devtools":
       case "protocol":
@@ -892,9 +1078,87 @@
       sbApps: $("#sbApps"), sbTabs: $("#sbTabs"), sbCount: $("#sbCount"), sbSearch: $("#sbSearch"),
       aboutVersion: $("#aboutVersion"), menuVersion: $("#menuVersion"), menuHostPill: $("#menuHostPill"),
       hostModeHint: $("#hostModeHint"), setHostPill: $("#setHostPill"), setHostApi: $("#setHostApi"),
-      aboutHost: $("#aboutHost"), content: $("#content")
+      aboutHost: $("#aboutHost"), content: $("#content"),
+      playzone: $("#playzone"), pzSelect: $("#pzSelect"), pzName: $("#pzName"),
+      pzPrimary: $("#pzPrimary"), pzAccent: $("#pzAccent"), pzBg: $("#pzBg"),
+      pzPreviewTile: $("#pzPreviewTile"), pzPreviewName: $("#pzPreviewName"), pzPreviewMeta: $("#pzPreviewMeta"),
+      pzMusicName: $("#pzMusicName"), pzVolume: $("#pzVolume"), pzVolVal: $("#pzVolVal"),
+      pzPlay: $("#pzPlay"), pzAudio: $("#pzAudio")
     };
     viewsEl = els.views;
+  }
+
+  /* Pointer drag-sort for the tab strip: lift on the first 5px of movement,
+   * reorder live with a FLIP shift on the neighbours, then rebound on release. */
+  function wireTabDrag() {
+    var drag = null;
+
+    els.tabs.addEventListener("pointerdown", function (e) {
+      if (e.button !== 0) { return; }
+      var node = e.target.closest ? e.target.closest(".tab") : null;
+      if (!node || node.classList.contains("exit")) { return; }
+      if (e.target.closest && e.target.closest(".tab-close")) { return; }
+      var rect = node.getBoundingClientRect();
+      drag = {
+        node: node, id: node.dataset.tabId, pointerId: e.pointerId,
+        startX: e.clientX, startY: e.clientY, grabDX: e.clientX - rect.left,
+        active: false, lastIndex: -1
+      };
+    });
+
+    window.addEventListener("pointermove", function (e) {
+      if (!drag || e.pointerId !== drag.pointerId) { return; }
+      var dx0 = e.clientX - drag.startX, dy0 = e.clientY - drag.startY;
+      if (!drag.active) {
+        if (Math.abs(dx0) < 5 && Math.abs(dy0) < 5) { return; }
+        drag.active = true;
+        drag.node.classList.add("dragging");
+        els.tabs.classList.add("tab-dragging");
+        try { drag.node.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      }
+      if (e.cancelable) { e.preventDefault(); }
+
+      /* live reorder: index = number of neighbours whose centre is left of the pointer */
+      var others = TabAnim.tabNodes().filter(function (n) { return n !== drag.node; });
+      var before = 0;
+      others.forEach(function (n) { var rb = n.getBoundingClientRect(); if (e.clientX > rb.left + rb.width / 2) { before += 1; } });
+      if (before !== drag.lastIndex) {
+        var prevRects = TabAnim.measure();
+        var arr = state.tabs.filter(function (x) { return x.id !== drag.id; });
+        var moving = tabById(drag.id);
+        if (moving) {
+          arr.splice(Math.min(before, arr.length), 0, moving);
+          state.tabs = arr;
+          drag.lastIndex = before;
+          renderTabs({ prevRects: prevRects });
+        }
+      }
+
+      var pr = els.tabs.getBoundingClientRect();
+      var dx = (e.clientX - drag.grabDX - pr.left) - drag.node.offsetLeft;
+      var dy = Math.max(-6, Math.min(6, dy0 * 0.25));
+      drag.node.style.transition = "none";
+      drag.node.style.transform = "translate3d(" + dx + "px," + dy + "px,0) scale(1.03)";
+    });
+
+    function release() {
+      var d = drag;
+      drag = null;
+      if (!d) { return; }
+      if (!d.active) { return; }
+      TabAnim.suppressClick();
+      var node = d.node;
+      els.tabs.classList.remove("tab-dragging");
+      node.style.transition = "";
+      node.style.transform = "";
+      node.classList.remove("dragging");
+      node.classList.add("settle");                       // rebound keyframes
+      window.setTimeout(function () { node.classList.remove("settle"); }, 430);
+      TabAnim.updateIndicator(state.activeTab);
+      renderTabs();
+    }
+    window.addEventListener("pointerup", release);
+    window.addEventListener("pointercancel", release);
   }
 
   function wireEvents() {
@@ -922,13 +1186,70 @@
     $all(".cap-btn").forEach(function (b) {
       b.addEventListener("click", function () {
         var map = { "cap-min": "minimize", "cap-max": "maximize", "cap-close": "close" };
+        if (b.id === "cap-close") { requestExit(); return; }   // save session first
         send("shell.window", { action: map[b.id] });
         toast("shell.window · " + map[b.id]);
       });
     });
 
+    // Play Zone entry points + panel
+    $("#btn-playzone").addEventListener("click", pzToggle);
+    $("#pz-close").addEventListener("click", function () { pzClose(); });
+    $("#pz-new").addEventListener("click", function () {
+      var z = pzNewZone();
+      pzOpen(z.id);
+      toast(t("playzone.created", { name: z.name }));
+    });
+    els.pzSelect.addEventListener("change", function () { pzOpen(els.pzSelect.value); });
+    $all("#pzTheme button").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var z = pzActive();
+        if (!z) { return; }
+        z.theme = b.dataset.pzTheme;
+        pzSave(); pzRender();
+      });
+    });
+    els.pzName.addEventListener("input", function () { var z = pzActive(); if (z) { z.name = els.pzName.value; pzSave(); pzRender(); } });
+    els.pzPrimary.addEventListener("input", function () { var z = pzActive(); if (z) { z.primary = els.pzPrimary.value; pzSave(); pzRender(); } });
+    els.pzAccent.addEventListener("input", function () { var z = pzActive(); if (z) { z.accent = els.pzAccent.value; pzSave(); pzRender(); } });
+    els.pzBg.addEventListener("input", function () { var z = pzActive(); if (z) { z.bg = els.pzBg.value; pzSave(); pzRender(); } });
+    $("#pzMusicPick").addEventListener("click", function () { $("#pzMusicFile").click(); });
+    $("#pzMusicFile").addEventListener("change", function (e) {
+      var f = e.target.files && e.target.files[0];
+      if (!f) { return; }
+      var url = URL.createObjectURL(f);
+      pzSetMusic(url, f.name);
+      toast(t("toast.musicPicked", { name: f.name }));
+      pzPlay();
+    });
+    els.pzPlay.addEventListener("click", function () { if (pzPlaying()) { pzPause(); } else { pzPlay(); } });
+    els.pzVolume.addEventListener("input", function () {
+      pzSetVolume(parseInt(els.pzVolume.value, 10) / 100);
+      els.pzVolVal.textContent = els.pzVolume.value + "%";
+      if (els.pzAudio) { els.pzAudio.volume = playzone.activeId ? (pzActive().music.volume) : 0.6; }
+      pzSave();
+    });
+
+    // session settings
+    $("#setRestore").addEventListener("change", function (e) { settings.restoreSession = e.target.checked; saveSettings(); });
+    $("#setExitAsk").addEventListener("change", function (e) { settings.exitAsk = e.target.checked; saveSettings(); });
+    $("#btn-session-save").addEventListener("click", function () {
+      var s = saveSession("manual");
+      if (s) { toast(t("toast.sessionSaved", { n: s.tabs.length })); }
+    });
+    $("#btn-session-clear").addEventListener("click", function () { clearSession(); toast(t("toast.sessionCleared")); });
+    $("#btn-exit-confirm").addEventListener("click", function () {
+      var chk = document.getElementById("exitDontAsk");
+      if (chk && chk.checked) { settings.exitAsk = true; saveSettings(); }
+      var snap = saveSession("exit");
+      closeDialog();
+      send("shell.window", { action: "close", session: snap });
+      toast(t("toast.sessionSaved", { n: snap ? snap.tabs.length : 0 }));
+    });
+
     // tab strip
     els.tabs.addEventListener("click", function (e) {
+      if (TabAnim.consumeClickSuppress()) { return; }   // click that ended a drag
       var closeBtn = e.target.closest(".tab-close");
       var tabEl = e.target.closest(".tab");
       if (!tabEl) { return; }
@@ -941,6 +1262,7 @@
       var tabEl = e.target.closest(".tab");
       if (tabEl) { e.preventDefault(); closeTab(tabEl.dataset.tabId); }
     });
+    wireTabDrag();
 
     // omnibox
     els.address.addEventListener("focus", function () {
@@ -1036,6 +1358,7 @@
 
     window.addEventListener("resize", function () {
       send("shell.content-rect", rectPayload());
+      TabAnim.updateIndicator(state.activeTab);
       if (state.devtoolsOpen && state.devtoolsTab === "host") { renderHostInfo(); }
     });
     if (window.matchMedia) {
@@ -1060,6 +1383,7 @@
     if (key === "Escape") {
       if (state.dialog) { closeDialog(); return; }
       if (state.menuOpen) { toggleMenu(false); return; }
+      if (playzone.open) { pzClose(); return; }
       if (state.devtoolsOpen) { setDevtools(false); return; }
     }
     if (key === "F12" || (ctrl && e.shiftKey && (key === "I" || key === "i"))) {
@@ -1075,6 +1399,7 @@
     if (ctrl && !e.shiftKey && (key === "p" || key === "P")) { e.preventDefault(); menuAction("print"); return; }
     if (ctrl && e.shiftKey && (key === "P" || key === "p")) { e.preventDefault(); setDevtools(true, "protocol"); return; }
     if (ctrl && e.shiftKey && (key === "E" || key === "e")) { e.preventDefault(); setSidebar(els.body.classList.contains("sb-collapsed")); return; }
+    if (ctrl && e.shiftKey && (key === "G" || key === "g")) { e.preventDefault(); pzToggle(); return; }
     if (e.altKey && key === "ArrowLeft") { e.preventDefault(); goBack(activeTab()); return; }
     if (e.altKey && key === "ArrowRight") { e.preventDefault(); goForward(activeTab()); return; }
     if (e.altKey && key === "Home") { e.preventDefault(); goHome(); return; }
@@ -1095,6 +1420,472 @@
   }
 
   /* ------------------------------------------------------------------ *
+   * ?anim-demo=1 - automatic loop over the tab animations
+   *   phases: newtab -> close -> switch -> drag  (repeats)
+   *   ?anim-demo=1&freeze=1&phase=newtab&at=120   freeze mid-animation
+   *   #animProbe (hidden <pre>) carries the computed-state JSON evidence
+   * ------------------------------------------------------------------ */
+  var ANIM_PHASES = ["newtab", "close", "switch", "drag"];
+  var ANIM_PHASE_MS = { newtab: 1600, close: 1400, switch: 1300, drag: 1700 };
+  var ANIM_PHASE_LABEL = {
+    newtab: "enter  260ms cubic-bezier(.16,1,.3,1)   width expand + fade-in",
+    close: "exit   200ms cubic-bezier(.55,.06,.68,.19) collapse + fade-out (.tab.flip 240ms)",
+    switch: "switch 220ms cubic-bezier(.2,.9,.3,1)   sliding indicator + highlight",
+    drag: "drag   380ms cubic-bezier(.18,1.42,.42,1) lift + reorder FLIP 240ms + rebound"
+  };
+  var ANIM_SEED = ["about:home", "inc://cloud", "inc://toolbox", "inc://files"];
+  var animDemo = { on: false, cycle: 0, index: 0, timer: null, frozen: false };
+
+  function animHud() {
+    var hud = document.getElementById("animHud");
+    if (!hud) {
+      hud = document.createElement("div");
+      hud.id = "animHud";
+      hud.className = "anim-hud";
+      document.body.appendChild(hud);
+    }
+    return hud;
+  }
+  function updateAnimHud(phase) {
+    var hud = animHud();
+    var frozen = document.documentElement.getAttribute("data-anim-frozen");
+    var idx = state.tabs.findIndex(function (x) { return x.id === state.activeTab; }) + 1;
+    hud.innerHTML =
+      '<span class="hud-title">ANIM DEMO &middot; ?anim-demo=1</span>' +
+      '<span class="hud-sub">phase ' + esc(phase) + ' &middot; loop #' + (animDemo.cycle + 1) +
+        ' &middot; active tab ' + idx + "/" + state.tabs.length + "</span>" +
+      '<span class="hud-sub">' + esc(ANIM_PHASE_LABEL[phase] || "") + "</span>" +
+      (frozen ? '<span class="hud-frozen">FROZEN @ ' + esc(frozen) + 'ms &middot; animations paused (WAAPI)</span>' : "");
+  }
+
+  function demoSeed() {
+    state.tabs.slice().forEach(function (tb) { if (tb.view && tb.view.parentNode) { tb.view.parentNode.removeChild(tb.view); } });
+    state.tabs = [];
+    $all(".tab", els.tabs).forEach(function (n) { if (n.parentNode) { n.parentNode.removeChild(n); } });
+    ANIM_SEED.forEach(function (u) { newTab(u, { activate: false, instant: true }); });
+    state.activeTab = state.tabs[1] ? state.tabs[1].id : state.tabs[0].id;
+    showTab(state.activeTab);
+    renderTabs({ instant: true });
+  }
+
+  function demoDrag() {
+    if (state.tabs.length < 4) { newTab("inc://files", { activate: false, instant: true }); }
+    var from = Math.min(1, state.tabs.length - 2);
+    var moving = state.tabs[from];
+    var node = moving ? TabAnim.nodeFor(moving.id) : null;
+    if (!node) { return; }
+    var prevRects = TabAnim.measure();
+    var arr = state.tabs.filter(function (x) { return x.id !== moving.id; });
+    arr.splice(Math.min(from + 2, arr.length), 0, moving);
+    state.tabs = arr;
+    node.classList.add("dragging");
+    els.tabs.classList.add("tab-dragging");
+    node.style.transition = "none";
+    node.style.transform = "translate3d(26px,-5px,0) scale(1.03)";
+    renderTabs({ prevRects: prevRects });
+    window.setTimeout(function () {
+      node.style.transition = "";
+      node.style.transform = "";
+      node.classList.remove("dragging");
+      els.tabs.classList.remove("tab-dragging");
+      node.classList.add("settle");
+      window.setTimeout(function () { node.classList.remove("settle"); }, 430);
+      TabAnim.updateIndicator(state.activeTab);
+    }, 320);
+  }
+
+  function demoPhase(name) {
+    if (ANIM_PHASES.indexOf(name) < 0) { return; }
+    document.documentElement.dataset.animPhase = name;
+    document.documentElement.dataset.animCycle = String(animDemo.cycle);
+    updateAnimHud(name);
+    if (name === "newtab") {
+      var pool = ["about:home", "inc://toolbox", "inc://cloud", "inc://files"];
+      newTab(pool[animDemo.index % pool.length]);
+    } else if (name === "close") {
+      if (state.tabs.length < 3) { newTab("inc://cloud", { activate: false, instant: true }); }
+      var victim = null;
+      for (var i = 0; i < state.tabs.length && !victim; i++) {
+        if (state.tabs[i].id !== state.activeTab) { victim = state.tabs[i]; }
+      }
+      if (victim) { closeTab(victim.id); }
+    } else if (name === "switch") {
+      var cur = state.tabs.findIndex(function (x) { return x.id === state.activeTab; });
+      var next = state.tabs[(cur + 1) % state.tabs.length];
+      if (next && next.id !== state.activeTab) { showTab(next.id); }
+    } else if (name === "drag") {
+      demoDrag();
+    }
+  }
+
+  function animStep() {
+    var name = ANIM_PHASES[animDemo.index % ANIM_PHASES.length];
+    animDemo.index += 1;
+    if (animDemo.index % ANIM_PHASES.length === 1 && animDemo.index > 1) { animDemo.cycle += 1; }
+    demoPhase(name);
+    animDemo.timer = window.setTimeout(animStep, ANIM_PHASE_MS[name]);
+  }
+
+  /* Machine-readable state dump: #animProbe stays hidden, --dump-dom reads it. */
+  function writeAnimProbe() {
+    var probe = document.getElementById("animProbe");
+    if (!probe) {
+      probe = document.createElement("pre");
+      probe.id = "animProbe";
+      probe.hidden = true;
+      document.body.appendChild(probe);
+    }
+    var tabs = $all(".tab", els.tabs).map(function (n) {
+      var rect = n.getBoundingClientRect();
+      var cs = window.getComputedStyle(n);
+      return {
+        id: n.dataset.tabId, title: (n.querySelector(".tab-title") || {}).textContent || "",
+        cls: n.className, active: n.classList.contains("active"),
+        x: Math.round(rect.left), w: Math.round(rect.width), h: Math.round(rect.height),
+        opacity: cs.opacity, transform: cs.transform,
+        animation: cs.animationName + " " + cs.animationDuration + " " + cs.animationTimingFunction,
+        transition: cs.transitionProperty + " " + cs.transitionDuration
+      };
+    });
+    var ind = document.getElementById("tabIndicator");
+    var ics = ind ? window.getComputedStyle(ind) : null;
+    var anims = [];
+    try {
+      anims = document.getAnimations().map(function (a) {
+        var d = 0;
+        try { d = Math.round(a.effect.getComputedTiming().duration || 0); } catch (e) { /* ignore */ }
+        return (a.animationName || a.transitionProperty || "?") + " " + Math.round(a.currentTime || 0) + "/" + d + " " + a.playState;
+      });
+    } catch (e) { anims = [String(e)]; }
+    probe.textContent = JSON.stringify({
+      phase: document.documentElement.dataset.animPhase || null,
+      cycle: document.documentElement.dataset.animCycle || null,
+      frozenAt: document.documentElement.getAttribute("data-anim-frozen"),
+      pausedAnimations: document.documentElement.getAttribute("data-anim-count"),
+      animations: anims,
+      indicator: ind ? { x: ind.dataset.x, width: ics.width, transform: ics.transform, transitionDuration: ics.transitionDuration } : null,
+      tabs: tabs,
+      bootError: document.documentElement.getAttribute("data-boot-error") || null,
+      jsError: document.documentElement.getAttribute("data-js-error") || null
+    });
+  }
+
+  function freezeAnim(at) {
+    animDemo.frozen = true;
+    var apply = function () {
+      var n = 0;
+      try {
+        document.getAnimations().forEach(function (a) {
+          try {
+            a.pause();
+            var d = 1e6;
+            try { d = a.effect.getComputedTiming().duration || 1e6; } catch (e2) { /* ignore */ }
+            a.currentTime = Math.min(at, d);
+            n += 1;
+          } catch (e3) { /* ignore */ }
+        });
+      } catch (e) { /* ignore */ }
+      document.documentElement.setAttribute("data-anim-frozen", String(at));
+      document.documentElement.setAttribute("data-anim-count", String(n));
+      updateAnimHud(document.documentElement.dataset.animPhase);
+      window.setTimeout(writeAnimProbe, 40);
+    };
+    window.requestAnimationFrame(function () { window.requestAnimationFrame(apply); });
+  }
+
+  function startAnimDemo(q) {
+    animDemo.on = true;
+    demoSeed();
+    var phase = q.get("phase");
+    var valid = phase && ANIM_PHASES.indexOf(phase) >= 0;
+    if (valid) { demoPhase(phase); animDemo.index = ANIM_PHASES.indexOf(phase) + 1; }
+    else { demoPhase(ANIM_PHASES[0]); animDemo.index = 1; }
+    if (q.get("freeze") === "1") { freezeAnim(parseInt(q.get("at") || "130", 10) || 130); return; }
+    animDemo.timer = window.setTimeout(animStep, ANIM_PHASE_MS[ANIM_PHASES[(animDemo.index - 1 + ANIM_PHASES.length) % ANIM_PHASES.length]]);
+  }
+
+  /* ------------------------------------------------------------------ *
+   * session persistence: save tabs on exit, restore them on next launch
+   * localStorage["infinity-shell-session"] (schema documented in report.md)
+   * ------------------------------------------------------------------ */
+  var SESSION_KEY = "infinity-shell-session";
+  var WINDOW_KEY = "infinity-shell-window-id";
+  var _winId = null;
+
+  function windowId() {
+    if (_winId) { return _winId; }
+    try {
+      var v = sessionStorage.getItem(WINDOW_KEY);
+      if (!v) { v = uid("win"); sessionStorage.setItem(WINDOW_KEY, v); }
+      _winId = v;
+    } catch (e) { _winId = uid("win"); }
+    return _winId;
+  }
+  function sessionSnapshot() {
+    return {
+      v: 1, windowId: windowId(), savedAt: Date.now(), activeTabId: state.activeTab,
+      home: settings.home,
+      tabs: state.tabs.map(function (tb) {
+        return { id: tb.id, url: tb.url, title: tb.title, kind: tb.kind, appId: tb.appId || null, frameUrl: tb.frameUrl || null };
+      })
+    };
+  }
+  function saveSession(reason) {
+    if (!state.tabs.length) { return null; }
+    var snap = sessionSnapshot();
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(snap)); } catch (e) { /* storage blocked */ }
+    send("shell.session-save", {
+      reason: reason || "auto", windowId: snap.windowId, savedAt: snap.savedAt,
+      activeTabId: snap.activeTabId, tabs: snap.tabs
+    });
+    updateSessionInfo();
+    return snap;
+  }
+  function readSession() {
+    try {
+      var raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) { return null; }
+      var s = JSON.parse(raw);
+      if (!s || s.v !== 1 || !s.tabs || !s.tabs.length) { return null; }
+      return s;
+    } catch (e) { return null; }
+  }
+  function clearSession() {
+    try { localStorage.removeItem(SESSION_KEY); } catch (e) { /* ignore */ }
+    updateSessionInfo();
+  }
+  /* Rebuild the tab list without touching the network: the active tab is
+   * rendered, the rest stay lazy and are rendered on first activation. */
+  function restoreSession(snap) {
+    state.tabs = [];
+    $all(".tab", els.tabs).forEach(function (n) { if (n.parentNode) { n.parentNode.removeChild(n); } });
+    snap.tabs.forEach(function (st) {
+      var url = st.url || "about:home";
+      var target = resolveTarget(url);
+      state.tabs.push({
+        id: uid("tab"), url: target.url, kind: st.kind || target.kind,
+        frameUrl: st.frameUrl || target.frameUrl || null, appId: st.appId || target.appId || null,
+        query: null, title: st.title || titleFor(target.url), loading: false, audio: false,
+        view: null, history: [target.url], historyIndex: 0, lazy: true
+      });
+    });
+    var idx = 0;
+    for (var i = 0; i < snap.tabs.length; i++) { if (snap.tabs[i].id === snap.activeTabId) { idx = i; } }
+    state.activeTab = state.tabs[idx] ? state.tabs[idx].id : state.tabs[0].id;
+    showTab(state.activeTab);
+    renderTabs({ instant: true });
+    send("shell.session-restored", {
+      windowId: snap.windowId, savedAt: snap.savedAt, activeTabId: state.activeTab,
+      tabs: state.tabs.map(function (tb) { return { url: tb.url, title: tb.title }; })
+    });
+    return state.tabs.length;
+  }
+  function updateSessionInfo() {
+    var el = document.getElementById("sessionInfo");
+    if (!el) { return; }
+    var s = readSession();
+    if (!s) { el.textContent = t("settings.sessionNone"); return; }
+    var when = new Date(s.savedAt || Date.now());
+    el.textContent = t("settings.sessionSaved", { n: s.tabs.length, time: when.toLocaleTimeString(settings.locale) });
+  }
+  function requestExit() {
+    if (settings.exitAsk) { saveSession("exit"); send("shell.window", { action: "close" }); return; }
+    var list = document.getElementById("exitSummary");
+    if (list) {
+      list.innerHTML = state.tabs.map(function (tb) {
+        return '<span class="ss-row' + (tb.id === state.activeTab ? " active" : "") + '">' +
+          '<span class="tab-fav">' + faviconHtml(tb, 16) + "</span>" +
+          "<span>" + esc(tb.title || tb.url) + '</span><span class="ss-url">' + esc(tb.url) + "</span></span>";
+      }).join("");
+      Icons.hydrate(list);
+    }
+    var chk = document.getElementById("exitDontAsk");
+    if (chk) { chk.checked = false; }
+    openDialog("exit");
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Play Zone: one open zone per window, enforced in-window + by window id
+   * localStorage["infinity-shell-playzone"] + BroadcastChannel
+   * ------------------------------------------------------------------ */
+  var PZ_KEY = "infinity-shell-playzone";
+  var PZ_CHANNEL = "infinity-shell-playzone";
+  var PZ_PALETTE = ["#0f6cbd", "#7a5af5", "#0f8a6a", "#d97706", "#c42b1c", "#1aa4a0"];
+  var playzone = { zones: [], activeId: null, open: false, channel: null, audio: null, claim: 0, remoteGuard: 0, objUrl: null };
+
+  function pzById(id) {
+    for (var i = 0; i < playzone.zones.length; i++) { if (playzone.zones[i].id === id) { return playzone.zones[i]; } }
+    return null;
+  }
+  function pzActive() { return pzById(playzone.activeId); }
+  function pzNewZone(name) {
+    var i = playzone.zones.length;
+    var z = {
+      id: uid("pz"), name: name || t("playzone.title") + " " + (i + 1),
+      theme: "system", primary: PZ_PALETTE[i % PZ_PALETTE.length], accent: "#4cc2ff", bg: "#101418",
+      music: { name: "", volume: 0.6, playing: false, src: null }
+    };
+    playzone.zones.push(z);
+    return z;
+  }
+  function pzLoad() {
+    try {
+      var raw = localStorage.getItem(PZ_KEY);
+      if (raw) {
+        var d = JSON.parse(raw);
+        if (d && d.v === 1) {
+          playzone.zones = d.zones || [];
+          playzone.activeId = d.activeId || null;
+          playzone.open = !!d.open && !!playzone.activeId;
+        }
+      }
+    } catch (e) { /* ignore */ }
+    if (!playzone.zones.length) { pzNewZone(); }
+  }
+  function pzSave() {
+    var payload = { v: 1, zones: playzone.zones, activeId: playzone.activeId, open: playzone.open,
+      windowId: windowId(), activeWindow: playzone.open ? windowId() : null, updatedAt: Date.now() };
+    try { localStorage.setItem(PZ_KEY, JSON.stringify(payload)); } catch (e) { /* ignore */ }
+    return payload;
+  }
+  function pzBroadcast(kind) {
+    playzone.claim = Date.now();
+    try {
+      if (playzone.channel) {
+        playzone.channel.postMessage({ channel: PZ_CHANNEL, kind: kind, windowId: windowId(),
+          zoneId: playzone.activeId, open: playzone.open, ts: playzone.claim });
+      }
+    } catch (e) { /* BroadcastChannel unavailable */ }
+  }
+  function pzWireChannel() {
+    try {
+      if (typeof BroadcastChannel === "function") {
+        playzone.channel = new BroadcastChannel(PZ_CHANNEL);
+        playzone.channel.onmessage = function (ev) {
+          var m = ev.data || {};
+          if (m.windowId === windowId() && m.ts > playzone.claim) {
+            /* another instance claims this window id: keep at most one zone per window */
+            if (playzone.open) { pzClose(true); playzone.remoteGuard += 1; toast(t("playzone.dupWindow")); }
+            playzone.claim = m.ts;
+          } else if (m.kind === "closed" && playzone.open && !els.playzone.hidden) {
+            pzGuardText();
+          }
+        };
+      }
+    } catch (e) { /* ignore */ }
+    window.addEventListener("storage", function (ev) {
+      if (ev.key === PZ_KEY) { pzGuardText(); }
+    });
+  }
+  function pzOpen(id) {
+    var z = pzById(id) || pzActive() || playzone.zones[0] || pzNewZone();
+    if (playzone.open && playzone.activeId && playzone.activeId !== z.id) {
+      /* switching: close the previous zone first - never two in one window */
+      playzone.open = false;
+    }
+    playzone.activeId = z.id;
+    playzone.open = true;
+    els.playzone.hidden = false;
+    els.playzone.classList.remove("pz-flash");
+    void els.playzone.offsetWidth;
+    els.playzone.classList.add("pz-flash");
+    document.documentElement.setAttribute("data-pz-open", "1");
+    pzRender();
+    pzSave();
+    pzBroadcast("claim");
+    return z;
+  }
+  function pzClose(silent) {
+    playzone.open = false;
+    if (els.playzone) { els.playzone.hidden = true; }
+    document.documentElement.removeAttribute("data-pz-open");
+    if (playzone.audio && !playzone.audio.paused) { playzone.audio.pause(); }
+    var z = pzActive();
+    if (z) { z.music.playing = false; }
+    pzSave();
+    pzBroadcast("closed");
+    pzGuardText();
+    if (!silent) { toast(t("playzone.closed")); }
+  }
+  function pzToggle() { if (playzone.open) { pzClose(); } else { pzOpen(playzone.activeId); } }
+  function pzPlaying() { return !!(playzone.audio && playzone.audio.src && !playzone.audio.paused); }
+  function pzRender() {
+    var z = pzActive();
+    if (!z || !els.playzone) { return; }
+    var sysLight = !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches);
+    var eff = z.theme === "system" ? (sysLight ? "light" : "dark") : z.theme;
+    els.playzone.dataset.pzTheme = eff;
+    els.playzone.style.setProperty("--pz-primary", z.primary);
+    els.playzone.style.setProperty("--pz-accent", z.accent);
+    els.playzone.style.setProperty("--pz-bg", z.bg);
+    els.pzSelect.innerHTML = playzone.zones.map(function (x) {
+      return '<option value="' + esc(x.id) + '"' + (x.id === z.id ? " selected" : "") + ">" + esc(x.name) + "</option>";
+    }).join("");
+    els.pzName.value = z.name;
+    els.pzPrimary.value = z.primary;
+    els.pzAccent.value = z.accent;
+    els.pzBg.value = z.bg;
+    $all("#pzTheme button").forEach(function (b) { b.classList.toggle("active", b.dataset.pzTheme === z.theme); });
+    els.pzPreviewTile.style.background = "linear-gradient(140deg," + z.primary + "," + z.accent + ")";
+    els.pzPreviewName.textContent = z.name;
+    els.pzPreviewMeta.textContent = z.theme + " · " + z.primary + " · " + (z.music.name || t("playzone.noMusic"));
+    els.pzMusicName.textContent = z.music.name || t("playzone.noMusic");
+    var vol = z.music.volume != null ? z.music.volume : 0.6;
+    els.pzVolume.value = String(Math.round(vol * 100));
+    els.pzVolVal.textContent = Math.round(vol * 100) + "%";
+    var playing = pzPlaying();
+    els.pzPlay.dataset.icon = playing ? "pause" : "play";
+    els.pzPlay.innerHTML = icon(playing ? "pause" : "play");
+    els.pzPlay.setAttribute("title", t(playing ? "playzone.pause" : "playzone.play"));
+    pzGuardText();
+  }
+  function pzGuardText() {
+    var el = document.getElementById("pzGuardText");
+    var pill = document.getElementById("pzGuardPill");
+    var n = playzone.open ? 1 : 0;
+    document.documentElement.setAttribute("data-pz-count", String(n));
+    if (el) {
+      el.textContent = t("playzone.guard", { win: windowId().slice(-6), n: String(n) }) +
+        (playzone.remoteGuard ? " · dup-closed:" + playzone.remoteGuard : "");
+    }
+    if (pill) { pill.textContent = n + "/1"; pill.classList.toggle("live", n === 1); }
+    var badge = document.getElementById("pzBadge");
+    if (badge) { badge.hidden = playzone.zones.length < 1; badge.textContent = String(n || playzone.zones.length); }
+  }
+  function pzSetMusic(src, name) {
+    var z = pzActive();
+    if (!z || !els.pzAudio) { return; }
+    els.pzAudio.src = src;
+    playzone.audio = els.pzAudio;
+    z.music.name = name || "audio";
+    z.music.src = /^blob:/.test(String(src)) ? null : src;
+    pzSave();
+    pzRender();
+  }
+  function pzSetVolume(v) {
+    var z = pzActive();
+    if (!z) { return; }
+    z.music.volume = Math.max(0, Math.min(1, v));
+    if (els.pzAudio) { els.pzAudio.volume = z.music.volume; }
+  }
+  function pzPlay() {
+    var z = pzActive();
+    if (!z || !els.pzAudio || !els.pzAudio.src) { toast(t("playzone.noMusic")); return; }
+    els.pzAudio.volume = z.music.volume != null ? z.music.volume : 0.6;
+    var p = els.pzAudio.play();
+    if (p && p.catch) { p.catch(function () { toast(t("playzone.noMusic")); }); }
+    z.music.playing = true;
+    pzSave();
+    pzRender();
+  }
+  function pzPause() {
+    var z = pzActive();
+    if (els.pzAudio && !els.pzAudio.paused) { els.pzAudio.pause(); }
+    if (z) { z.music.playing = false; pzSave(); }
+    pzRender();
+  }
+
+  /* ------------------------------------------------------------------ *
    * boot
    * ------------------------------------------------------------------ */
   function params() {
@@ -1111,6 +1902,9 @@
     if (q.get("acrylic") === "0") { settings.acrylic = false; }
 
     detectHost();
+    state.renderIframe = host.kind === "demo";
+    if (q.get("render") === "iframe") { state.renderIframe = true; }
+    if (q.get("render") === "native") { state.renderIframe = false; }
     cacheEls();
     I18n.setLocale(settings.locale);
     applyI18n();
@@ -1121,15 +1915,34 @@
     wireHostListeners();
     wireEvents();
 
+    /* One-line boot diagnostic: visible in DevTools and in --enable-logging=stderr runs. */
+    if (window.console && console.log) {
+      console.log("[InfinityEdgeShell] host=" + host.kind + " api=" + host.api +
+        " render=" + (state.renderIframe ? "iframe" : "native") +
+        " locale=" + settings.locale + " theme=" + document.documentElement.dataset.theme);
+    }
+
     Log.listeners.push(logLine);
 
-    var start = q.get("url") || (q.get("app") ? "inc://" + q.get("app") : "about:home");
-    var first = newTab(start);
-    showTab(first.id);
+    /* No fixed home page: without ?url/?app the shell always opens the locally
+     * rendered new tab page, or restores the saved session when enabled. */
+    var explicit = q.get("url") || (q.get("app") ? "inc://" + q.get("app") : null);
+    var snap = (explicit || q.get("tabs")) ? null : (settings.restoreSession ? readSession() : null);
+    if (snap && snap.tabs.length && snap.tabs.every(function (x) { return /^(about:home|about:newtab)$/i.test(x.url || ""); })) {
+      snap = null;                                    // session was only NTPs: still show the NTP
+      window.setTimeout(function () { toast(t("toast.newTabOnly")); }, 500);
+    }
+    var opener = null;
+    if (snap) {
+      var restored = restoreSession(snap);
+      window.setTimeout(function () { toast(t("toast.sessionRestored", { n: restored })); }, 500);
+    } else {
+      opener = newTab(explicit || "about:home");
+    }
 
     var extra = parseInt(q.get("tabs") || "1", 10);
-    if (extra > 1) {
-      var pool = APPS.filter(function (a) { return a.url !== first.url; });
+    if (extra > 1 && !snap) {
+      var pool = APPS.filter(function (a) { return !opener || a.url !== opener.url; });
       for (var i = 0; i < extra - 1 && i < pool.length; i++) { newTab(pool[i].url, { activate: false }); }
       renderTabs(); renderSidebar();
     }
@@ -1144,12 +1957,40 @@
     send("shell.content-rect", rectPayload());
     renderHostInfo();
 
+    pzLoad();
+    pzWireChannel();
+    if (playzone.open) { pzOpen(playzone.activeId); } else { pzGuardText(); }
+    if (q.get("playzone") === "1") { pzOpen(playzone.activeId); }   // screenshot / host-test hook
+    if (q.get("music")) { pzSetMusic(q.get("music"), q.get("music").split("/").pop()); }
+    updateSessionInfo();
+    window.addEventListener("beforeunload", function () { saveSession("beforeunload"); });
+    window.addEventListener("pagehide", function () { saveSession("pagehide"); });
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "hidden") { saveSession("hidden"); }
+    });
+
+    if (q.get("anim-demo") === "1") { startAnimDemo(q); }
+    else if (q.get("anim-probe") === "1") { window.setTimeout(writeAnimProbe, 700); }
+
     window.__InfinityShell = {
       version: VERSION, protocol: PROTOCOL, state: state, settings: settings,
       send: send, emit: hostEmit, open: openUrl, navigate: function (u) { navigate(activeTab(), u); },
       close: function (id) { closeTab(id || state.activeTab); }, toast: toast,
       setTheme: function (m) { applyTheme(m); }, setLocale: function (l) { applyLocale(l); },
-      log: function () { return Log.items.slice(); }
+      session: {
+        save: saveSession, read: readSession, clear: clearSession, restore: restoreSession,
+        key: SESSION_KEY, windowId: windowId, snapshot: sessionSnapshot
+      },
+      playzone: {
+        open: pzOpen, close: pzClose, toggle: pzToggle, create: pzNewZone,
+        setMusic: pzSetMusic, play: pzPlay, pause: pzPause, render: pzRender,
+        state: playzone, key: PZ_KEY
+      },
+      log: function () { return Log.items.slice(); },
+      anim: {
+        phases: ANIM_PHASES, state: animDemo, run: demoPhase, step: animStep, freeze: freezeAnim,
+        probe: writeAnimProbe, start: function () { animStep(); }, stop: function () { window.clearTimeout(animDemo.timer); }
+      }
     };
   }
 

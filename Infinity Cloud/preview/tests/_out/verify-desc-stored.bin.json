@@ -1,0 +1,16 @@
+{
+  "entry": "desc-stored.bin",
+  "method": 0,
+  "compressedBytes": 307200,
+  "expectedCompressed": 307200,
+  "inflatedBytes": 307200,
+  "expectedUncompressed": 307200,
+  "crc": 3752733090,
+  "expectedCrc": 3752733090,
+  "sha256": "69b76fdffcdfc092ad61b76954722dd884a3977c2c62bd65789a747dc76c21e8",
+  "sizeOk": true,
+  "bytesOk": true,
+  "crcOk": true,
+  "error": "",
+  "pass": true
+}

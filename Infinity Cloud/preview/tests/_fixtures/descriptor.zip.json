@@ -1,0 +1,34 @@
+{
+  "size": 307630,
+  "commentBytes": 24,
+  "entries": [
+    {
+      "name": "desc-hello.txt",
+      "method": 8,
+      "compressed": 142,
+      "uncompressed": 830,
+      "crc": 1076188391,
+      "headerOffset": 0,
+      "dataOffset": 44,
+      "localExtraLen": 0,
+      "centralExtraLen": 0,
+      "descriptor": true,
+      "zip64": false,
+      "placeholder": false
+    },
+    {
+      "name": "desc-stored.bin",
+      "method": 0,
+      "compressed": 307200,
+      "uncompressed": 307200,
+      "crc": 3752733090,
+      "headerOffset": 202,
+      "dataOffset": 247,
+      "localExtraLen": 0,
+      "centralExtraLen": 0,
+      "descriptor": true,
+      "zip64": false,
+      "placeholder": false
+    }
+  ]
+}

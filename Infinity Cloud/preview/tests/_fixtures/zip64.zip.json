@@ -1,0 +1,35 @@
+{
+  "size": 717522,
+  "commentBytes": 14,
+  "zip64Eocd": true,
+  "entries": [
+    {
+      "name": "z64-hello.txt",
+      "method": 8,
+      "compressed": 142,
+      "uncompressed": 830,
+      "crc": 1076188391,
+      "headerOffset": 0,
+      "dataOffset": 43,
+      "localExtraLen": 0,
+      "centralExtraLen": 0,
+      "descriptor": false,
+      "zip64": false,
+      "placeholder": false
+    },
+    {
+      "name": "z64-big.bin",
+      "method": 8,
+      "compressed": 717020,
+      "uncompressed": 716800,
+      "crc": 2480873654,
+      "headerOffset": 185,
+      "dataOffset": 246,
+      "localExtraLen": 20,
+      "centralExtraLen": 28,
+      "descriptor": false,
+      "zip64": true,
+      "placeholder": false
+    }
+  ]
+}

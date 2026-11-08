@@ -40,14 +40,13 @@ inline const char* uiHtml() {
 </header>
 
 <div class="toolbar">
-  <button id="refresh" class="btn" type="button">Refresh</button>
-  <button id="install" class="btn primary" type="button" disabled>Install</button>
-  <button id="download" class="btn" type="button" disabled>Download</button>
-  <button id="folder" class="btn" type="button">Open folder</button>
   <label class="filter">
-    <input id="filter" type="search" placeholder="Filter packages"
-           autocomplete="off" spellcheck="false">
+    <input id="filter" type="search" placeholder="搜索软件包" autocomplete="off" spellcheck="false">
   </label>
+  <button id="install" class="btn primary" type="button" disabled>安装</button>
+  <button id="download" class="btn" type="button" disabled>下载</button>
+  <button id="refresh" class="btn" type="button">刷新</button>
+  <button id="folder" class="btn" type="button">打开目录</button>
   <span class="hint" id="installHint"></span>
 </div>
 
@@ -56,35 +55,42 @@ inline const char* uiHtml() {
     <table id="packages">
       <thead>
         <tr>
-          <th>Package</th><th>Version</th><th>Platform</th><th>Size</th><th>Kind</th>
+          <th>软件包</th><th>版本</th><th>平台</th><th>大小</th><th>类型</th>
         </tr>
       </thead>
       <tbody id="rows"></tbody>
     </table>
-    <div class="empty" id="empty" hidden>No packages match this filter.</div>
+    <div class="empty" id="empty" hidden>没有匹配的软件包。</div>
   </section>
 
   <aside class="detail">
-    <h2 id="dTitle">No package selected</h2>
+    <h2 id="dTitle">未选择软件包</h2>
+    <p class="tip">在上方列表中选中一行，再点「安装」。</p>
     <dl>
-      <dt>Version</dt><dd id="dVersion">—</dd>
-      <dt>Platform</dt><dd id="dPlatform">—</dd>
-      <dt>Size</dt><dd id="dSize">—</dd>
-      <dt>Kind</dt><dd id="dKind">—</dd>
-      <dt>Page tag</dt><dd id="dPage">—</dd>
-      <dt>SHA-256</dt><dd id="dDigest" class="mono">—</dd>
-      <dt>Source</dt><dd id="dUrl" class="mono">—</dd>
+      <dt>版本</dt><dd id="dVersion">—</dd>
+      <dt>平台</dt><dd id="dPlatform">—</dd>
+      <dt>大小</dt><dd id="dSize">—</dd>
+      <dt>类型</dt><dd id="dKind">—</dd>
     </dl>
+    <details>
+      <summary>技术信息</summary>
+      <dl>
+        <dt>Page tag</dt><dd id="dPage">—</dd>
+        <dt>SHA-256</dt><dd id="dDigest" class="mono">—</dd>
+        <dt>Source</dt><dd id="dUrl" class="mono">—</dd>
+      </dl>
+    </details>
   </aside>
 </main>
 
 <footer class="status">
   <span class="dot" id="dot"></span>
-  <span id="status">Ready.</span>
+  <span id="status">就绪。</span>
 </footer>
 
 <script src="/app.js"></script>
 </body>
+</html>
 </html>
 )HTML";
 }
@@ -173,6 +179,10 @@ header .who { color: var(--dim); border-left: 1px solid var(--line); padding-lef
 }
 
 .hint { flex-basis: 100%; min-height: 0; color: var(--warn); font-size: 12px; }
+.tip { margin: 0 0 10px; color: var(--dim); font-size: 12px; }
+aside.detail details { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+aside.detail details > summary { cursor: pointer; color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+aside.detail details[open] > summary { margin-bottom: 8px; }
 .hint:empty { display: none; }
 
 main { flex: 1; display: flex; min-height: 0; }
@@ -281,9 +291,9 @@ function fmtSize(bytes) {
 function installReason(pkg) {
   if (pkg.installable) return '';
   if (!SHA256.test(String(pkg.digest || '').toLowerCase())) {
-    return 'Install is disabled: this build has no valid SHA-256 digest.';
+    return '无法安装：此构建没有有效的 SHA-256 校验值。';
   }
-  return 'Install is disabled: this build is not a setup package (kind: ' + (pkg.kind || 'port') + ').';
+  return '无法安装：此构建不是安装包（类型：' + (pkg.kind || 'port') + '）。';
 }
 
 function cell(text, className) {
@@ -312,13 +322,13 @@ function updateButtons() {
 }
 
 function renderDetail(pkg) {
-  $('dTitle').textContent = pkg ? pkg.package : 'No package selected';
+  $('dTitle').textContent = pkg ? pkg.package : '未选择软件包';
   $('dVersion').textContent = pkg ? (pkg.version || '—') : '—';
   $('dPlatform').textContent = pkg ? (pkg.platform || '—') : '—';
   $('dSize').textContent = pkg ? fmtSize(pkg.size) : '—';
   $('dKind').textContent = pkg ? (pkg.kind || 'port') : '—';
   $('dPage').textContent = pkg ? (pkg.page || '—') : '—';
-  $('dDigest').textContent = pkg ? (pkg.digest || 'none reported') : '—';
+  $('dDigest').textContent = pkg ? (pkg.digest || '无') : '—';
   $('dUrl').textContent = pkg ? (pkg.url || '—') : '—';
 }
 

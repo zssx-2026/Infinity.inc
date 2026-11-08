@@ -1,0 +1,12 @@
+# ninja log v7
+43	112	8128182619686301	D:/dev/DeepSeekHarnessWorkspace/Infinity.inc/Infinity Cloud/tools/perf/_build/CMakeFiles/cmake.verify_globs	4b67c15a6339f14b
+121	7411	8128182620459192	CMakeFiles/inc_core.dir/core/src/http.cpp.obj	3c89e55b04a7d4cc
+114	8380	8128182620386650	CMakeFiles/inc_core.dir/core/src/github.cpp.obj	2cf6ff563569f23e
+7415	15705	8128182693401890	CMakeFiles/inc_core.dir/core/src/localfs.cpp.obj	746183279c0eddfa
+8381	19983	8128182703053219	CMakeFiles/inc_core.dir/core/src/store.cpp.obj	2da18a61fa915844
+15705	21803	8128182776303188	CMakeFiles/inc_core.dir/core/src/uiserver.cpp.obj	36abd5ad0e82b0e9
+21804	22060	8128182837285620	libinc_core.a	a1c2807d8b7b0a90
+19984	22441	8128182819089012	CMakeFiles/inc_common.dir/common/unblock.cpp.obj	77283a3e6a5e7f9f
+22442	22717	8128182843663713	libinc_common.a	961f44300329733e
+22060	32498	8128182839850963	CMakeFiles/inc.dir/apps/inc/main.cpp.obj	a179cb836375bcd9
+32498	33060	8128182944229752	inc.exe	18e04a9529fbfa5b

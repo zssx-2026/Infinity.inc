@@ -27,7 +27,7 @@ const ROOT = path.resolve(HERE, '..');
 const WEB = path.join(ROOT, 'web');
 const OWNER = 'zssx-2026';
 const REPO = 'zssx-2026.github.io';
-const PREFIX = 'infinity';
+const PREFIX = '';
 
 const TOKEN = process.env.EV_GH_TOKEN || '';
 const DRY = process.argv.indexOf('--dry-run') >= 0;
@@ -85,6 +85,7 @@ function collect(dir, prefix, into, base) {
     const full = path.join(dir, name);
     const rel = base ? base + '/' + name : name;
     const stat = fs.statSync(full);
+    if (name.indexOf('.retired-') === 0) return; /* retired pages never publish */
     if (stat.isDirectory()) collect(full, prefix, into, rel);
     else into.push({ file: full, path: (prefix ? prefix + '/' : '') + rel, size: stat.size });
   }
@@ -93,19 +94,6 @@ function collect(dir, prefix, into, base) {
 
 const files = [];
 collect(path.join(WEB, 'infinity'), PREFIX, files, '');
-files.push({
-  file: path.join(WEB, 'index.html'),
-  path: 'index.html',
-  size: fs.statSync(path.join(WEB, 'index.html')).size
-});
-/* The 404 handler has to sit at the repository root: a user Pages site only
- * honours /404.html from there. web/infinity/404.html is published too, so
- * the copy under the suite keeps working for local previews. */
-files.push({
-  file: path.join(WEB, '404.html'),
-  path: '404.html',
-  size: fs.statSync(path.join(WEB, '404.html')).size
-});
 console.log('site files: ' + files.length);
 for (const f of files) console.log('  ' + f.path.padEnd(48) + f.size + ' B');
 
@@ -172,5 +160,5 @@ if (!moved.ok || (moved.data && moved.data.status !== undefined && moved.data.st
 }
 
 console.log('pushed ' + commit.data.sha.slice(0, 12) + ' to ' + branch);
-console.log('site: https://zssx-2026.github.io/' + PREFIX + '/');
+console.log('site: https://zssx-2026.github.io/' + (PREFIX ? PREFIX + '/' : ''));
 console.log('(GitHub Pages needs a minute or two to rebuild after a push)');

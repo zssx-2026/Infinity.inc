@@ -390,7 +390,10 @@ Section "开始菜单快捷方式" SEC_STARTMENU
 SectionEnd
 
 Section "桌面快捷方式" SEC_DESKTOP
-  CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\@@EXE@@" "" "$INSTDIR\inc.ico" 0
+  ; 名字必须与卸载段第 543 行的 Delete 完全一致：共存模式下 $LABEL_THIS 是
+  ; "Infinity Cloud <版本>"，用 ${PRODUCT_NAME} 会创建 "Infinity Cloud.lnk"
+  ; 却去删 "Infinity Cloud <版本>.lnk"，桌面留下死链接。
+  CreateShortCut "$DESKTOP\$LABEL_THIS.lnk" "$INSTDIR\@@EXE@@" "" "$INSTDIR\inc.ico" 0
 SectionEnd
 
 Section /o "开机自启动" SEC_AUTOSTART
@@ -433,14 +436,16 @@ Section "注册环境变量" SEC_ENVVARS
   WriteRegStr HKCU "Environment" "inclauncher" "$INSTDIR\inc_launcher.exe"
   WriteRegStr HKCU "Environment" "inxcli"      "$INSTDIR\inx_cli.exe"
   WriteRegStr HKCU "Environment" "inxtui"      "$INSTDIR\inx_tui.exe"
+  ; 管理员窗口名由 shell/payload.mjs 的命名表生成：inc 的管理员孪生是
+  ; inx_gui.exe（cpp/tools/package.mjs 的 admin 字段、shell/main.js 同此），
+  ; 载荷里一定有它。
   WriteRegStr HKCU "Environment" "inxgui"      "$INSTDIR\inx_gui.exe"
   WriteRegStr HKCU "Environment" "inxlauncher" "$INSTDIR\inx_launcher.exe"
 
-  ; 内置插件
-  WriteRegStr HKCU "Environment" "incfgit"    "$INSTDIR\plugins\fastgithub\FastGithub.UI.exe"
-  WriteRegStr HKCU "Environment" "incaria"    "$INSTDIR\plugins\aria2\aria2c.exe"
-  WriteRegStr HKCU "Environment" "incfreearc" "$INSTDIR\plugins\freearc\Arc.exe"
-  WriteRegStr HKCU "Environment" "inc7z"      "$INSTDIR\plugins\7zip\7za.exe"
+  ; 内置插件环境变量已移除：make-setup.mjs 的 stage() 只暂存六个 exe、Electron
+  ; 窗口和 inc.ico，不暂存 plugins 目录；仓库里也找不到 FastGithub.UI.exe、
+  ; aria2c.exe、Arc.exe、7za.exe 这些产物。写进去只会指向不存在的文件。
+  ; 等插件二进制真正进入载荷后再恢复（见 work/installer-fix-report.md 缺陷 3）。
 
   ; 默认资源管理器：def 表示用系统默认，否则是资源管理器主程序的绝对路径。
   ; 已经设过就不覆盖 —— 用户可能指向了自己的文件管理器。
@@ -530,10 +535,7 @@ Section "Uninstall"
   DeleteRegValue HKCU "Environment" "inxtui"
   DeleteRegValue HKCU "Environment" "inxgui"
   DeleteRegValue HKCU "Environment" "inxlauncher"
-  DeleteRegValue HKCU "Environment" "incfgit"
-  DeleteRegValue HKCU "Environment" "incaria"
-  DeleteRegValue HKCU "Environment" "incfreearc"
-  DeleteRegValue HKCU "Environment" "inc7z"
+  ; 内置插件环境变量在安装段已不再写入，卸载段也不再删除（见安装段的说明）。
   SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
 
   ; 快捷方式、自启动和卸载项都按本次安装的名字删，共存的另一个版本不动。

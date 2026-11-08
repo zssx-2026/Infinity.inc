@@ -1,0 +1,131 @@
+{
+  "results": [
+    {
+      "test": "no-range-wider-than-262144",
+      "pass": true,
+      "detail": "violations=0 requests=63"
+    },
+    {
+      "test": "every-206-is-one-window",
+      "pass": true,
+      "detail": "206s=61 over-wide=0"
+    },
+    {
+      "test": "small.txt-four-windows",
+      "pass": true,
+      "detail": "requests=4 spans=262144,262144,262144,262144"
+    },
+    {
+      "test": "big.bin-twenty-windows",
+      "pass": true,
+      "detail": "requests=20 bytes=5242880"
+    },
+    {
+      "test": "retry-three-attempts",
+      "pass": true,
+      "detail": "statuses=503,503,206"
+    },
+    {
+      "test": "timeout-three-attempts",
+      "pass": true,
+      "detail": "attempts=3 (each answered after the client gave up)"
+    },
+    {
+      "test": "timeout-8s-three-attempts",
+      "pass": true,
+      "detail": "attempts=3"
+    },
+    {
+      "test": "cancel-asks-for-nothing",
+      "pass": true,
+      "detail": "requests=0"
+    },
+    {
+      "test": "cancel-in-flight-one-request",
+      "pass": true,
+      "detail": "requests=1"
+    },
+    {
+      "test": "cancel-partial-first-one-request",
+      "pass": true,
+      "detail": "requests=1"
+    },
+    {
+      "test": "cancel-partial-second-one-request",
+      "pass": true,
+      "detail": "requests=1"
+    },
+    {
+      "test": "zip-tail-first-64k",
+      "pass": true,
+      "detail": "start=653268 span=65536 size=718804"
+    },
+    {
+      "test": "zip-entry-hello.txt",
+      "pass": true,
+      "detail": "header=yes dataBytes=142 want=142 windows=1 (<=262144 each: true)"
+    },
+    {
+      "test": "zip-entry-stored.txt",
+      "pass": true,
+      "detail": "header=yes dataBytes=1050 want=1050 windows=1 (<=262144 each: true)"
+    },
+    {
+      "test": "zip-entry-data.bin",
+      "pass": true,
+      "detail": "header=yes dataBytes=717020 want=717020 windows=3 (<=262144 each: true)"
+    },
+    {
+      "test": "zip-tail-touches-nothing-else",
+      "pass": true,
+      "detail": "strays=0 tailRequests=4"
+    },
+    {
+      "test": "descriptor.zip-tail-first-64k",
+      "pass": true,
+      "detail": "start=242094 span=65536 size=307630"
+    },
+    {
+      "test": "descriptor.zip-entry-desc-stored.bin",
+      "pass": true,
+      "detail": "header=yes dataBytes=307200 want=307200 windows=2"
+    },
+    {
+      "test": "descriptor.zip-touches-nothing-else",
+      "pass": true,
+      "detail": "strays=0"
+    },
+    {
+      "test": "zip64.zip-tail-first-64k",
+      "pass": true,
+      "detail": "start=651986 span=65536 size=717522"
+    },
+    {
+      "test": "zip64.zip-entry-z64-hello.txt",
+      "pass": true,
+      "detail": "header=yes dataBytes=142 want=142 windows=1"
+    },
+    {
+      "test": "zip64.zip-entry-z64-big.bin",
+      "pass": true,
+      "detail": "header=yes dataBytes=717020 want=717020 windows=3"
+    },
+    {
+      "test": "zip64.zip-touches-nothing-else",
+      "pass": true,
+      "detail": "strays=0"
+    },
+    {
+      "test": "zip-fixture-descriptor-entry",
+      "pass": true,
+      "detail": "descriptor entries=2"
+    },
+    {
+      "test": "zip-fixture-zip64-eocd",
+      "pass": true,
+      "detail": "zip64Eocd=true zip64 entries=1"
+    }
+  ],
+  "requests": 63,
+  "fail": 0
+}

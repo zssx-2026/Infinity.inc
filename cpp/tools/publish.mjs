@@ -11,10 +11,10 @@
  *
  * Usage:
  *   node tools/publish.mjs [tag] [--dry-run]
- *   INC_RELEASE=v1.0pre4 INC_TAG=v1.0.0-pre4 node tools/publish.mjs --dry-run
+ *   INC_RELEASE=v1.0pre5 INC_TAG=v1.0.0-pre5 node tools/publish.mjs --dry-run
  *
- * The release directory comes from INC_RELEASE (default v1.0pre4) and the git
- * tag from the first non-flag argument or INC_TAG (default v1.0.0-pre4), the
+ * The release directory comes from INC_RELEASE (default v1.0pre5) and the git
+ * tag from the first non-flag argument or INC_TAG (default v1.0.0-pre5), the
  * same pair tools/package.mjs uses. The version inside the file name is TAG
  * without its leading "v" unless INC_VERSION says otherwise.
  *
@@ -36,24 +36,21 @@ import { execFileSync } from 'node:child_process';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
-const RELEASE = process.env.INC_RELEASE || 'v1.0pre4';
+const RELEASE = process.env.INC_RELEASE || 'v1.0pre5';
 const OUT = path.join(ROOT, 'release', RELEASE);
 
 const ARGV = process.argv.slice(2);
 const DRY_RUN = ARGV.indexOf('--dry-run') >= 0;
 const POSITIONAL = ARGV.filter(function (a) { return a.charAt(0) !== '-'; });
-const TAG = POSITIONAL[0] || process.env.INC_TAG || 'v1.0.0-pre4';
+const TAG = POSITIONAL[0] || process.env.INC_TAG || 'v1.0.0-pre5';
 const VERSION = process.env.INC_VERSION || TAG.replace(/^v/, '');
 const OWNER = 'zssx-2026';
 
 /* package name in the file name -> repository that holds the application */
 const REPOS = [
   { package: 'InfinityCloud', repo: 'Infinity-Cloud', product: 'Infinity Cloud' },
-  { package: 'InfinityFileManager', repo: 'Infinity-File-Manager', product: 'Infinity File Manager' },
   { package: 'InfinityPackageManager', repo: 'InfinityPackageManager', product: 'InfinityPackageManager' },
-  { package: 'InfinityInstallerManager', repo: 'Infinity-Installer-Manager', product: 'Infinity Installer Manager' },
-  { package: 'InfinityToolbox', repo: 'Infinity-Toolbox', product: 'Infinity Toolbox' },
-  { package: 'InfinityGames', repo: 'Infinity-Games', product: 'Infinity Games' }
+  { package: 'InfinityToolbox', repo: 'Infinity-Toolbox', product: 'Infinity Toolbox' }
 ];
 
 const token = process.env.EV_GH_TOKEN || '';
@@ -118,19 +115,34 @@ function sha256(file) {
   return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 }
 
-const BODY = [
-  '第二个纯 C++ 版本。六个应用各自只有一个 exe 家族，不需要 Node、不需要 Electron、',
-  '也不需要任何第三方运行库 —— 导入表里只有 Windows 自带的 DLL。',
+/* The release body is the release-notes document the repository already
+ * carries, read at run time. Keeping one copy means the text GitHub shows and
+ * the file a reader finds cannot drift; the inline text below stays as the
+ * fallback for a checkout that has no docs/ directory. */
+const BODY_FILE = path.resolve(ROOT, '..', 'docs', 'RELEASE-' + RELEASE + '-body.md');
+const FALLBACK_BODY = [
+  'Infinity.Inc v1.0.0-pre5 —— 五个纯 C++ 应用，不需要 Node、Electron，',
+  '也不需要任何第三方运行库：导入表里只有 Windows 自带的 DLL。',
   '',
-  '· 每个应用 8 个可执行文件，按文件名分派 cli / tui / gui / launcher，管理员孪生用 inx / ifmx / ipmx 前缀',
-  '· 安装包体积 ~200-480 KB（此前 Node + Electron 版本约 20 MB 起）',
-  '· 安装时注册 HKCU 环境变量并广播 WM_SETTINGCHANGE，卸载时删除',
-  '· 本版新增 Infinity Toolbox 与 Infinity Games 两个应用',
-  '',
-  '当前覆盖范围：INC 的凭据、GitHub API 与三种呈现方式；IFM 的本地文件操作；',
-  'IPM 的目录查询与摘要校验；IIM 的安装包管理；INT 与 ING 的基础界面。',
-  '云盘本体、WebDAV 服务端、插件系统仍在推进中。'
+  '· 三个应用：Infinity Cloud / InfinityPackageManager / Infinity Toolbox',
+  '· 每个应用按文件名分派 cli / gui / launcher（int 为 cli / gui），管理员孪生用 x 前缀',
+  '· 文件自行解除锁定：程序启动最早期清除自身与自身目录的 Zone.Identifier，安装包同样处理落地文件',
+  '· 本次包含各产品的性能优化（数字见 work/release-v1.0pre5-report.md）',
+  '· 安装包体积约 0.2-0.5 MB（此前 Node + Electron 版本约 20 MB 起）',
+  '· 安装时注册 HKCU 环境变量并广播 WM_SETTINGCHANGE，卸载时删除'
 ].join('\n');
+
+/* The document when it is there, the inline text when it is not; the choice is
+ * reported so a run says which body it would publish. */
+function loadBody() {
+  try {
+    const text = fs.readFileSync(BODY_FILE, 'utf8').replace(/^\uFEFF/, '').trim();
+    if (text) return { body: text, source: BODY_FILE };
+  } catch (e) { /* no docs/ body beside this checkout: use the inline text */ }
+  return { body: FALLBACK_BODY, source: '<inline fallback>' };
+}
+const BODY = loadBody();
+console.log('release body: ' + BODY.source + ' (' + BODY.body.length + ' chars)');
 
 const results = [];
 let failures = 0;
@@ -143,7 +155,7 @@ function ensureRelease(app, existing) {
   if (DRY_RUN) return null;
   const c = withRetry(app.repo + ' create release', function () {
     return api('POST', repoRoute(app.repo) + '/releases', {
-      tag_name: TAG, name: TAG + '  C++', body: BODY, draft: false, prerelease: true
+      tag_name: TAG, name: TAG + '  C++', body: BODY.body, draft: false, prerelease: true
     });
   });
   if (!c.ok || !c.data || !c.data.id) throw new Error('create release failed: HTTP ' + c.status + ' ' + c.raw);

@@ -27,7 +27,11 @@ const SQ = String.fromCharCode(39);
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const ENTRY = path.join(HERE, 'src', 'main.js');
 const BUILD = path.join(HERE, 'build');
-const TARGET_NODE = 'D:/temp/tools/node.exe';
+/* The runtime to carry: the local one when the old pinned copy is gone, so a
+ * build never depends on a path outside this machine's Node install. */
+const TARGET_NODE = ['D:/temp/tools/node.exe', process.execPath].filter(function (p) {
+  return p && fs.existsSync(p);
+})[0];
 const EXE_NAME = 'InfinityCloud.exe';
 
 const POSTJECT = [
@@ -281,8 +285,33 @@ function main() {
     '--sentinel-fuse', 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2'], 'postject');
   log('injected: ' + fs.statSync(exe).size + ' B');
 
+  /* The runtime we copied carries its own Authenticode certificate directory,
+   * and it no longer matches the bytes once the blob is in: Windows then
+   * refuses to sign the result at all ("%1 is not a valid Win32
+   * application"). Clearing the directory entry is what lets the release
+   * step put a real signature on the executable. */
+  clearCertificateDirectory(exe);
+  log('certificate directory cleared');
+
   log('');
   log('done.  ' + exe);
+}
+
+
+/* Zero the PE security directory so a stale signature cannot block signing. */
+function clearCertificateDirectory(exe) {
+  const fd = fs.openSync(exe, 'r+');
+  try {
+    const head = Buffer.alloc(0x400);
+    fs.readSync(fd, head, 0, head.length, 0);
+    const pe = head.readUInt32LE(0x3c);
+    const optional = pe + 24;
+    const magic = head.readUInt16LE(optional);
+    const dirs = optional + (magic === 0x20b ? 112 : 96);
+    fs.writeSync(fd, Buffer.alloc(8), 0, 8, dirs + 4 * 8);
+  } finally {
+    fs.closeSync(fd);
+  }
 }
 
 main();

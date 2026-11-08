@@ -27,6 +27,9 @@ const ROOT = path.resolve(HERE, '..');
 /* installer.nsi lives in the project root, above sourcecode. */
 const PROJECT = path.resolve(ROOT, '..');
 const OUT = path.join(ROOT, 'build', 'out');
+/* The multi file layout: one shared runtime, the bundle, one small launcher
+ * per name. See work/jslayout for what it is and why. */
+const LAYOUT = path.join(ROOT, 'build', 'layout');
 const STAGE = path.join(ROOT, 'build', 'setup-stage');
 const NSIS = 'C:/Program Files (x86)/NSIS/makensis.exe';
 
@@ -65,9 +68,44 @@ function stage(platform) {
    * rather than repeating the list here means the installer can never ship a
    * name the build did not produce.
    */
-  const from = path.join(OUT, platform.target);
+  /*
+   * Which tree the payload comes from.
+   *
+   * The layout is preferred whenever it exists for this target: one shared
+   * runtime instead of one per name. The old single file output is still
+   * used for targets no launcher can be built for yet, so a platform is
+   * never silently dropped.
+   */
+  const layout = path.join(LAYOUT, platform.target);
+  const hasLayout = fs.existsSync(path.join(layout, 'node.exe')) && fs.existsSync(path.join(layout, 'app.cjs'));
+  const from = hasLayout ? layout : path.join(OUT, platform.target);
+  if (hasLayout) {
+    /* The runtime and the bundle are what the launchers actually run. They
+     * are not named executables, so nothing below would think to copy them. */
+    for (const name of ['node.exe', 'app.cjs']) {
+      fs.copyFileSync(path.join(layout, name), path.join(dest, name));
+    }
+    log('  payload layout  ' + layout);
+  }
+
+  /*
+   * Window faces are the one thing the layout does not take over.
+   *
+   * Infinity Cloud's window is an Electron directory: it is not a Node
+   * program at all, so app.cjs means nothing to it and the Electron runtime
+   * has to be installed regardless. The layout's launcher would replace a
+   * real window with something that serves the UI on a port and opens
+   * nothing, so when an Electron shell exists it keeps the name and the
+   * layout's window launcher is left out. The command line faces are where
+   * the saving is, and they are unaffected either way.
+   */
+  const hasGuiShell = hasGui('inc', platform.target);
   const names = exeNames({ id: platform.target });
   for (const name of names) {
+    if (hasLayout && hasGuiShell && /_gui\\.exe$/.test(name)) {
+      log('  window face left to the Electron shell: ' + name);
+      continue;
+    }
     const src = path.join(from, name);
     if (!fs.existsSync(src)) throw new Error('the build is missing: ' + src);
     fs.copyFileSync(src, path.join(dest, name));
@@ -85,7 +123,6 @@ function stage(platform) {
    * Infinity.inc/icons holds one icon per product, and the file name is the
    * product:
    *   inc.ico  Infinity Cloud           ifm.ico  Infinity File Manager
-   *   ipm.ico  InfinityPackageManager   iim.ico  Infinity Installer Manager
    *   ing.ico  Infinity Games           int.ico  Infinity Toolbox
    * An Infinity Cloud setup needs only its own; the other products ship their
    * own installers with their own copy, and a sibling icon in this payload
@@ -150,7 +187,7 @@ function compile(platform, payload, setupPath, version) {
 }
 
 function main() {
-  const version = process.argv[2] || 'v1.0pre2';
+  const version = process.argv[2] || 'v1.0pre5';
   const outDir = process.argv[3] || path.join(ROOT, 'build', 'setup');
   fs.mkdirSync(outDir, { recursive: true });
   fs.rmSync(STAGE, { recursive: true, force: true });

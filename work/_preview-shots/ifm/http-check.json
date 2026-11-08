@@ -1,0 +1,104 @@
+{
+  "when": "2026-10-11T02:58:57.693Z",
+  "node": "v24.19.0",
+  "dir": "D:/temp/ifm-bench/http",
+  "checks": {
+    "firstChunk": {
+      "runsMs": [
+        38.16,
+        24.172,
+        6.07,
+        11.877,
+        28.346
+      ],
+      "medianMs": 24.172,
+      "bytes": 262144,
+      "eof": "0",
+      "size": "41943147"
+    },
+    "lastChunk": {
+      "status": 200,
+      "bytes": 1000,
+      "eof": "1"
+    },
+    "pastEnd": {
+      "status": 200,
+      "bytes": 0,
+      "eof": "1"
+    },
+    "plan": {
+      "text": {
+        "kind": "text",
+        "mode": "chunks",
+        "chunk": 262144
+      },
+      "docx": {
+        "kind": null,
+        "mode": null,
+        "reason": "no partial reader for this type: it is fetched whole before it opens"
+      }
+    },
+    "zip": {
+      "ms": 3.901,
+      "size": 12667100,
+      "entriesTotal": 22,
+      "bytesRead": 66833,
+      "tailBytes": 65536,
+      "cdBytes": 1297,
+      "ratio": 0.00528,
+      "sample": [
+        {
+          "name": "readme.txt",
+          "method": 0,
+          "compressed": 4,
+          "size": 4,
+          "offset": 0
+        },
+        {
+          "name": "member-00.bin",
+          "method": 0,
+          "compressed": 4096,
+          "size": 4096,
+          "offset": 44
+        }
+      ]
+    },
+    "rawRange": {
+      "ranged": {
+        "status": 206,
+        "bytes": 1000,
+        "range": "bytes 100-1099/12667100",
+        "accept": "bytes"
+      },
+      "suffix": {
+        "status": 206,
+        "bytes": 2048,
+        "range": "bytes 12665052-12667099/12667100"
+      }
+    },
+    "listing": {
+      "runsMs": [
+        123.719,
+        41.979,
+        25.793
+      ],
+      "medianMs": 41.979,
+      "entries": 5400,
+      "path": "D:\\temp\\ifm-bench\\big"
+    },
+    "abort": {
+      "requests": 60,
+      "handlesBefore": 6,
+      "handlesAfter": 4,
+      "serverStillAnswers": true
+    },
+    "oneChunkOnly": {
+      "file": "D:\\temp\\ifm-bench\\http\\sample.log",
+      "size": 3145800,
+      "bytesSent": 262144,
+      "ratio": 0.08333
+    }
+  },
+  "failed": [],
+  "port": 17731
+}

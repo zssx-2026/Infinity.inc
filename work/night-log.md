@@ -55,3 +55,9 @@
 - task-26 完成：六应用自解锁（BEFORE 1/1 → AFTER 0/0），NSIS 核心 Delete 删不掉 ADS → 改 System::Call kernel32::DeleteFileW。
 - task-10 完成：README + docs/RELEASE-v1.0pre4.md（资产合计 1,819,217 B）。
 - rel-cpp-build 冻结 cpp/apps/**；prod-int/prod-ipm 获准独占各自 main.cpp；task-31 待触发统一重建。
+
+## 20:35 窗口刷屏事件（第二次）
+- 全机扫描 chrome 222 / msedge 24 / msedgewebview2 6；已 taskkill /T /F 全部我方测试浏览器与我方宿主。
+- 主责：kernel-trim CEF 冷启动基准（IsWindowVisible 采样 4 次为真，SW_HIDE 对 CEF 无效）。
+- 保留：explorer/SearchHost/用户 Edge（系统组件，重生）。
+- 全队运行禁令 + work/run-queue/README.md（申请模板与待批清单）。

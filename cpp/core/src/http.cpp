@@ -153,10 +153,55 @@ Response httpRequest(const std::string& url, const RequestOptions& opts) {
                                 WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, flags));
   if (!req) { out.error = "WinHttpOpenRequest failed"; return out; }
 
+  // GitHub compresses these bodies when it is asked to. The release list for
+  // the applications repository is 352,769 bytes plain and 29,346 bytes
+  // gzipped, and the transfer is the slow part of reading a catalogue: about
+  // 7.0 s against 1.4 s for the same URL and token. Asking is only half of it -
+  // without WINHTTP_OPTION_DECOMPRESSION, WinHTTP would hand the caller gzip
+  // bytes and the JSON parse would fail, so the option and the header are set
+  // together or not at all. This is the JSON path (httpGetJson, httpPostJson,
+  // and the callers that build their own GET); the streaming download and the
+  // upload are left alone, because their bodies are assets, not documents.
+  //
+  // Two kinds of request opt out of that, and each of them opts out of both
+  // halves - no option, no header:
+  //
+  //   * the caller asked for an encoding itself; that is the caller's decision
+  //     and this function does not second-guess it;
+  //   * the caller sent a Range header. A range is an offset into the bytes on
+  //     the wire, and a content-coding changes those bytes: if a server ever
+  //     encoded a 206 response, the Content-Range the caller parses would no
+  //     longer describe the body it received, and a chunked download would
+  //     reassemble a corrupt file (cpp/apps/int/main.cpp probes with
+  //     "Range: bytes=0-0" and then fetches chunks by Content-Range). The
+  //     GitHub asset CDN answers a range request with identity today, but that
+  //     is today's behaviour, not a contract, and the caller cannot survive
+  //     being surprised. Ranges are rare enough that giving up compression
+  //     there costs nothing measurable.
+  //
+  // WINHTTP_OPTION_DECOMPRESSION does not exist before Windows 8.1. If that
+  // call fails, the header must not be sent either: a server that honoured it
+  // would return bytes this build cannot inflate.
+  bool encodingRequested = false;
+  bool rangeRequested = false;
+  for (const std::string& h : opts.headers) {
+    const std::string lowered = lower(h);
+    if (lowered.compare(0, 15, "accept-encoding") == 0) encodingRequested = true;
+    if (lowered.compare(0, 6, "range:") == 0) rangeRequested = true;
+  }
+
+  bool decompressionReady = false;
+  if (!encodingRequested && !rangeRequested) {
+    DWORD decompression = WINHTTP_DECOMPRESSION_FLAG_ALL;
+    decompressionReady = WinHttpSetOption(req.h, WINHTTP_OPTION_DECOMPRESSION, &decompression,
+                                          sizeof(decompression)) != FALSE;
+  }
+
   std::wstring headers;
   if (!opts.token.empty()) headers += L"Authorization: Bearer " + toWide(opts.token) + L"\r\n";
   if (!opts.contentType.empty()) headers += L"Content-Type: " + toWide(opts.contentType) + L"\r\n";
   for (const std::string& h : opts.headers) headers += toWide(h) + L"\r\n";
+  if (decompressionReady) headers += L"Accept-Encoding: gzip\r\n";
 
   const bool hasBody = !opts.body.empty();
   const void* bodyPtr = hasBody ? (const void*)opts.body.data() : WINHTTP_NO_REQUEST_DATA;

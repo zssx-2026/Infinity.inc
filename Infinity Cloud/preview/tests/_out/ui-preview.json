@@ -1,0 +1,90 @@
+{
+  "results": [
+    {
+      "test": "window-top",
+      "pass": true,
+      "detail": "{\"start\":0,\"end\":51,\"topPad\":0,\"bottomPad\":359082,\"rows\":51}"
+    },
+    {
+      "test": "window-middle",
+      "pass": true,
+      "detail": "{\"start\":9992,\"end\":10043,\"topPad\":179856,\"bottomPad\":179226,\"rows\":51}"
+    },
+    {
+      "test": "window-bottom",
+      "pass": true,
+      "detail": "{\"start\":19991,\"end\":20000,\"topPad\":359838,\"bottomPad\":0,\"rows\":9}"
+    },
+    {
+      "test": "window-empty",
+      "pass": true,
+      "detail": "{\"start\":0,\"end\":0,\"topPad\":0,\"bottomPad\":0,\"rows\":0}"
+    },
+    {
+      "test": "dom-nodes-bounded",
+      "pass": true,
+      "detail": "20000 lines would put 51 rows in the document"
+    },
+    {
+      "test": "chunk-loop-5mib",
+      "pass": true,
+      "detail": "windows=20 bytes=5242880"
+    },
+    {
+      "test": "chunk-never-past-end",
+      "pass": true,
+      "detail": "last window=100"
+    },
+    {
+      "test": "chunk-at-end-is-zero",
+      "pass": true,
+      "detail": "end window"
+    },
+    {
+      "test": "zip-data-offset",
+      "pass": true,
+      "detail": "hello.txt=39/39 stored.txt=221/221 data.bin=1309/1309 empty.txt=718368/718368"
+    },
+    {
+      "test": "zip-data-offset-descriptor.zip",
+      "pass": true,
+      "detail": "desc-hello.txt=44/44 desc-stored.bin=247/247"
+    },
+    {
+      "test": "zip-data-offset-zip64.zip",
+      "pass": true,
+      "detail": "z64-hello.txt=43/43 z64-big.bin=246/246"
+    },
+    {
+      "test": "retain-ceiling",
+      "pass": true,
+      "detail": "lines=3,4,5 first=2"
+    },
+    {
+      "test": "deflate-raw-roundtrip",
+      "pass": true,
+      "detail": "deflated=398 inflated=1690 raw=1690"
+    },
+    {
+      "test": "page-inflates-pulled-entry",
+      "pass": true,
+      "detail": "compressed=142 inflated=830 sha256=56aca3b98f3fab0eb27ed46d3de39f1fdc704de2e622bc5a594080eed718c11b"
+    },
+    {
+      "test": "routes-in-generated-main",
+      "pass": true,
+      "detail": "missing=none"
+    },
+    {
+      "test": "page-module-in-generated-ui",
+      "pass": true,
+      "detail": "missing=none"
+    },
+    {
+      "test": "generated-preview-header-present",
+      "pass": true,
+      "detail": "preview.hpp copied into generated/"
+    }
+  ],
+  "fail": 0
+}

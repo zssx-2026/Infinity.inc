@@ -1,0 +1,101 @@
+{
+  "tag": "live-en",
+  "normalUrl": "https://zssx-2026.github.io/infinity/?verify=reset",
+  "timeoutUrl": "https://zssx-2026.github.io/infinity/?verify=reset&difficulty=64",
+  "steps": [
+    {
+      "file": "live-en-01-t0.5s.png",
+      "at": 590,
+      "state": {
+        "gate": {
+          "mode": "gate",
+          "startedAt": 1791106425437,
+          "revealedAt": null,
+          "elapsedMs": null,
+          "result": "pending",
+          "reason": "",
+          "solvedAt": null,
+          "zeros": 5
+        },
+        "overlay": true,
+        "bodyVisibility": "hidden",
+        "title": "Infinity.Inc — the Infinity suite",
+        "text": ""
+      }
+    },
+    {
+      "file": "live-en-02-t2.9s.png",
+      "at": 2976,
+      "state": {
+        "gate": {
+          "mode": "gate",
+          "startedAt": 1791106425437,
+          "revealedAt": null,
+          "elapsedMs": null,
+          "result": "pending",
+          "reason": "",
+          "solvedAt": 1791106426342,
+          "zeros": 4
+        },
+        "overlay": true,
+        "bodyVisibility": "hidden",
+        "title": "Infinity.Inc — the Infinity suite",
+        "text": ""
+      }
+    },
+    {
+      "file": "live-en-03-t3.5s.png",
+      "at": 3548,
+      "state": {
+        "gate": {
+          "mode": "gate",
+          "startedAt": 1791106425437,
+          "revealedAt": 1791106428440,
+          "elapsedMs": 3002,
+          "result": "shown",
+          "reason": "",
+          "solvedAt": 1791106426342,
+          "zeros": 4
+        },
+        "overlay": false,
+        "bodyVisibility": "visible",
+        "title": "Infinity.Inc — the Infinity suite",
+        "text": "Infinity.Inc Overview Download Documentation Cloud Settings 中文 Sign in Sign up The Infinity suite Six Windows applications that need nothing"
+      }
+    }
+  ],
+  "navToGateMs": 33,
+  "gate": {
+    "gate": {
+      "mode": "gate",
+      "startedAt": 1791106425437,
+      "revealedAt": 1791106428440,
+      "elapsedMs": 3002,
+      "result": "shown",
+      "reason": "",
+      "solvedAt": 1791106426342,
+      "zeros": 4
+    },
+    "overlay": false,
+    "bodyVisibility": "visible",
+    "title": "Infinity.Inc — the Infinity suite",
+    "text": "Infinity.Inc Overview Download Documentation Cloud Settings 中文 Sign in Sign up The Infinity suite Six Windows applications that need nothing"
+  },
+  "timeout": {
+    "gate": {
+      "mode": "gate",
+      "startedAt": 1791106429570,
+      "revealedAt": 1791106434586,
+      "elapsedMs": 5016,
+      "result": "timeout",
+      "reason": "max-time",
+      "solvedAt": null,
+      "zeros": 64
+    },
+    "overlay": false,
+    "bodyVisibility": "visible",
+    "title": "This page took too long to respond",
+    "text": "This page took too long to respond The page is temporarily unavailable. Please try again later."
+  },
+  "timeoutFile": "live-en-05-timed-out.png"
+}

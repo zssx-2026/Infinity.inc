@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Version archive — Infinity.Inc</title>
+<meta name="description" content="Every release of every product, grouped by platform. Each platform carries the .zst archive of that release once it is built.">
+<!-- site-seo: hreflang + open graph -->
+<link rel="canonical" href="https://zssx-2026.github.io/infinity/versions/archive/">
+<link rel="alternate" hreflang="en" href="https://zssx-2026.github.io/infinity/versions/archive/">
+<link rel="alternate" hreflang="zh-CN" href="https://zssx-2026.github.io/infinity/cn/versions/archive/">
+<link rel="alternate" hreflang="x-default" href="https://zssx-2026.github.io/infinity/versions/archive/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Infinity.Inc">
+<meta property="og:title" content="Version archive — Infinity.Inc">
+<meta property="og:description" content="Every release of every product, grouped by platform. Each platform carries the .zst archive of that release once it is built.">
+<meta property="og:url" content="https://zssx-2026.github.io/infinity/versions/archive/">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="zh_CN">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Version archive — Infinity.Inc">
+<meta name="twitter:description" content="Every release of every product, grouped by platform. Each platform carries the .zst archive of that release once it is built.">
+<script src="../assets/theme.js"></script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/download.css">
+<link rel="stylesheet" href="../assets/archive.css">
+<script src="../assets/guard.js"></script>
+<link rel="stylesheet" href="/infinity/assets/verify.css">
+<script src="/infinity/assets/verify.js"></script>
+</head>
+<body>
+<main id="app">
+  <h1>Version archive</h1>
+  <p class="lede">Every release of every product, grouped by platform. Each platform carries the .zst archive of that release once it is built.</p>
+  <div id="archive"></div>
+</main>
+
+<script src="../assets/site.js"></script>
+<script src="../assets/download.js"></script>
+<script src="../assets/archive.js"></script>
+<script>
+(function () {
+  var I = window.INFINITY;
+  I.nav('/versions/archive/');
+  I.footer();
+  I.archive.render(document.getElementById('archive'));
+})();
+</script>
+</body>
+</html>

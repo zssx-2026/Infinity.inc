@@ -1,0 +1,18 @@
+const port=process.argv[2];
+const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
+const list=await (await fetch('http://127.0.0.1:'+port+'/json/list')).json();
+const page=list.find(t=>t.type==='page'&&t.webSocketDebuggerUrl);
+const ws=new WebSocket(page.webSocketDebuggerUrl);
+await new Promise((res,rej)=>{ws.onopen=res;ws.onerror=rej;});
+let id=0;const pending=new Map();
+ws.onmessage=(ev)=>{const m=JSON.parse(ev.data);if(m.id&&pending.has(m.id)){pending.get(m.id)(m);pending.delete(m.id);}};
+const send=(m,p)=>new Promise(r=>{const i=++id;pending.set(i,r);ws.send(JSON.stringify({id:i,method:m,params:p||{}}));});
+const ev=async(e)=>{const r=await send('Runtime.evaluate',{expression:e,returnByValue:true});return r.result&&r.result.result?r.result.result.value:null;};
+await send('Page.enable');await send('Runtime.enable');await send('Network.enable');await send('Network.setCacheDisabled',{cacheDisabled:true});
+const U='file:///D:/dev/DeepSeekHarnessWorkspace/Infinity.inc/work/edge-ui/index.html';
+await send('Page.navigate',{url:U+'?anim-demo=1&freeze=1&phase=close&at=120&cb='+Date.now()}); await sleep(1700);
+console.log('anim-demo freeze:', await ev("JSON.stringify({phase:document.documentElement.dataset.animPhase,hud:!!document.getElementById('animHud'),hudText:document.getElementById('animHud').textContent.slice(0,60),frozen:document.documentElement.getAttribute('data-anim-frozen'),paused:document.documentElement.getAttribute('data-anim-count'),probe:!!document.getElementById('animProbe')})"));
+console.log('anim-demo live:', await (async()=>{ await send('Page.navigate',{url:U+'?anim-demo=1&cb='+Date.now()}); await sleep(2200); return ev("JSON.stringify({phase:document.documentElement.dataset.animPhase,cycle:document.documentElement.dataset.animCycle,tabs:document.querySelectorAll('.tab').length})"); })());
+console.log('tabs=3:', await (async()=>{ await send('Page.navigate',{url:U+'?tabs=3&cb='+Date.now()}); await sleep(1500); return ev("JSON.stringify({tabs:window.__InfinityShell.state.tabs.length,w:Math.round(document.querySelector('.tab').getBoundingClientRect().width)})"); })());
+console.log('playzone url param:', await (async()=>{ await send('Page.navigate',{url:U+'?playzone=1&cb='+Date.now()}); await sleep(1500); return ev("document.documentElement.getAttribute('data-pz-count')+'/'+document.getElementById('playzone').hidden"); })());
+ws.close();process.exit(0);

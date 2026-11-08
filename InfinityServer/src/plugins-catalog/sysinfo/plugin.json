@@ -1,0 +1,9 @@
+{
+  "id": "sysinfo",
+  "name": "System Info",
+  "version": "1.0.0",
+  "description": "用 node:os 报告宿主平台/CPU/内存/uptime：GET /v1/plugins/sysinfo/os。零网络、零依赖。",
+  "entry": "main.js",
+  "api": 1,
+  "enabled": true
+}

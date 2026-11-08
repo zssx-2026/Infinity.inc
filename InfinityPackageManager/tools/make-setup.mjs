@@ -23,6 +23,9 @@ const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
 const APP = path.join(ROOT, 'InfinityPackageManager');
 const OUT = path.join(ROOT, 'build', 'out');
+/* The multi file layout: one shared runtime, the bundle, one small launcher
+ * per name. See work/jslayout for what it is and why. */
+const LAYOUT = path.join(ROOT, 'build', 'layout');
 const STAGE = path.join(ROOT, 'build', 'setup-stage');
 const SETUP = path.join(ROOT, 'build', 'setup');
 const NSIS = 'C:/Program Files (x86)/NSIS/makensis.exe';
@@ -47,7 +50,14 @@ const SETUPS = [
 const PAYLOAD_FILES = [
   'applist.json','url.json','registry.json',
   'settings.json','pak.json','.ipm-versions.json',
-  'update.js','aria2c.exe'
+  'update.js','aria2c.exe',
+  /*
+   * package.json 一定要跟着走：程序自己的版本号就是从这里读的
+   * （bundle.js 的 detectRoot() 取 exe 所在目录，getPkgVersion() 读该目录下的
+   * package.json，读不到就退回 '0.0.0'）。载荷里没有它，ipm version 就显示
+   * v0.0.0，而不是产品真正发布的 1.0.0-pre5。
+   */
+  'package.json'
 ];
 
 function log(m) { process.stdout.write(m + NL); }
@@ -58,14 +68,34 @@ function stage(platform) {
   fs.mkdirSync(dest, { recursive: true });
 
   /*
-   * The full eight-name executable family, copied from build/out/<target>/.
-   * They are hard links to one file there; the stage gets real copies so the
-   * staged tree stays valid even if build/out is rebuilt mid-run.
+   * Where the payload comes from.
+   *
+   * The layout is preferred whenever it exists for this target: one shared
+   * runtime instead of one inside every name. The old single file output is
+   * still used for targets no launcher can be built for yet, so a platform
+   * is never silently dropped.
    */
-  const outDir = path.join(OUT, platform.target);
+  const layout = path.join(LAYOUT, platform.target);
+  const hasLayout = fs.existsSync(path.join(layout, 'node.exe')) && fs.existsSync(path.join(layout, 'app.cjs'));
+  const from = hasLayout ? layout : path.join(OUT, platform.target);
+  if (hasLayout) {
+    /* The runtime and the bundle are what the launchers actually run. They
+     * are not named executables, so nothing below would think to copy them. */
+    for (const name of ['node.exe', 'app.cjs']) {
+      fs.copyFileSync(path.join(layout, name), path.join(dest, name));
+    }
+    log('  payload layout  ' + layout);
+  }
+
+  /*
+   * The name family, copied from whichever tree won above. build-all.mjs
+   * already decided the names for this target; asking it rather than
+   * repeating the list here means the installer can never ship a name the
+   * build did not produce.
+   */
   const names = exeNames({ id: platform.target });
   for (const name of names) {
-    const src = path.join(outDir, name);
+    const src = path.join(from, name);
     if (!fs.existsSync(src)) throw new Error('the build is missing: ' + src);
     fs.copyFileSync(src, path.join(dest, name));
   }
@@ -75,6 +105,19 @@ function stage(platform) {
     if (fs.existsSync(from)) fs.copyFileSync(from, path.join(dest, f));
   }
   if (hasGui('ipm', platform.target)) stageGui(dest, 'ipm', platform.target);
+
+  /*
+   * The one icon this installer uses, and the only one it stages.
+   *
+   * nsis.nsi reads it for MUI_ICON, MUI_UNICON, every shortcut and
+   * DisplayIcon. Infinity.inc/icons holds one icon per product and the file
+   * name is the product, so there is nothing to choose here; a missing icon
+   * is a hard error rather than a setup built with the default NSIS icon.
+   */
+  const icon = path.resolve(ROOT, '..', 'icons', 'ipm.ico');
+  if (!fs.existsSync(icon)) throw new Error('no ipm.ico in ' + path.dirname(icon));
+  fs.copyFileSync(icon, path.join(dest, 'ipm.ico'));
+  log('  icon ' + icon);
 
   const lang = path.join(APP, 'lang');
   if (fs.existsSync(lang)) fs.cpSync(lang, path.join(dest, 'lang'), { recursive: true });
@@ -90,15 +133,22 @@ function stage(platform) {
 function compile(platform, payload, setupPath, version) {
   let template = fs.readFileSync(TEMPLATE, 'utf8').replace(/^\uFEFF/, '');
 
-  const oldPayload = /File \/r "[^"]*"/;
-  if (!oldPayload.test(template)) throw new Error('the template has no File /r payload line');
-  template = template.replace(oldPayload, 'File /r "' + payload.split(BS).join(BS + BS) + '\\*.*"');
+  /*
+   * The template only holds placeholders now, exactly like the other two
+   * products: the payload directory, the output file, the version and the
+   * executable the shortcuts point at. Anything left unreplaced is a bug,
+   * so it is checked rather than silently shipped.
+   */
+  const filled = template
+    .split('@@VERSION@@').join(version)
+    .split('@@OUTFILE@@').join(setupPath)
+    .split('@@APP_DIR@@').join(payload)
+    .split('@@EXE@@').join('ipm_launcher.exe');
 
-  const oldOut = /OutFile "[^"]*"/;
-  if (!oldOut.test(template)) throw new Error('the template has no OutFile line');
-  template = template.replace(oldOut, 'OutFile "' + setupPath.split(BS).join(BS + BS) + '"');
-
-  template = template.replace(/!define PRODUCT_VERSION "[^"]*"/, '!define PRODUCT_VERSION "' + version + '"');
+  const left = ['@@VERSION@@', '@@OUTFILE@@', '@@APP_DIR@@', '@@EXE@@']
+    .filter(function (p) { return filled.indexOf(p) >= 0; });
+  if (left.length) throw new Error('the template still holds: ' + left.join(', '));
+  template = filled;
 
   const nsi = path.join(STAGE, 'setup-' + platform.id + '.nsi');
   fs.writeFileSync(nsi, '\uFEFF' + template, 'utf8');
@@ -114,7 +164,11 @@ function compile(platform, payload, setupPath, version) {
 }
 
 function main() {
-  const version = process.argv[2] || 'v1.0pre2';
+  const version = process.argv[2] || 'v1.0pre5';
+  // --only=<id> builds a single platform; the default is still every setup, so a plain
+  // 'node tools/make-setup.mjs' behaves exactly as it did before the flag existed.
+  const onlyArg = process.argv.find(function (a) { return a.indexOf('--only=') === 0; });
+  const only = onlyArg ? onlyArg.slice('--only='.length) : '';
   fs.rmSync(STAGE, { recursive: true, force: true });
   fs.mkdirSync(STAGE, { recursive: true });
   fs.mkdirSync(SETUP, { recursive: true });
@@ -122,6 +176,7 @@ function main() {
   log('');
   const made = [];
   for (const p of SETUPS) {
+    if (only && p.id !== only) { log('skip      ' + p.id + ' (--only=' + only + ')'); continue; }
     const payload = stage(p);
     const setup = path.join(SETUP, p.id + '.exe');
     const size = compile(p, payload, setup, version);

@@ -1,4 +1,4 @@
-#requires -Version 7.0
+﻿#requires -Version 7.0
 <#
   verify-history.ps1 - Infinity.inc 历史归档独立验证器
   作者: hist-verifier (teammate)

@@ -96,3 +96,19 @@
 3. **.zst 体积**：源资产多为已压缩的 zip/NSIS，zstd 收益极小（249 KB→249 KB、31.9 MB→31.9 MB 级别），归档主要用于“一版本一平台一包”而非省空间。
 4. **磁盘**：峰值占用为单个包解压前后，D: 由 59.6 GB → 56.02 GB；脚本在 <15 GB 时会停止并记录。
 5. **未纳入**：work/archive/downloads/ 保留已下载源资产（可复用，避免重复下行）；work/archive/work/ 为空（tar 中间件已删除）。
+
+## 6. 冻结状态（Lead 20:45 更正令之后）
+
+- 归档链改为**纯静态**：不再调用 tar/zstd/curl 写请求，也不再启动任何 exe；本节全部内容由 Node 读文件/写文件产出（无外部进程、无网络写入）。
+- 新增 `work/archive/archive-plan.json`：47 个 bundle = 11 verified + 36 pending（pending 全为旧版本，4.16 GB）。每条含 `repo / sourceTag / version / platform / archiveTag / name / url / sourceBytes / sourceAssets[{name,size,sha256}] / bundle{size,sha256}`。
+- 其中 199 个源资产的 sha256 **全部**来自既有 GitHub API 数据（`work/archive/survey.json` 的 `digest` 字段，读取自禁令前抓取的响应），因此源侧校验值可静态给出；pending 条目的 `bundle.sha256` 为 `null` —— tar.zst 的 sha256 必须真实构建才能得到，不做臆造。
+- 新增纯 Node 构建器 `work/archive/make-bundle.mjs`：不 spawn 任何外部可执行文件；自写 ustar + `node:zlib.zstdCompressSync`，构建前核对源资产 sha256，输出 `.zst` 与 sha256；`--upload` 故意未接线（需单独书面批准）。用法：
+
+```text
+node work/archive/make-bundle.mjs --repo Infinity-Cloud --tag v0.1 --platform mac-arm64            # 构建+sha256
+node work/archive/make-bundle.mjs --repo Infinity-File-Manager --tag v1.0pre2 --platform win64 --append   # 追加记录
+```
+
+- 待批准/待运行清单：36 个 pending bundle（见 archive-plan.json），其中最小 31.9 MB（mac-arm64），最大为 win64 的 setup.exe+msi+zip 组合；按实测 ~40–45 KB/s 估算全集需约 29 h 下行。
+- 上传（POST assets）仍需 Lead 单独批准；未批准的 `--upload` 会以退出码 4 终止。
+- 本次会话未启动任何进程（无 pwsh / exe / 浏览器 / WebView2）。

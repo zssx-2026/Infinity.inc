@@ -1,0 +1,16 @@
+{
+  "entry": "hello.txt",
+  "method": 8,
+  "compressedBytes": 142,
+  "expectedCompressed": 142,
+  "inflatedBytes": 830,
+  "expectedUncompressed": 830,
+  "crc": 1076188391,
+  "expectedCrc": 1076188391,
+  "sha256": "56aca3b98f3fab0eb27ed46d3de39f1fdc704de2e622bc5a594080eed718c11b",
+  "sizeOk": true,
+  "bytesOk": true,
+  "crcOk": true,
+  "error": "",
+  "pass": true
+}

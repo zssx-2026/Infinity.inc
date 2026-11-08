@@ -7,7 +7,11 @@
  * until the gate opens, and the loading bar is the only thing on screen.
  *
  * The blank page is black in a dark colour scheme and white in a light one,
- * so the gate matches the page it is about to reveal.
+ * so the gate matches the page it is about to reveal. The site theme is the
+ * authority here, not the operating system: assets/theme.js writes
+ * data-theme on <html> from <head>, so a visitor who picked light on a dark
+ * desktop still gets a white gate. The media query is only the fallback for
+ * a page that somehow loaded without theme.js.
  */
 
 html.infinity-gate,
@@ -20,7 +24,8 @@ html.infinity-gate body { visibility: hidden !important; }
 html.infinity-nav body { visibility: visible !important; }
 html.infinity-nav { background: transparent !important; }
 html.infinity-gate { background: #000 !important; }
-@media (prefers-color-scheme: light) { html.infinity-gate { background: #fff !important; } }
+html[data-theme="light"].infinity-gate { background: #fff !important; }
+@media (prefers-color-scheme: light) { html:not([data-theme]).infinity-gate { background: #fff !important; } }
 
 #infinity-gate {
   position: fixed;
@@ -42,5 +47,6 @@ html.infinity-gate { background: #000 !important; }
 
 @keyframes ig-bar { from { width: 0; } to { width: 100%; } }
 
-@media (prefers-color-scheme: light) { #infinity-gate .bar { background: #0969da; } }
+html[data-theme="light"] #infinity-gate .bar { background: #0969da; }
+@media (prefers-color-scheme: light) { html:not([data-theme]) #infinity-gate .bar { background: #0969da; } }
 @media (prefers-reduced-motion: reduce) { #infinity-gate .bar { animation-duration: 1ms; width: 100%; } }

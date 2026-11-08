@@ -94,7 +94,7 @@ export class Cli {
   prompt() { return this.ask(C.cyan + 'local/' + this.home() + '> ' + C.reset); }
 
   banner() {
-    this.print('Infinity Cloud [v1.0pre2]  ·  Infinity.Inc');
+    this.print('Infinity Cloud [v1.0.0-pre5]  ·  Infinity.Inc');
     if (this.cfg.lang) this.print(C.cyan + 'local/' + this.home() + '> ' + C.reset);
   }
 

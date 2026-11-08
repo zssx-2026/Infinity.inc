@@ -1,0 +1,16 @@
+{
+  "entry": "stored.txt",
+  "method": 0,
+  "compressedBytes": 1050,
+  "expectedCompressed": 1050,
+  "inflatedBytes": 1050,
+  "expectedUncompressed": 1050,
+  "crc": 811678784,
+  "expectedCrc": 811678784,
+  "sha256": "76cd7ca6d8955bf4850b524d38a7a7999d39e487bd9808f43cedcf311528b9bd",
+  "sizeOk": true,
+  "bytesOk": true,
+  "crcOk": true,
+  "error": "",
+  "pass": true
+}

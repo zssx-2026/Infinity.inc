@@ -1,0 +1,260 @@
+{
+ "generatedAt": "2026-10-06T07:47:36.673Z",
+ "archiveBytes": 295903610,
+ "newChunkId": 132,
+ "entries": 36,
+ "map": [
+  {
+   "original": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-caef9a38.jsonl",
+   "repaired": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-caef9a38-r1.jsonl",
+   "sha256": "caef9a38aadf0a23bb8f89cebeaf35f27f4f1bbd498b5e644ef271da1f0025d3",
+   "bytes": 609119,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-e946944d.jsonl",
+   "repaired": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-e946944d-r1.jsonl",
+   "sha256": "e946944dada88456d2db3c899c906bf432713a8d0a7dd1e75a27ae91c17d5dc4",
+   "bytes": 685644,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000.jsonl",
+   "repaired": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-r1-00d729d1.jsonl",
+   "sha256": "00d729d1a58a8f9e31a6d9701111612d36d8801ade871843f4bc0345ee21c4b8",
+   "bytes": 483735,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000.jsonl",
+   "repaired": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00000-r1.jsonl",
+   "sha256": "a93910d79e7abc5ba7b4fb778cb82bee39b6949ed65cf6cba5ad4494f69940d7",
+   "bytes": 77616,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00002-ea53796c.jsonl",
+   "repaired": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00002-ea53796c-r1.jsonl",
+   "sha256": "ea53796c4ba420e85cd6751f8d94f77b0d69db3bfccb85914be4d713ed27efb4",
+   "bytes": 608800,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00003-c9650d10.jsonl",
+   "repaired": "live/0effa94b-589f-4b54-a06b-6e68a7745bac/parts/part-00003-c9650d10-r1.jsonl",
+   "sha256": "c9650d10d32c8ffd23a2241308e9dbec9b199382e64ff57874d0828b6d1dfed8",
+   "bytes": 216231,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000-8e6953a1.jsonl",
+   "repaired": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000-8e6953a1-r1.jsonl",
+   "sha256": "8e6953a1d4bac0f0917a2544b3aaa979cc8a81676db1cf144f2fbdee0f7963fc",
+   "bytes": 646417,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000.jsonl",
+   "repaired": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000-r1-fd46ebec.jsonl",
+   "sha256": "fd46ebecc29af71ea430f6cfe8cd665e9c576f8c608e04be15439ef04d74d2fd",
+   "bytes": 447306,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000.jsonl",
+   "repaired": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00000-r1.jsonl",
+   "sha256": "e3f0c8925e7d7fb041ad0cf8a996588a702cd90f2130141673b947bd462374e0",
+   "bytes": 76713,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00002-19f87ffa.jsonl",
+   "repaired": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00002-19f87ffa-r1.jsonl",
+   "sha256": "19f87ffa9aba827df240adffc1e413200b41e722bece8fa1c16e3dac5396f337",
+   "bytes": 427704,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00003-e94bcab3.jsonl",
+   "repaired": "live/39a501a5-293f-4381-8241-cede35b0be56/parts/part-00003-e94bcab3-r1.jsonl",
+   "sha256": "e94bcab3f66157e4e0f64a8dd0bd49abe1abe013659d64062f12c2c259930c8f",
+   "bytes": 242005,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/56dceca4-7359-4881-8a03-1a73fdaba437/parts/part-00000-3481519d.jsonl",
+   "repaired": "live/56dceca4-7359-4881-8a03-1a73fdaba437/parts/part-00000-3481519d-r1.jsonl",
+   "sha256": "3481519d013a0745efd695495fe7ecf58fc4dbb13cbc25e045bae9ec1924db9d",
+   "bytes": 204142,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-2ac4ad44.jsonl",
+   "repaired": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-2ac4ad44-r1.jsonl",
+   "sha256": "2ac4ad441170719e622558bacd7897c7ff322a7c3704e0f44abf424373a97e3b",
+   "bytes": 932654,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-f877e7ef.jsonl",
+   "repaired": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-f877e7ef-r1.jsonl",
+   "sha256": "f877e7ef03c2676146afc85f109a504c2204eac46aedb5095ebfdf65e62cd746",
+   "bytes": 951121,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000.jsonl",
+   "repaired": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-r1-9432d319.jsonl",
+   "sha256": "9432d31971576efb591e58eb624565f4a323f4c8cc5eb746339d7657ed39c399",
+   "bytes": 720445,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000.jsonl",
+   "repaired": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00000-r1.jsonl",
+   "sha256": "e20090a402cb198570bc81ba15097187e15521585b0529a01757ea106fec224e",
+   "bytes": 116995,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00002-e8bdc515.jsonl",
+   "repaired": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00002-e8bdc515-r1.jsonl",
+   "sha256": "e8bdc51501af5af01d4d621be2ab046828f77ea53a3c468e232e82dd8d04e132",
+   "bytes": 355766,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00003-fcb609e6.jsonl",
+   "repaired": "live/5bdbe8d6-401d-4bfe-9352-ba59459efac6/parts/part-00003-fcb609e6-r1.jsonl",
+   "sha256": "fcb609e6a642dc92520cfb3d9d9377f366a026d1dbd3593c106a0bb1977c87a4",
+   "bytes": 208228,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000-5fae1e87.jsonl",
+   "repaired": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000-5fae1e87-r1.jsonl",
+   "sha256": "5fae1e8718942dfd8709f5d4cbf51a4fe1fac170f4e498bc014f3f9cce2977d1",
+   "bytes": 542358,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000.jsonl",
+   "repaired": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000-r1-86ca6acf.jsonl",
+   "sha256": "86ca6acfbf25c76ef24c7e3151027ae2d26cda5111e5caf8115ec5f3c83e5085",
+   "bytes": 468223,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000.jsonl",
+   "repaired": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00000-r1.jsonl",
+   "sha256": "b4f659af139576a14ed4359ccbcd58a38945d4a050082b2ff242c9e1cfbc3cb7",
+   "bytes": 80705,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00002-d61f5fa1.jsonl",
+   "repaired": "live/b12d5d33-d4ff-4b5f-95d2-ed9f25e4ad18/parts/part-00002-d61f5fa1-r1.jsonl",
+   "sha256": "d61f5fa169078903334d1acac4b3403a9ca40477717b6740d67d72a66da84b26",
+   "bytes": 55136,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/b2c6bc9d-8f02-4e1d-bed7-58d962379487/parts/part-00000-341ef898.jsonl",
+   "repaired": "live/b2c6bc9d-8f02-4e1d-bed7-58d962379487/parts/part-00000-341ef898-r1.jsonl",
+   "sha256": "341ef898a418de477efe5b6bc48c9f178aca19f99ac42b5332d87e60b4c45095",
+   "bytes": 342772,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-2eaac2dd.jsonl",
+   "repaired": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-2eaac2dd-r1.jsonl",
+   "sha256": "2eaac2ddf67460d1e15bfc3230dbd30bdeb020208dffe1937cdc6cfe497d056e",
+   "bytes": 431282,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-3e65cae0.jsonl",
+   "repaired": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-3e65cae0-r1.jsonl",
+   "sha256": "3e65cae06f0b16e585c35cae64b8a9b5d0ff0912c252607c549edfd803bdfb49",
+   "bytes": 466228,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000.jsonl",
+   "repaired": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-r1-3002d315.jsonl",
+   "sha256": "3002d315a9eba0906420b5a9bf6d1266ba565f94590596371fadf38690cd8150",
+   "bytes": 360268,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000.jsonl",
+   "repaired": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00000-r1.jsonl",
+   "sha256": "7943ed401615b2182efb0c597d64de423f33c8d709a434e0f58aa5a65a36ba8b",
+   "bytes": 64343,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00002-5d294dc5.jsonl",
+   "repaired": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00002-5d294dc5-r1.jsonl",
+   "sha256": "5d294dc5b5d81d189fbedd6632028aa5ef655bfd630e129828167eaf414dbd73",
+   "bytes": 18757,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00003-012e7183.jsonl",
+   "repaired": "live/ead89f0c-b38d-4d83-a81f-27d3ced6c92f/parts/part-00003-012e7183-r1.jsonl",
+   "sha256": "012e718312844a4df6fa4330f473454a07f47073fc351cd8cf4529c83c132f53",
+   "bytes": 193830,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-c1e7c38f.jsonl",
+   "repaired": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-c1e7c38f-r1.jsonl",
+   "sha256": "c1e7c38ff68b42d838c5ec712d515c069bae9fd23034d3531019f75282042b08",
+   "bytes": 505886,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-e6c4f7d5.jsonl",
+   "repaired": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-e6c4f7d5-r1.jsonl",
+   "sha256": "e6c4f7d5e92aa644d4c95f3ba634d5954fbad1171df6caeda58544a21869894a",
+   "bytes": 516298,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024.jsonl",
+   "repaired": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-r1-e4be32f5.jsonl",
+   "sha256": "e4be32f59f4b94c41cbae8da31863586d82b05fdc1a6b55e38142ba56ddfc396",
+   "bytes": 374480,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024.jsonl",
+   "repaired": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-r1-ff476c77.jsonl",
+   "sha256": "ff476c77fe73332fbf02725ace3da467d2103f8836f5ba1ea58b095b3a46edf7",
+   "bytes": 170515,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024.jsonl",
+   "repaired": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00024-r1.jsonl",
+   "sha256": "da5df28a8fe0cb74614fdc8ba3237252b67f6f4bd8e9a8a4589fd383f56db93b",
+   "bytes": 26918,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00026-bdb40928.jsonl",
+   "repaired": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00026-bdb40928-r1.jsonl",
+   "sha256": "bdb40928ef3156d0ead407f69576b6055c28529afb13c4e7027469eaee7b3f8b",
+   "bytes": 296037,
+   "reason": "chunk-id duplicate (116 or 127)"
+  },
+  {
+   "original": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00027-5467f688.jsonl",
+   "repaired": "live/session-5eef8819-22e0-4858-90e3-f05298822866/parts/part-00027-5467f688-r1.jsonl",
+   "sha256": "5467f6881f8eee7fe9981bdbc31da1d0bc426518cf81d65277642750c06783bf",
+   "bytes": 334463,
+   "reason": "chunk-id duplicate (116 or 127)"
+  }
+ ]
+}

@@ -1,17 +1,18 @@
 # Infinity.Inc
 
-[中文](#中文) · [English](#english) · [v1.0.0-pre4 发行说明](docs/RELEASE-v1.0pre4.md)
+[中文](#中文) · [English](#english) · [v1.0.0-pre5 发行说明](docs/RELEASE-v1.0pre5.md)
 
 ## 索引 / Index
 
 ```text
 Infinity.Inc
 ├── 产品与下载 / Products and downloads ......... #产品与下载
-├── v1.0.0-pre4 发行说明 / Release notes ........ docs/RELEASE-v1.0pre4.md
+├── v1.0.0-pre5 发行说明 / Release notes ........ docs/RELEASE-v1.0pre5.md
 ├── .itbt 工具容器 / .itbt container ............ work/ITBT-FORMAT.md
-├── IPM 目录 / catalogue ....................... docs/RELEASE-v1.0pre4.md#5-ipm-目录与-nametxt
+├── IPM 目录 / catalogue ....................... docs/RELEASE-v1.0pre5.md#5-ipm-目录与-nametxt
 ├── 历史归档还原 / history restore ............. work/restore-report.md
 ├── 构建与发布 / Building and releasing ........ #构建与发布
+├── 通用 Infinity.Inc 许可 / General license ... LICENCE
 ├── 目录结构 / Directory structure ............. #目录结构
 └── 发布验证报告 / Publish verification ........ work/rel-publish-report.md
 ```
@@ -33,23 +34,18 @@ InfinityPackageManager 分发（[dist/](dist/)）以及工作与历史数据。
 
 | 产品 | 前缀（管理员孪生） | 仓库 | 下载 |
 | --- | --- | --- | --- |
-| Infinity Cloud | `inc`（`inx`） | [zssx-2026/Infinity-Cloud](https://github.com/zssx-2026/Infinity-Cloud) | [v1.0.0-pre4](https://github.com/zssx-2026/Infinity-Cloud/releases/tag/v1.0.0-pre4) |
-| Infinity File Manager | `ifm`（`ifmx`） | [zssx-2026/Infinity-File-Manager](https://github.com/zssx-2026/Infinity-File-Manager) | [v1.0.0-pre4](https://github.com/zssx-2026/Infinity-File-Manager/releases/tag/v1.0.0-pre4) |
-| InfinityPackageManager | `ipm`（`ipmx`） | [zssx-2026/InfinityPackageManager](https://github.com/zssx-2026/InfinityPackageManager) | [v1.0.0-pre4](https://github.com/zssx-2026/InfinityPackageManager/releases/tag/v1.0.0-pre4) |
-| Infinity Installer Manager | `iim`（`iimx`） | [zssx-2026/Infinity-Installer-Manager](https://github.com/zssx-2026/Infinity-Installer-Manager) | [v1.0.0-pre4](https://github.com/zssx-2026/Infinity-Installer-Manager/releases/tag/v1.0.0-pre4) |
-| Infinity Toolbox | `int`（`intx`） | [zssx-2026/Infinity-Toolbox](https://github.com/zssx-2026/Infinity-Toolbox) | [v1.0.0-pre4](https://github.com/zssx-2026/Infinity-Toolbox/releases/tag/v1.0.0-pre4) |
-| Infinity Games | `ing`（`ingx`） | [zssx-2026/Infinity-Games](https://github.com/zssx-2026/Infinity-Games) | [v1.0.0-pre4](https://github.com/zssx-2026/Infinity-Games/releases/tag/v1.0.0-pre4) |
+| Infinity Cloud | `inc`（`inx`） | [zssx-2026/Infinity-Cloud](https://github.com/zssx-2026/Infinity-Cloud) | [v1.0.0-pre5](https://github.com/zssx-2026/Infinity-Cloud/releases/tag/v1.0.0-pre5) |
+| InfinityPackageManager | `ipm`（`ipmx`） | [zssx-2026/InfinityPackageManager](https://github.com/zssx-2026/InfinityPackageManager) | [v1.0.0-pre5](https://github.com/zssx-2026/InfinityPackageManager/releases/tag/v1.0.0-pre5) |
 
 名字的规则是 `<前缀>_<面孔>.exe`：前缀选择产品，后缀选择面孔，管理员孪生在前缀后加
-一个 `x`（`inx_cli.exe`、`ifmx_gui.exe` 等）。面孔有 `cli`、`gui`、`launcher`：
-Infinity Cloud、Infinity File Manager、InfinityPackageManager 三个面孔都出（每应用 6 个名字），
-Infinity Installer Manager、Infinity Toolbox、Infinity Games 只出 `cli` 与 `gui`（每应用 4 个名字，
-没有 launcher）。合计 30 个可执行名，全部是同一份 C++ 产物的副本。每个应用允许的面孔
+一个 `x`（`inx_cli.exe`、`ipmx_gui.exe` 等）。面孔有 `cli`、`gui`、`launcher`：
+Infinity Cloud 与 InfinityPackageManager 三个面孔都出（每应用 6 个名字），
+合计 12 个可执行名，全部是同一份 C++ 产物的副本。每个应用允许的面孔
 必须与 [cpp/core/include/inc/mode.hpp](cpp/core/include/inc/mode.hpp) 一致，不属于该应用的面孔会被拒绝。
 历史上的 `tui` 面孔已从 `mode.hpp` 删除，因此当前没有 `*_tui.exe`。
 
-v1.0.0-pre4 的 6 个安装包、字节数与 SHA-256 见
-[docs/RELEASE-v1.0pre4.md](docs/RELEASE-v1.0pre4.md)。
+v1.0.0-pre5 的 3 个安装包、字节数与 SHA-256 见
+[docs/RELEASE-v1.0pre5.md](docs/RELEASE-v1.0pre5.md)。
 
 ### 构建与发布
 
@@ -63,7 +59,7 @@ v1.0.0-pre4 的 6 个安装包、字节数与 SHA-256 见
 
 ```sh
 node cpp/tools/build.mjs      # 用 CMake + Ninja 编译，把产物按每个名字复制到 cpp/out/<app>/，并审计导入表
-node cpp/tools/package.mjs    # 每个应用生成一个 NSIS 安装包，输出到 cpp/release/v1.0pre4/
+node cpp/tools/package.mjs    # 每个应用生成一个 NSIS 安装包，输出到 cpp/release/v1.0pre5/
 node cpp/tools/publish.mjs    # 把每个安装包上传到该应用自己的仓库 Release
 ```
 
@@ -77,12 +73,11 @@ node cpp/tools/publish.mjs    # 把每个安装包上传到该应用自己的仓
 ### 发布约定
 
 - Git 标签：`v1.0.0-preN`。
-- 发布目录：`cpp/release/v1.0preN`（来自 `INC_RELEASE`，默认 `v1.0pre4`）。
+- 发布目录：`cpp/release/v1.0preN`（来自 `INC_RELEASE`，默认 `v1.0pre5`）。
 - 安装包文件名：`<package>_<version>_win64_setup.exe`，其中 `<version>` 为
   `1.0.0-preN`（来自 `INC_VERSION`，默认由 tag 推导），例如
-  `InfinityCloud_1.0.0-pre4_win64_setup.exe`。
-- 包名：`InfinityCloud`、`InfinityFileManager`、`InfinityPackageManager`、
-  `InfinityInstallerManager`、`InfinityToolbox`、`InfinityGames`。
+  `InfinityCloud_1.0.0-pre5_win64_setup.exe`。
+- 包名：`InfinityCloud`、`InfinityPackageManager`。
 
 每个应用一个独立仓库，它唯一的安装包挂在该仓库的 Release 上，用户只需下载一个文件。
 `publish.mjs` 只操作 tag 指定的那个 Release；在其中只替换与待传文件**同名**的资产，
@@ -101,7 +96,7 @@ cpp/     C++ 套件。apps/ 各应用源码，core/ 共享静态库，tools/ 构
          release-assets.json，build/ CMake/NSIS 工作文件（不发布）。
 shell/   承载 gui 面孔的 Electron 壳（main.js、preload.js、build.mjs、payload.mjs）。
 web/     静态网站。web/infinity/ 产品与下载页，web/infinity/cn/ 中文页。
-icons/   应用图标（inc、ifm、ipm、iim、int、ing）及其 SVG 源文件。
+icons/   应用图标（inc、ipm、int）及其 SVG 源文件。
 dist/    InfinityPackageManager 分发：ipm.exe、目录与注册表 JSON、语言文件。
 history/ history.jsonl。
 ```
@@ -110,7 +105,7 @@ history/ history.jsonl。
 
 | 主题 | 文件 |
 | --- | --- |
-| v1.0.0-pre4 发行说明（六应用、下载、大小、sha256） | [docs/RELEASE-v1.0pre4.md](docs/RELEASE-v1.0pre4.md) |
+| v1.0.0-pre5 发行说明（三应用、下载、大小、sha256） | [docs/RELEASE-v1.0pre5.md](docs/RELEASE-v1.0pre5.md) |
 | `.itbt` 工具容器格式 v1 | [work/ITBT-FORMAT.md](work/ITBT-FORMAT.md) |
 | 历史归档独立还原验证 | [work/restore-report.md](work/restore-report.md)、[work/restore-history.ps1](work/restore-history.ps1) |
 | 发布与一致性验证 | [work/rel-publish-report.md](work/rel-publish-report.md) |
@@ -124,7 +119,7 @@ history/ history.jsonl。
 ## English
 
 
-Infinity.Inc is a suite of six Windows applications. Each product is built once
+Infinity.Inc is a suite of three Windows applications. Each product is built once
 as a single C++ executable and then copied under several names; the program
 reads its own file name to decide which face to run. The executables import only
 DLLs that ship with Windows — no Node, no Electron, no Visual C++ redistributable,
@@ -141,19 +136,14 @@ InfinityPackageManager distribution (`dist/`), and the working/history data.
 
 | Product | Prefix (admin twin) | Repository | Downloads |
 | --- | --- | --- | --- |
-| Infinity Cloud | `inc` (`inx`) | [zssx-2026/Infinity-Cloud](https://github.com/zssx-2026/Infinity-Cloud) | [v1.0.0-pre4](https://github.com/zssx-2026/Infinity-Cloud/releases/tag/v1.0.0-pre4) |
-| Infinity File Manager | `ifm` (`ifmx`) | [zssx-2026/Infinity-File-Manager](https://github.com/zssx-2026/Infinity-File-Manager) | [v1.0.0-pre4](https://github.com/zssx-2026/Infinity-File-Manager/releases/tag/v1.0.0-pre4) |
-| InfinityPackageManager | `ipm` (`ipmx`) | [zssx-2026/InfinityPackageManager](https://github.com/zssx-2026/InfinityPackageManager) | [v1.0.0-pre4](https://github.com/zssx-2026/InfinityPackageManager/releases/tag/v1.0.0-pre4) |
-| Infinity Installer Manager | `iim` (`iimx`) | [zssx-2026/Infinity-Installer-Manager](https://github.com/zssx-2026/Infinity-Installer-Manager) | [v1.0.0-pre4](https://github.com/zssx-2026/Infinity-Installer-Manager/releases/tag/v1.0.0-pre4) |
-| Infinity Toolbox | `int` (`intx`) | [zssx-2026/Infinity-Toolbox](https://github.com/zssx-2026/Infinity-Toolbox) | [v1.0.0-pre4](https://github.com/zssx-2026/Infinity-Toolbox/releases/tag/v1.0.0-pre4) |
-| Infinity Games | `ing` (`ingx`) | [zssx-2026/Infinity-Games](https://github.com/zssx-2026/Infinity-Games) | [v1.0.0-pre4](https://github.com/zssx-2026/Infinity-Games/releases/tag/v1.0.0-pre4) |
+| Infinity Cloud | `inc` (`inx`) | [zssx-2026/Infinity-Cloud](https://github.com/zssx-2026/Infinity-Cloud) | [v1.0.0-pre5](https://github.com/zssx-2026/Infinity-Cloud/releases/tag/v1.0.0-pre5) |
+| InfinityPackageManager | `ipm` (`ipmx`) | [zssx-2026/InfinityPackageManager](https://github.com/zssx-2026/InfinityPackageManager) | [v1.0.0-pre5](https://github.com/zssx-2026/InfinityPackageManager/releases/tag/v1.0.0-pre5) |
 
 A name is `<prefix>_<face>.exe`: the prefix selects the product and the suffix
 selects the face, and the administrator twin adds an `x` to the prefix
-(`inx_cli.exe`, `ifmx_gui.exe`, …). The faces are `cli`, `gui` and
-`launcher`; Infinity Cloud, Infinity File Manager and InfinityPackageManager
-ship all three, while Infinity Installer Manager, Infinity Toolbox and Infinity
-Games ship `cli` and `gui` only (they have no launcher). The per-application
+(`inx_cli.exe`, `ipmx_gui.exe`, …). The faces are `cli`, `gui` and
+`launcher`; Infinity Cloud and InfinityPackageManager
+ship all three (6 names per application). The per-application
 face list in the build has to match `cpp/core/include/inc/mode.hpp`, which
 rejects a face an application does not have.
 
@@ -174,7 +164,7 @@ From the repository root:
 
 ```sh
 node cpp/tools/build.mjs      # compile with CMake + Ninja, copy the executable to cpp/out/<app>/ under every name, audit the imports
-node cpp/tools/package.mjs    # build one NSIS installer per application into cpp/release/v1.0pre4/
+node cpp/tools/package.mjs    # build one NSIS installer per application into cpp/release/v1.0pre5/
 node cpp/tools/publish.mjs    # upload each installer to that application's own repository release
 ```
 
@@ -191,13 +181,12 @@ Node build.
 
 - Git tag: `v1.0.0-preN`.
 - Release directory: `cpp/release/v1.0preN` (from `INC_RELEASE`, default
-  `v1.0pre4`).
+  `v1.0pre5`).
 - Installer file name: `<package>_<version>_win64_setup.exe`, with
   `<version>` = `1.0.0-preN` (from `INC_VERSION`, by default derived from
-  the tag), e.g. `InfinityCloud_1.0.0-pre4_win64_setup.exe`.
-- Package names: `InfinityCloud`, `InfinityFileManager`,
-  `InfinityPackageManager`, `InfinityInstallerManager`, `InfinityToolbox`,
-  `InfinityGames`.
+  the tag), e.g. `InfinityCloud_1.0.0-pre5_win64_setup.exe`.
+- Package names: `InfinityCloud`,
+  `InfinityPackageManager`.
 
 Each application has its own repository, and its single installer is attached to
 the release in that repository, so a user downloads exactly one file.
@@ -223,7 +212,7 @@ shell/   The Electron shell that hosts the gui face (main.js, preload.js,
          build.mjs, payload.mjs).
 web/     The static website. web/infinity/ holds the product and download
          pages; web/infinity/cn/ holds the Chinese pages.
-icons/   The application icons (inc, ifm, ipm, iim, int, ing) and their SVG
+icons/   The application icons (inc, ipm, int) and their SVG
          sources.
 dist/    The InfinityPackageManager distribution: ipm.exe, the catalogue and
          registry JSON, and the language files.

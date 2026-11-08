@@ -18,6 +18,10 @@ import os from 'node:os';
 import path from 'node:path';
 import url from 'node:url';
 import { execFileSync } from 'node:child_process';
+/* The administrator twin's name is defined once, in payload.mjs (inc -> inx,
+ * not incx). build.mjs used to derive it locally as <prefix>x_gui, which made
+ * an incx_gui-win32-* tree nothing else in the project ever looks for. */
+import { adminGuiName } from './payload.mjs';
 
 const NL = String.fromCharCode(10);
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
@@ -25,9 +29,7 @@ const OUT = path.join(HERE, 'build');
 
 export const TARGETS = [
   { prefix: 'inc', app: 'Infinity Cloud' },
-  { prefix: 'ifm', app: 'Infinity File Manager' },
   { prefix: 'ipm', app: 'InfinityPackageManager' },
-  { prefix: 'iim', app: 'Infinity Installer Manager' },
   { prefix: 'int', app: 'Infinity Toolbox' }
 ];
 
@@ -146,7 +148,8 @@ function main() {
     writeApp(base, TARGETS[0].app);
 
     for (const t of TARGETS) {
-      for (const name of [t.prefix + '_gui', t.prefix + 'x_gui']) {
+      const admin = adminGuiName(t.prefix).replace(/\.exe$/, '');
+      for (const name of [t.prefix + '_gui', admin]) {
         const dir = name === first ? base : copyAs(base, first, name, arch);
         const exe = path.join(dir, name + '.exe');
         const size = fs.existsSync(exe) ? fs.statSync(exe).size : 0;
@@ -162,6 +165,36 @@ function main() {
 
 export { main };
 
+/* --check: verify the packaged shells already on disk carry exactly the names
+ * the rest of the project expects (no Electron download, no compiler). */
+export function check() {
+  const problems = [];
+  const expectedNames = [];
+  for (const arch of ARCHES) {
+    for (const t of TARGETS) {
+      expectedNames.push([t.prefix + '_gui', arch]);
+      expectedNames.push([adminGuiName(t.prefix).replace(/\.exe$/, ''), arch]);
+    }
+  }
+  const expectedDirs = new Set(expectedNames.map((p) => p[0] + '-win32-' + p[1]));
+  for (const [name, arch] of expectedNames) {
+    const exe = path.join(OUT, name + '-win32-' + arch, name + '.exe');
+    if (!fs.existsSync(exe)) problems.push('missing ' + path.relative(HERE, exe));
+  }
+  const actual = fs.existsSync(OUT)
+    ? fs.readdirSync(OUT, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)
+    : [];
+  for (const d of actual) {
+    if (/-win32-(x64|ia32|arm64)$/.test(d) && !expectedDirs.has(d)) problems.push('unexpected shell dir ' + d);
+  }
+  for (const d of expectedDirs) if (!actual.includes(d)) problems.push('missing shell dir ' + d);
+  console.log(JSON.stringify({ out: path.relative(path.resolve(HERE, '..'), OUT), shells: expectedNames.length, dirs: expectedDirs.size, onDisk: actual.length, problems }, null, 1));
+  if (problems.length) { console.log('SHELL-NAME-CHECK FAIL ' + problems.length); return 1; }
+  console.log('SHELL-NAME-CHECK PASS ' + expectedNames.length + ' names in ' + expectedDirs.size + ' dirs');
+  return 0;
+}
+
 if (process.argv[1] && process.argv[1].indexOf('build.mjs') >= 0) {
+  if (process.argv.indexOf('--check') >= 0) process.exit(check());
   main();
 }

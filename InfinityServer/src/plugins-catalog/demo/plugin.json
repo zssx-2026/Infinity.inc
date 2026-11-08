@@ -1,0 +1,9 @@
+{
+  "id": "demo",
+  "name": "Demo Ping",
+  "version": "1.0.0",
+  "description": "最小示例插件：GET /v1/plugins/demo/ping 回一个 pong。作为插件契约的活文档。",
+  "entry": "main.js",
+  "api": 1,
+  "enabled": true
+}

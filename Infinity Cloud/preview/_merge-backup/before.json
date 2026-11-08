@@ -1,0 +1,13 @@
+{
+ "at": "2026-10-06T00:32:09.766Z",
+ "files": {
+  "cpp\\apps\\inc\\main.cpp": {
+   "sha": "ad9c8e18527fbdbc2cb37a5a3b23a826aea38c7fb0c5ef533029e5d3fc604da0",
+   "size": 41338
+  },
+  "cpp\\apps\\inc\\ui.hpp": {
+   "sha": "0cf91dc72608dd1de5496658efe21c46a988ea5c5a30c8af9fcd36a3b1f211ec",
+   "size": 20209
+  }
+ }
+}

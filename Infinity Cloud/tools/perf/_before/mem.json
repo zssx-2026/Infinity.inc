@@ -3,7 +3,7 @@
     "label":  "",
     "token":  "present(len=93)",
     "childArgs":  "gui",
-    "mem_privateWorkingSetMB":  3.03,
-    "mem_privateBytes64MB":  4.16,
-    "mem_workingSet64MB":  15.42
+    "mem_privateWorkingSetMB":  3.43,
+    "mem_privateBytes64MB":  5.61,
+    "mem_workingSet64MB":  21.54
 }

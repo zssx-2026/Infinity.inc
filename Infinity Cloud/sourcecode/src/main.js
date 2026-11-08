@@ -23,7 +23,7 @@ import { detect } from './core/mode.js';
 import { runLauncher } from './core/launcher.js';
 import { runGui } from './gui/server.js';
 
-const VERSION = 'v1.0pre2';
+const VERSION = 'v1.0.0-pre5';
 
 async function main() {
   ensureDirs();

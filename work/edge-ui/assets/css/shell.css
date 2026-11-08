@@ -12,6 +12,13 @@
   --r-xs: 4px; --r-s: 6px; --r-m: 8px; --r-l: 12px; --r-xl: 16px;
   --dur: .16s; --dur-slow: .26s;
   --ease: cubic-bezier(.2, .9, .3, 1);
+  /* Tab animation timing (table + selectors documented in report.md) */
+  --anim-in: 260ms; --anim-out: 200ms; --anim-shift: 240ms; --anim-switch: 220ms;
+  --anim-hover: 140ms; --anim-settle: 380ms;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --ease-in: cubic-bezier(.55, .06, .68, .19);
+  --ease-shift: cubic-bezier(.2, .9, .3, 1);
+  --ease-settle: cubic-bezier(.18, 1.42, .42, 1);
   --tab-w: 232px; --tab-min: 68px;
   --titlebar-h: 40px; --toolbar-h: 48px; --sidebar-w: 268px;
 }
@@ -110,7 +117,8 @@ html[data-frame="0"] .caption { display: none; }
 .titlebar { height: var(--titlebar-h); flex: none; background: var(--tabstrip-bg);
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
 .tabstrip { display: flex; align-items: flex-end; height: 100%; gap: 4px; padding: 0 0 0 8px; }
-.tabs { display: flex; align-items: flex-end; gap: 3px; height: 100%; min-width: 0; flex: 0 1 auto; }
+.tabs { position: relative; display: flex; align-items: flex-end; gap: 3px; height: 100%; min-width: 0;
+  flex: 1 1 auto; -webkit-app-region: drag; }
 
 .tab {
   position: relative; display: flex; align-items: center; gap: 8px;
@@ -119,13 +127,13 @@ html[data-frame="0"] .caption { display: none; }
   border: 1px solid transparent; border-bottom: none;
   border-radius: 9px 9px 0 0;
   background: var(--tab-idle); color: var(--text-2);
-  transition: background var(--dur), color var(--dur);
-  -webkit-app-region: no-drag; overflow: hidden;
+  transition: background var(--dur), color var(--dur), box-shadow var(--dur),
+              transform var(--anim-hover) var(--ease-out);
+  -webkit-app-region: no-drag; overflow: hidden; will-change: transform;
 }
-.tab:hover { background: var(--hover); color: var(--text-1); }
+.tab:hover { background: var(--hover); color: var(--text-1); transform: translate3d(0, -1px, 0); }
 .tab.active { background: var(--tab-active); color: var(--text-1); box-shadow: 0 -1px 0 var(--border) inset; }
-.tab.active::after { content: ""; position: absolute; left: 10px; right: 10px; top: 0; height: 2px;
-  border-radius: 2px; background: var(--tab-active-line); }
+/* Active indicator is a single sliding bar (#tabIndicator), see animation section below. */
 .tab-title { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; }
 .tab-fav { width: 16px; height: 16px; flex: none; border-radius: 4px; display: grid; place-items: center;
   font-size: 8px; font-weight: 700; letter-spacing: .2px; background: var(--chip); overflow: hidden; }
@@ -142,7 +150,7 @@ html[data-frame="0"] .caption { display: none; }
 .tab-new { width: 30px; height: 30px; margin-bottom: 3px; flex: none; border: 0; border-radius: var(--r-m);
   display: grid; place-items: center; background: transparent; color: var(--text-2); -webkit-app-region: no-drag; }
 .tab-new:hover { background: var(--hover); color: var(--text-1); }
-.tabstrip-spacer { flex: 1 1 auto; height: 100%; -webkit-app-region: drag; min-width: 24px; }
+.tabstrip-spacer { flex: 0 0 auto; width: 24px; min-width: 24px; height: 100%; -webkit-app-region: drag; }
 .tab-actions { display: flex; align-items: center; padding-bottom: 4px; -webkit-app-region: no-drag; }
 
 .caption { display: flex; align-items: stretch; height: 100%; margin-left: 4px; -webkit-app-region: no-drag; }
@@ -244,6 +252,7 @@ html[data-theme="dark"] .view iframe { background: #1c1c1c; }
   box-shadow: 0 10px 26px rgba(15, 108, 189, .35); }
 .ntp-greeting { margin: 6px 0 0; font-family: var(--font-display); font-size: 26px; font-weight: 600; letter-spacing: -.01em; }
 .ntp-date { margin: 0; color: var(--text-3); font-size: 13px; }
+.ntp-home-hint { margin: 2px 0 0; color: var(--text-3); font-size: 11.5px; opacity: .85; }
 
 .ntp-search { display: flex; align-items: center; gap: 10px; width: min(720px, 100%); margin: 0 auto;
   height: 48px; padding: 0 6px 0 16px; border-radius: 999px; background: var(--surface-1);
@@ -420,3 +429,132 @@ html[data-theme="dark"] .view iframe { background: #1c1c1c; }
   .sidebar { position: absolute; left: 0; top: 0; bottom: 0; z-index: 30; box-shadow: var(--shadow-2); }
   .body { position: relative; }
 }
+
+/* =====================================================================
+   Tab strip animation system
+   ---------------------------------------------------------------------
+   enter   .tab.enter       260ms cubic-bezier(.16, 1, .30, 1)   width + fade + rise
+   exit    .tab.exit        200ms cubic-bezier(.55, .06, .68, .19) width collapse + fade
+   shift   .tab.flip        240ms cubic-bezier(.2, .9, .3, 1)     FLIP translate
+   switch  .tab-indicator   220ms cubic-bezier(.2, .9, .3, 1)     sliding highlight bar
+   hover   .tab:hover       140ms cubic-bezier(.16, 1, .30, 1)    lift
+   drag    .tab.dragging    380ms cubic-bezier(.18, 1.42, .42, 1) rebound / settle
+   ===================================================================== */
+
+/* -------- 1. new tab: flex-basis + min/max width expand, fade-in, rise -------- */
+@keyframes tab-enter {
+  0%   { flex-basis: 0; min-width: 0; max-width: 0; padding-left: 0; padding-right: 0;
+         opacity: 0; transform: translate3d(0, 6px, 0) scale(.94); }
+  55%  { opacity: 1; }
+  100% { flex-basis: var(--tab-w); min-width: var(--tab-min); max-width: var(--tab-w);
+         padding-left: 10px; padding-right: 8px; opacity: 1; transform: none; }
+}
+.tab.enter { animation: tab-enter var(--anim-in) var(--ease-out) both; }
+
+/* -------- 2. close tab: collapse + fade-out (element pinned absolute by JS) ---- */
+@keyframes tab-exit {
+  0%   { width: var(--exit-w, var(--tab-w)); padding-left: 10px; padding-right: 8px; opacity: 1; transform: none; }
+  100% { width: 0; padding-left: 0; padding-right: 0; opacity: 0; transform: translate3d(0, 4px, 0) scale(.9); }
+}
+.tab.exit { animation: tab-exit var(--anim-out) var(--ease-in) forwards; pointer-events: none; overflow: hidden; }
+
+/* -------- 3. remaining tabs slide smoothly (FLIP transform) ------------------- */
+.tab.flip { transition: transform var(--anim-shift) var(--ease-shift); }
+
+/* -------- 4. tab switch: sliding active indicator bar ------------------------- */
+.tab-indicator {
+  position: absolute; left: 0; top: 6px; width: 0; height: 2px; border-radius: 2px;
+  background: var(--tab-active-line); pointer-events: none; z-index: 2; opacity: 0;
+  transform: translate3d(0, 0, 0);
+  transition: transform var(--anim-switch) var(--ease-shift),
+              width var(--anim-switch) var(--ease-shift), opacity 120ms linear;
+}
+.tab.active { transition: background var(--anim-switch) var(--ease-shift), color var(--anim-switch) var(--ease-shift),
+              box-shadow var(--dur), transform var(--anim-hover) var(--ease-out); }
+
+/* -------- 5. content view fade when switching tabs ---------------------------- */
+@keyframes view-in { from { opacity: .55; transform: translate3d(0, 4px, 0); } to { opacity: 1; transform: none; } }
+.view-enter { animation: view-in 200ms var(--ease-out); }
+
+/* -------- 6. hover lift already on .tab:hover; drag state + rebound ----------- */
+.tab.dragging { z-index: 4; transition: none; box-shadow: var(--shadow-2); cursor: grabbing; opacity: .96; }
+.tabs.tab-dragging .tab:not(.dragging) { transition: transform var(--anim-shift) var(--ease-shift); }
+.tab.settle { animation: tab-settle var(--anim-settle) var(--ease-settle); }
+@keyframes tab-settle {
+  0%   { transform: translate3d(0, -4px, 0) scale(1.03); }
+  55%  { transform: translate3d(0, 1px, 0) scale(.998); }
+  100% { transform: none; }
+}
+
+/* -------- 7. ?anim-demo=1 HUD (screenshot evidence overlay) ------------------- */
+.anim-hud { position: fixed; left: 12px; bottom: 12px; z-index: 90; display: flex; flex-direction: column; gap: 3px;
+  padding: 9px 13px; border-radius: 10px; background: var(--surface-1); border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-2); font-family: "Cascadia Code", Consolas, monospace; font-size: 11.5px;
+  line-height: 1.5; color: var(--text-1); pointer-events: none; max-width: 560px; }
+.anim-hud .hud-title { font-weight: 600; color: var(--accent); letter-spacing: .04em; }
+.anim-hud .hud-sub { color: var(--text-3); }
+.anim-hud .hud-frozen { color: #f0a30a; font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tab.enter, .tab.exit, .view-enter, .tab.settle { animation: none !important; }
+  .tab, .tab.flip, .tab-indicator, .tabs.tab-dragging .tab:not(.dragging) { transition: none !important; }
+}
+
+/* ---------- Play Zone (at most one open per window) ---------- */
+.sb-badge { margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+  background: var(--accent-strong); color: #fff; font-size: 10px; display: inline-grid; place-items: center; }
+.playzone { position: absolute; right: 12px; bottom: 12px; top: calc(var(--titlebar-h) + var(--toolbar-h) + 12px);
+  width: 344px; z-index: 35; display: flex; flex-direction: column; border-radius: var(--r-l);
+  background: var(--surface-1); border: 1px solid var(--border-strong); box-shadow: var(--shadow-2);
+  backdrop-filter: blur(34px) saturate(160%); -webkit-backdrop-filter: blur(34px) saturate(160%);
+  animation: pz-in 220ms var(--ease-out); overflow: hidden; }
+@keyframes pz-in { from { opacity: 0; transform: translate3d(18px, 0, 0) scale(.98); } to { opacity: 1; transform: none; } }
+.pz-head { display: flex; align-items: center; gap: 8px; padding: 10px 10px 8px; border-bottom: 1px solid var(--border); }
+.pz-tile { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: #fff; flex: none;
+  background: linear-gradient(135deg, var(--pz-primary, #0f6cbd), var(--pz-accent, #4cc2ff)); }
+.pz-select { flex: 1 1 auto; min-width: 0; height: 30px; border-radius: var(--r-s); background: var(--field);
+  color: var(--text-1); border: 1px solid var(--border); padding: 0 6px; }
+.pz-body { padding: 10px; display: flex; flex-direction: column; gap: 10px; overflow: auto; }
+.pz-row { display: flex; align-items: center; gap: 10px; }
+.pz-label { width: 60px; flex: none; color: var(--text-3); font-size: 12px; }
+.pz-input { flex: 1 1 auto; min-width: 0; height: 30px; padding: 0 8px; border-radius: var(--r-s);
+  background: var(--field); border: 1px solid var(--border); color: var(--text-1); outline: 0; }
+.pz-input:focus { border-color: var(--accent); }
+.pz-row input[type="color"] { width: 46px; height: 26px; padding: 0; border: 1px solid var(--border-strong);
+  border-radius: var(--r-s); background: transparent; }
+.pz-preview { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: var(--r-m);
+  background: var(--pz-bg, #101418); color: var(--pz-fg-color, #fff); transition: background var(--dur) var(--ease); }
+.pz-preview-tile { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; color: #fff; flex: none;
+  font-weight: 800; letter-spacing: .5px; background: linear-gradient(140deg, var(--pz-primary), var(--pz-accent)); }
+.pz-preview-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pz-preview-body small { opacity: .72; font-size: 11px; }
+.playzone[data-pz-theme="light"] { --pz-fg-color: #141619; }
+.playzone[data-pz-theme="dark"] { --pz-fg-color: #f4f5f7; }
+.pz-music { border: 1px solid var(--border); border-radius: var(--r-m); padding: 8px;
+  display: flex; flex-direction: column; gap: 8px; background: var(--surface-2); }
+.pz-music-bar { display: flex; align-items: center; gap: 8px; }
+.pz-music-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; color: var(--text-2); }
+.pz-music-bar input[type="range"] { width: 90px; }
+.pz-vol { font-size: 11px; color: var(--text-3); width: 34px; text-align: right; }
+.pz-hint, .pz-limit { margin: 0; font-size: 11.5px; color: var(--text-3); line-height: 1.5; }
+.pz-guard { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+.playzone.pz-flash { animation: pz-flash 640ms var(--ease-out); }
+@keyframes pz-flash { 0% { box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow-2); } 100% { box-shadow: var(--shadow-2); } }
+
+/* ---------- Session restore / exit dialog ---------- */
+.check { display: inline-flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 12.5px; }
+.check input { width: 15px; height: 15px; accent-color: var(--accent-strong); }
+.session-summary { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: var(--r-m);
+  background: var(--surface-2); border: 1px solid var(--border); font-size: 12px; color: var(--text-2);
+  max-height: 170px; overflow: auto; }
+.session-summary .ss-row { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.session-summary .ss-row.active { color: var(--text-1); font-weight: 600; }
+.session-summary .ss-url { color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  .playzone, .playzone.pz-flash { animation: none !important; }
+  .pz-preview { transition: none !important; }
+}
+
+

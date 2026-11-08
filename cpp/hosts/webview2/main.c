@@ -700,11 +700,9 @@ int wmain(int argc, wchar_t **argv) {
   if (!hLoad) {
     copyW(g.error, L"WebView2Loader.dll not found next to the host or on PATH", 1024);
     logLine(L"[host] FATAL %ls", g.error);
-    MessageBoxW(NULL,
-      L"WebView2Loader.dll is missing.\n\n"
-      L"The Infinity WebView2 host needs the loader DLL that ships with it.\n"
-      L"Reinstall the application package (webview2-host.exe + WebView2Loader.dll).",
-      L"Infinity - WebView2 loader missing", MB_ICONERROR | MB_OK);
+    /* no dialogs: the failure is reported in the result JSON + stderr only */
+    fwprintf(stderr, L"WebView2Loader.dll is missing; reinstall the app package "
+                     L"(webview2-host.exe + WebView2Loader.dll).\n");
     writeResult();
     return 5;
   }
@@ -737,12 +735,12 @@ int wmain(int argc, wchar_t **argv) {
       L"(https://go.microsoft.com/fwlink/p/?LinkId=2124703) or pass --runtime=<fixed version folder>.",
       (unsigned long)hr);
     logLine(L"[host] FATAL %ls", g.error);
-    MessageBoxW(g.hwnd,
-      L"Microsoft Edge WebView2 Runtime is not installed.\n\n"
-      L"Install the Evergreen Runtime, or ship a fixed-version runtime and start with\n"
-      L"  webview2-host.exe --runtime=\"<folder>\\Microsoft.WebView2.FixedVersionRuntime.154.0.4258.53.x64\"\n\n"
-      L"Download: https://developer.microsoft.com/microsoft-edge/webview2/",
-      L"Infinity - WebView2 runtime missing", MB_ICONERROR | MB_OK);
+    /* no dialogs (headless policy): stderr + result JSON carry the message */
+    fwprintf(stderr,
+      L"Microsoft Edge WebView2 Runtime is not installed.\n"
+      L"Install the Evergreen Runtime (https://go.microsoft.com/fwlink/p/?LinkId=2124703),\n"
+      L"or ship a fixed-version runtime and start with\n"
+      L"  webview2-host.exe --runtime=\"<folder>\\Microsoft.WebView2.FixedVersionRuntime.154.0.4258.53.x64\"\n");
     writeResult();
     return 20;
   }

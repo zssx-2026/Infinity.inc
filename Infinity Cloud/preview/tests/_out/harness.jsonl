@@ -1,0 +1,24 @@
+﻿{"test":"defaults","pass":true,"detail":"chunkBytes=262144 timeoutMs=8000 retries=2 zipTailBytes=65536"}
+{"test":"chunk1","pass":true,"detail":"bytes=262144 want=262144 ms=39 first_screen<=800ms=yes"}
+{"test":"oversize-request-split","pass":true,"detail":"requested=786432 bytes=786432 (server log must show 3 windows of 262144)"}
+{"test":"full-big","pass":true,"detail":"bytes=5242880 size=5242880 ms=304 windows=20"}
+{"test":"retry-after-two-failures","pass":true,"detail":"bytes=1000 ms=503 (server log must show 3 requests for retry.bin)"}
+{"test":"timeout-with-two-retries","pass":true,"detail":"ok=false ms=2902 bound=3900 error=timeout after 800 ms (3 attempts: 1 + 2 retries)"}
+{"test":"timeout-8s-default","pass":true,"detail":"ok=false ms=24479 bound=25500 error=timeout after 8000 ms (3 attempts of 8 s; the bound is the contract's cost)"}
+{"test":"cancel-flag","pass":true,"detail":"error=cancelled (server log must show 0 requests for cancel.bin)"}
+{"test":"cancel-epoch","pass":true,"detail":"error=cancelled"}
+{"test":"cancel-in-flight","pass":true,"detail":"ms=465 error=cancelled (server log must show 1 request for cancel2.bin)"}
+{"test":"cancel-no-partial-output","pass":true,"detail":"ok=false ms=469 out=8 error=cancelled (first part read, second cancelled in flight, caller buffer untouched)"}
+{"test":"zip-tail-64k","pass":true,"detail":"entries=4 expected=4 ms=14 (first Range must be start=653268 span=65536)"}
+{"test":"zip-entries","pass":true,"detail":[{"name":"hello.txt","method":8,"compressed":142,"uncompressed":830,"headerOffset":0},{"name":"stored.txt","method":0,"compressed":1050,"uncompressed":1050,"headerOffset":181},{"name":"data.bin","method":8,"compressed":717020,"uncompressed":716800,"headerOffset":1271},{"name":"empty.txt","method":0,"compressed":0,"uncompressed":0,"headerOffset":718329}]}
+{"test":"descriptor-zip-tail","pass":true,"detail":"entries=2 expected=2"}
+{"test":"zip-entry-desc-stored.bin","pass":true,"detail":"compressed=307200 method=0 headerOffset=202 dataOffset=247 expectedDataOffset=247 descriptor=true zip64=false ms=31"}
+{"test":"zip64-zip-tail","pass":true,"detail":"entries=2 expected=2 zip64Entry=true"}
+{"test":"zip-entry-z64-hello.txt","pass":true,"detail":"compressed=142 method=8 headerOffset=0 dataOffset=43 expectedDataOffset=43 descriptor=false zip64=false ms=16"}
+{"test":"zip-entry-z64-big.bin","pass":true,"detail":"compressed=717020 method=8 headerOffset=185 dataOffset=246 expectedDataOffset=246 descriptor=false zip64=true ms=49"}
+{"test":"zip64-placeholder-rejected","pass":true,"detail":"ok=false error=entry \"bad-declared.bin\" carries a 32-bit zip64 placeholder that no extra field fills"}
+{"test":"zip64-locator-missing","pass":true,"detail":"result=3 error=the archive declares zip64 but carries no zip64 end of central directory locator"}
+{"test":"zip-entry-hello.txt","pass":true,"detail":"compressed=142 method=8 headerOffset=0 dataOffset=39 expectedDataOffset=39 descriptor=false zip64=false ms=17"}
+{"test":"zip-entry-stored.txt","pass":true,"detail":"compressed=1050 method=0 headerOffset=181 dataOffset=221 expectedDataOffset=221 descriptor=false zip64=false ms=17"}
+{"test":"zip-entry-data.bin","pass":true,"detail":"compressed=717020 method=8 headerOffset=1271 dataOffset=1309 expectedDataOffset=1309 descriptor=false zip64=false ms=48"}
+{"test":"summary","fail":0}

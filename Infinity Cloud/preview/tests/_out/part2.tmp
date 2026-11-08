@@ -1,0 +1,91 @@
+## 4. 复现命令
+
+```powershell
+# 一键全量（约 80 s 编译 + 40 s 测试；-With8s 会真跑 8 s 超时 3 次，多约 25 s）
+& 'Infinity Cloud\preview\tests\run-tests.ps1' -With8s
+
+# 只生成 generated/ + preview.patch
+& 'D:\program\nodejs\node.exe' 'Infinity Cloud\preview\apply-preview.mjs'
+
+# 夹具
+& 'D:\program\nodejs\node.exe' 'Infinity Cloud\preview\tests\make-fixtures.mjs'
+
+# 整包编译（一条命令；run-tests.ps1 内部同样参数）
+g++ -std=c++17 -O2 -I 'Infinity Cloud\preview\generated' -I 'cpp\core\include' -I 'cpp\common' 'Infinity Cloud\preview\generated\main.cpp' cpp\core\src\*.cpp cpp\common\unblock.cpp -o 'Infinity Cloud\preview\build\inc-preview.exe' -static -static-libgcc -static-libstdc++ -lwinhttp -lbcrypt -lshell32 -lcomctl32 -lws2_32 -lgdi32 -lcomdlg32 -lole32 -luser32 -loleaut32 -luuid
+```
+
+日志与完整 stdout：`Infinity Cloud/preview/tests/_out/final-run.txt`、`requests.jsonl`、`sha256.txt`、`app-compile.log`、`harness.jsonl`。
+
+## 5. 实测证据
+
+### 5.1 编译
+
+| 目标 | 结果 | 耗时 | 警告 |
+|---|---|---|---|
+| 整包 INC（generated/main.cpp + core + common） | exit=0，3413282 B | 38771 ms | 1（cpp/core/src/store.cpp:174 mergeObject defined but not used，与本补丁无关） |
+| harness | exit=0 | 34659 ms | 1（同上） |
+
+补丁确实进了产物二进制（对 exe 做 ASCII 计数）：`/api/preview/meta`=2、`/api/preview/chunk`=3、`/api/preview/zip`=4、`/api/preview/zip/entry`=2、`/api/preview/cancel`=2、`X-Zip-Method`=2、`deflate-raw`=1、`pv-line`=4。
+
+### 5.2 C++ harness（19 项，fail=0）
+
+| 检查 | 实测 |
+|---|---|
+| defaults | chunkBytes=262144 timeoutMs=8000 retries=2 zipTailBytes=65536 |
+| chunk1（首窗） | **262144 B / 40 ms** |
+| oversize-request-split | 请求 786432 B → 恰好 3 个 262144 窗口 |
+| full-big | 5242880 B / **311 ms** / 20 窗口 |
+| retry-after-two-failures | 前两次 503，第 3 次成功，512 ms |
+| timeout-with-two-retries | timeoutMs=800 → 失败 timeout after 800 ms，2893 ms（=3 次尝试） |
+| **timeout-8s-default** | 真实默认 8000 ms → 失败 timeout after 8000 ms，**24479 ms**（3 次 x 8 s） |
+| cancel-flag / cancel-epoch | 均 cancelled，服务器 0 请求 |
+| cancel-in-flight | 延迟路径在途 483 ms 返回 cancelled（不是等服务器 2 s） |
+| zip-tail-64k | 4 条目（含注释里埋的假 EOCD 被拒），**16 ms** |
+| zip-entries | hello.txt(8,142,off 0)、stored.txt(0,1050,off 181)、data.bin(8,717020,off 1271)、empty.txt(0,0,off 718329) |
+| zip-entry-hello.txt | dataOffset=39（期望 39），142 B |
+| zip-entry-stored.txt | dataOffset=221（期望 221），1050 B |
+| zip-entry-data.bin | dataOffset=1309（期望 1309），717020 B（3 个 <=256 KiB 窗口） |
+
+### 5.3 wire 校验（14 项，fail=0，46 个请求）
+
+- 没有任何 Range 跨度 > 262144（violations=0；44 个 206 全部单窗）。
+- `big.bin` 恰好 20 个请求、字节和 5242880 = 文件大小。
+- `retry.bin` 状态序列 503,503,206；slow.bin/slow8.bin 各 3 次尝试（1+2 重试）。
+- `cancel.bin` 0 请求；`cancel2.bin` 恰好 1 请求（在途被取消，未重试）。
+- `sample.zip` 第一个请求 start=653268 span=65536（= size-64 KiB），除条目区间外无其他读取（strays=0）。
+- data.bin 条目：header 30 B + 717020 B / 3 窗口；hello/stored 各 1 窗口。
+
+### 5.4 条目解压校验（inflate + CRC，3/3 pass）
+
+| 条目 | compressed | inflated | CRC 期望=实得 |
+|---|---|---|---|
+| hello.txt (deflate) | 142 | 830 | 1076188391 = 1076188391 |
+| stored.txt (stored) | 1050 | 1050 | 811678784 = 811678784 |
+| data.bin (deflate) | 717020 | 716800 | 3714276340 = 3714276340 |
+
+### 5.5 页面侧（node 单测 15 项，fail=0）
+
+- `pvWindow(20000, 0, 600, 18, 8)` → 只挂 **51 行** DOM（20000 行滚动窗口化）；顶部/中部/底部/空表边界均正确。
+- 5 MiB 按 pvChunk 循环 = 20 窗、和 = 5242880；末窗 100 B、越界 0。
+- `pvDataOffset` 与 ZIP 中央目录记录逐条一致（hello=39、stored=221、data=1309、empty）。
+- `DecompressionStream('deflate-raw')` 往返通过；用 harness 拉下的 142 B 压缩字节页面侧解压后 sha256 = 56aca3b9...c11b，与夹具明文一致。
+- generated/main.cpp 含全部 5 条路由；generated/ui.hpp 含 pvWindow( / AbortController( / DecompressionStream / PV_MAX_LINES / pv-line。
+
+## 6. 遗留问题（未做/未验证）
+
+1. **没有改产品树**：硬约束只允许动 `Infinity Cloud/`，所以没有执行 `apply-preview.mjs --write`。要落盘，Lead 批准后运行 `node "Infinity Cloud/preview/apply-preview.mjs" --write`（会写 cpp/apps/inc/main.cpp、ui.hpp、preview.hpp；锚点唯一性已由无参运行验证）。
+2. **未连真实 GitHub**：assetDownloadUrl（Accept: application/octet-stream、302 签名直链、403/404 过期重解析）只在代码路径上成立，未在真实账号/资产上跑；本次全部用本地 Range 服务器。真实 >=50 MB 样片、>=3 类真实文件演示仍未做。
+3. **64 MiB 内存上限没有进程级实测**：客户端常量 PV_MAX_BYTES=64 MiB、服务端单条目 64 MiB 上限均有代码与停止逻辑，但未测 RSS。
+4. **WinHTTP 底层请求不能真正中止**：previewHttpGet 用 detach 工作线程 + 共享状态保证不悬垂、调用方按时返回（8 s/取消），但被放弃的底层请求仍会跑到服务器应答结束（实测延迟 9 s 时 3 次尝试共 24.5 s，线程在这期间存活）。要彻底可中止需改成 WinHTTP 异步回调/OVERLAPPED。
+5. **zip 覆盖范围**：Zip64（0xFFFFFFFF 字段）与 data descriptor（flag bit 3，压缩尺寸写在数据后）未做夹具覆盖。
+6. **无浏览器端到端**：未启动 Electron/Chromium，虚拟滚动的视觉效果、页面内 DecompressionStream、真实 Blob 媒体解码只做了等价的 node 单测；也没有截图。
+7. 旧报告偏差 4（预览与主窗口共用同一队列/进度）未涉及：预览是覆盖层，进度条在预览内，主列表状态未联动。
+8. 未改 verify-preview.ps1（旧运行计划保留）；本次新增的 run-tests.ps1 是离网可复现的替代。
+
+## 7. 与旧静态报告（task-32）的差异
+
+- 偏差 1（文本虚拟化只是封顶 2 万行）→ 改为真正的窗口化渲染（DOM ~51 节点，行保留上限仍 20000）。
+- 偏差 2（在途请求无法取消）→ 取消现在在途生效（实测 483 ms 返回）；但底层同步 WinHTTP 仍不能被打断（遗留 4）。
+- 偏差 3（64 MiB 上限）→ 客户端与服务端上限常量落地，实测仍缺（遗留 3）。
+- 契约项"分块 256 KiB"与"8 s 超时"从静态实现变为**有 wire 证据**：所有 Range <=262144；8 s 默认超时实测 24479 ms 后失败并报错（旧实现实测不超时）。
+- 新增：zip 条目按需拉取（路由 + 页面解压 + CRC 校验）；EOCD 注释伪造签名校验。

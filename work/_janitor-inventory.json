@@ -1,0 +1,274 @@
+{
+    "restore-sample":  {
+                           "files":  501,
+                           "bytes":  841718934,
+                           "manifest_sha256":  "255BFB1435207D307C4588BC5E5225963D51DE896CC913C1A231F7129E19293C",
+                           "summary_sha256":  "36C782EA847B169BAA9C87C5CE9811CF489A35733CF94B433BB3F503298A27B2",
+                           "session_sha256":  "66095A7E283268BF88FBDE8E514AB7DA48D773E05A27ECFA999BC400200FB78B",
+                           "histold_sha256":  "BFD03FF744788DE527209D7FEA0B449CA283CC41904AAD432D63811E76CF6538",
+                           "skillcache_sha256":  "58F7987CD6977C45B8895B0CA4E694474E4E56D42D4305B1D93B518CE64C27FB"
+                       },
+    "restore-append-sample":  {
+                                  "files":  1,
+                                  "bytes":  32788,
+                                  "entries":  [
+                                                  {
+                                                      "rel":  "\\.skill-list-cache.json",
+                                                      "size":  32788,
+                                                      "sha256":  "58F7987CD6977C45B8895B0CA4E694474E4E56D42D4305B1D93B518CE64C27FB"
+                                                  }
+                                              ]
+                              },
+    "temp-stale":  [
+                       {
+                           "name":  "dsh-acl-skill-0OLmWO",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-acl-skill-0OLmWO",
+                           "isDir":  true,
+                           "files":  2,
+                           "bytes":  52442,
+                           "mtime":  "2026-10-05 15:21"
+                       },
+                       {
+                           "name":  "dsh-acl-skill-6k8QbN",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-acl-skill-6k8QbN",
+                           "isDir":  true,
+                           "files":  2,
+                           "bytes":  52442,
+                           "mtime":  "2026-10-05 10:16"
+                       },
+                       {
+                           "name":  "dsh-acl-skill-E3p9RM",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-acl-skill-E3p9RM",
+                           "isDir":  true,
+                           "files":  0,
+                           "bytes":  0,
+                           "mtime":  "2026-10-05 14:12"
+                       },
+                       {
+                           "name":  "dsh-acl-skill-t7jtlM",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-acl-skill-t7jtlM",
+                           "isDir":  true,
+                           "files":  0,
+                           "bytes":  0,
+                           "mtime":  "2026-10-05 14:12"
+                       },
+                       {
+                           "name":  "dsh-acl-skill-TeJj75",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-acl-skill-TeJj75",
+                           "isDir":  true,
+                           "files":  2,
+                           "bytes":  52442,
+                           "mtime":  "2026-10-04 14:55"
+                       },
+                       {
+                           "name":  "dsh-native-command-2CsqiI",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-native-command-2CsqiI",
+                           "isDir":  true,
+                           "files":  1,
+                           "bytes":  11451,
+                           "mtime":  "2026-10-05 15:24"
+                       },
+                       {
+                           "name":  "dsh-native-command-pYMKiP",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-native-command-pYMKiP",
+                           "isDir":  true,
+                           "files":  1,
+                           "bytes":  11451,
+                           "mtime":  "2026-10-05 15:24"
+                       },
+                       {
+                           "name":  "dsh-native-command-R5JaAU",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-native-command-R5JaAU",
+                           "isDir":  true,
+                           "files":  1,
+                           "bytes":  11439,
+                           "mtime":  "2026-10-05 15:24"
+                       },
+                       {
+                           "name":  "dsh-spill-vgyI1r",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-spill-vgyI1r",
+                           "isDir":  true,
+                           "files":  5,
+                           "bytes":  20608024,
+                           "mtime":  "2026-10-05 17:47"
+                       },
+                       {
+                           "name":  "dsh-spill-wfQreX",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-spill-wfQreX",
+                           "isDir":  true,
+                           "files":  2,
+                           "bytes":  110260,
+                           "mtime":  "2026-10-04 20:39"
+                       },
+                       {
+                           "name":  "dsh-subprocess-BVDHFS",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-subprocess-BVDHFS",
+                           "isDir":  true,
+                           "files":  0,
+                           "bytes":  0,
+                           "mtime":  "2026-10-05 14:12"
+                       },
+                       {
+                           "name":  "dsh-subprocess-m3O1ym",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-subprocess-m3O1ym",
+                           "isDir":  true,
+                           "files":  8,
+                           "bytes":  55053328,
+                           "mtime":  "2026-10-04 20:13"
+                       },
+                       {
+                           "name":  "dsh-subprocess-WOFqSL",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-subprocess-WOFqSL",
+                           "isDir":  true,
+                           "files":  1,
+                           "bytes":  354536,
+                           "mtime":  "2026-10-05 17:47"
+                       },
+                       {
+                           "name":  "dsh-workspace-changes-2xO03V",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-workspace-changes-2xO03V",
+                           "isDir":  true,
+                           "files":  1715,
+                           "bytes":  717212080,
+                           "mtime":  "2026-10-05 12:52"
+                       },
+                       {
+                           "name":  "dsh-workspace-changes-7xMvkD",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-workspace-changes-7xMvkD",
+                           "isDir":  true,
+                           "files":  2,
+                           "bytes":  38164,
+                           "mtime":  "2026-10-05 13:01"
+                       },
+                       {
+                           "name":  "dsh-workspace-changes-AH2Xfe",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-workspace-changes-AH2Xfe",
+                           "isDir":  true,
+                           "files":  2540,
+                           "bytes":  726572660,
+                           "mtime":  "2026-10-05 20:08"
+                       },
+                       {
+                           "name":  "dsh-workspace-changes-bgaGs5",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-workspace-changes-bgaGs5",
+                           "isDir":  true,
+                           "files":  208,
+                           "bytes":  206086477,
+                           "mtime":  "2026-10-03 20:04"
+                       },
+                       {
+                           "name":  "dsh-workspace-changes-BHRbhA",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-workspace-changes-BHRbhA",
+                           "isDir":  true,
+                           "files":  0,
+                           "bytes":  0,
+                           "mtime":  "2026-10-03 19:15"
+                       },
+                       {
+                           "name":  "dsh-workspace-changes-bIieDL",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-workspace-changes-bIieDL",
+                           "isDir":  true,
+                           "files":  28,
+                           "bytes":  360690,
+                           "mtime":  "2026-10-05 18:13"
+                       },
+                       {
+                           "name":  "dsh-workspace-changes-eHqVtZ",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-workspace-changes-eHqVtZ",
+                           "isDir":  true,
+                           "files":  36,
+                           "bytes":  1036182,
+                           "mtime":  "2026-10-05 15:26"
+                       },
+                       {
+                           "name":  "dsh-workspace-changes-ej4Irg",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-workspace-changes-ej4Irg",
+                           "isDir":  true,
+                           "files":  4,
+                           "bytes":  97680,
+                           "mtime":  "2026-10-04 15:01"
+                       },
+                       {
+                           "name":  "dsh-workspace-changes-fPvtMp",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-workspace-changes-fPvtMp",
+                           "isDir":  true,
+                           "files":  2,
+                           "bytes":  56699,
+                           "mtime":  "2026-10-05 15:24"
+                       },
+                       {
+                           "name":  "dsh-workspace-changes-KDcbt4",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-workspace-changes-KDcbt4",
+                           "isDir":  true,
+                           "files":  0,
+                           "bytes":  0,
+                           "mtime":  "2026-10-03 20:30"
+                       },
+                       {
+                           "name":  "dsh-workspace-changes-LcZzo6",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-workspace-changes-LcZzo6",
+                           "isDir":  true,
+                           "files":  15,
+                           "bytes":  238851,
+                           "mtime":  "2026-10-04 15:01"
+                       },
+                       {
+                           "name":  "dsh-workspace-changes-phb1c1",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-workspace-changes-phb1c1",
+                           "isDir":  true,
+                           "files":  3049,
+                           "bytes":  545540468,
+                           "mtime":  "2026-10-04 20:57"
+                       },
+                       {
+                           "name":  "dsh-workspace-changes-QaChIV",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-workspace-changes-QaChIV",
+                           "isDir":  true,
+                           "files":  0,
+                           "bytes":  0,
+                           "mtime":  "2026-10-03 20:47"
+                       },
+                       {
+                           "name":  "dsh-workspace-changes-rcJ6MS",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-workspace-changes-rcJ6MS",
+                           "isDir":  true,
+                           "files":  0,
+                           "bytes":  0,
+                           "mtime":  "2026-10-03 19:17"
+                       },
+                       {
+                           "name":  "dsh-workspace-changes-sBEKbl",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-workspace-changes-sBEKbl",
+                           "isDir":  true,
+                           "files":  45,
+                           "bytes":  611857,
+                           "mtime":  "2026-10-04 15:22"
+                       },
+                       {
+                           "name":  "dsh-workspace-changes-wRXlmx",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-workspace-changes-wRXlmx",
+                           "isDir":  true,
+                           "files":  423,
+                           "bytes":  108843430,
+                           "mtime":  "2026-10-05 15:22"
+                       },
+                       {
+                           "name":  "dsh-workspace-changes-Ywb1C2",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-workspace-changes-Ywb1C2",
+                           "isDir":  true,
+                           "files":  18,
+                           "bytes":  466029,
+                           "mtime":  "2026-10-05 11:45"
+                       },
+                       {
+                           "name":  "dsh-workspace-changes-ZDzw5m",
+                           "full":  "C:\\Users\\REDMI\\AppData\\Local\\Temp\\dsh-workspace-changes-ZDzw5m",
+                           "isDir":  true,
+                           "files":  178,
+                           "bytes":  463829,
+                           "mtime":  "2026-10-03 18:31"
+                       }
+                   ],
+    "temp-stale-total-bytes":  2383942911,
+    "temp-stale-total-files":  8288
+}

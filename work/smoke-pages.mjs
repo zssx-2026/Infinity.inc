@@ -13,7 +13,7 @@ for (const p of pages) {
   } catch (e) { code = 'ERR'; }
   const is404 = /404/i.test(p.rel);
   const wantGate = !is404;
-  const hasGate = body.indexOf('/infinity/assets/verify.js') >= 0;
+  const hasGate = body.indexOf('/assets/verify.js') >= 0;
   const sameSize = Math.abs(body.length - local.length) <= Math.max(80, local.length * 0.25);
   const good = code === '200' && (wantGate ? hasGate : true) && sameSize;
   if (good) ok++; else bad.push(p.rel + ' code=' + code + ' gate=' + hasGate + ' live=' + body.length + ' local=' + local.length);

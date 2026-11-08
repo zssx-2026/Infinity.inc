@@ -2,8 +2,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 const WEB = 'web';
-const CSS = '<link rel="stylesheet" href="/infinity/assets/verify.css">';
-const JS = '<script src="/infinity/assets/verify.js"></script>';
+const CSS = '<link rel="stylesheet" href="/assets/verify.css">';
+const JS = '<script src="/assets/verify.js"></script>';
 const files = [];
 (function walk(dir) {
   for (const name of fs.readdirSync(dir).sort()) {

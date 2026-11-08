@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-17T03:26:03.335Z",
+  "temp": "D:\\dev\\DeepSeekHarnessWorkspace\\Infinity.inc\\temp",
+  "apply": false,
+  "pinned": [
+    "tools"
+  ],
+  "delete": [],
+  "keep": [
+    {
+      "name": "tools",
+      "dir": true,
+      "bytes": 80511640,
+      "keep": true
+    }
+  ],
+  "deleteBytes": 0,
+  "keepBytes": 80511640,
+  "deleteText": "0.00 GiB",
+  "keepText": "76.8 MiB"
+}

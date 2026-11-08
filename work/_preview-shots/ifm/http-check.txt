@@ -1,0 +1,8 @@
+Infinity File Manager streaming preview - loopback HTTP evidence
+node v24.19.0  2026-10-11T02:58:57.693Z  port 17731
+
+first 256 KiB of 40 MiB over HTTP: median 24.172 ms (runs 38.16, 24.172, 6.07, 11.877, 28.346)
+zip: 22 entries from 66833 B of 12667100 B (0.528%) in 3.901 ms
+listing 5400 entries: median 41.979 ms
+abort x60: handles 6 -> 4, server still answers true
+failed checks: none

@@ -15,19 +15,25 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 
 const TOKEN = process.env.EV_GH_TOKEN || '';
 const OWNER = 'zssx-2026';
 const REPO = 'Infinity.inc';
 const DIR = 'D:/dev/DeepSeekHarnessWorkspace/Infinity.inc';
-const LOG = DIR + '/work/ghsync.log';
+/* The run log; override with INC_GH_LOG so a dry run can be kept out of the
+ * workspace log, or pointed at a per-run file. */
+const LOG = process.env.INC_GH_LOG || DIR + '/work/ghsync.log';
 
 /*
  * Modes:
- *   node work/ghsync.mjs --dry-run      read-only: print what a run would do
- *   node work/ghsync.mjs --source-only  push the source repository only
- *   node work/ghsync.mjs [n]            full sync, n attempts (default 30)
+ *   node work/ghsync.mjs --dry-run           local-only: validate the release
+ *                                            directory and print what a run would
+ *                                            do; makes no network call at all
+ *   node work/ghsync.mjs --dry-run --remote  also does the read-only GitHub GETs
+ *   node work/ghsync.mjs --source-only       push the source repository only
+ *   node work/ghsync.mjs [n]                 full sync, n attempts (default 30)
  *
  * --source-only exists because the C++ releases and the application-inc
  * catalogue may already be correct; a source push must not be able to
@@ -70,6 +76,14 @@ const PUSH_MAX_BYTES = 8 * 1024 * 1024;
  * from its name.txt character for character, so the application-inc page and
  * the files it advertises cannot drift apart.
  */
+function releaseDirToTag(dirName) {
+  const m = /^v([0-9]+)\.([0-9]+)pre([0-9]+)$/.exec(String(dirName));
+  return m ? 'v' + m[1] + '.' + m[2] + '.0-pre' + m[3] : null;
+}
+function preNumber(s) {
+  const m = /pre([0-9]+)/i.exec(String(s));
+  return m ? Number(m[1]) : null;
+}
 function newestReleaseDir() {
   const base = DIR + '/cpp/release';
   let names = [];
@@ -81,86 +95,167 @@ function newestReleaseDir() {
       } catch (e) { return false; }
     });
   } catch (e) { names = []; }
-  names.sort();
+  /* Numeric on the pre<N> part, not lexicographic: with a plain sort()
+   * v1.0pre10 would come before v1.0pre9. */
+  names.sort(function (a, b) {
+    const na = preNumber(a), nb = preNumber(b);
+    if (na !== null && nb !== null && na !== nb) return na - nb;
+    return a < b ? -1 : (a > b ? 1 : 0);
+  });
   return names.length ? base + '/' + names[names.length - 1] : null;
 }
 const RELEASE_DIR = process.env.INC_RELEASE
   ? DIR + '/cpp/release/' + process.env.INC_RELEASE
   : newestReleaseDir();
+/* v1.0pre4 ships six C++ installers as separate application repos; keep this
+ * list in step with cpp/release/<version>/release-assets.json. InfinityServer
+ * is a product of its own and is released separately from these C++ installers. */
+const EXPECTED_REPOS = ['Infinity-Cloud', 'Infinity-File-Manager', 'InfinityPackageManager', 'Infinity-Installer-Manager', 'Infinity-Toolbox', 'Infinity-Games'];
+const EXPECTED_APPS = ['inc', 'ifm', 'ipm', 'iim', 'itb', 'ig'];
+const RELEASE_PROBLEMS = [];
+function problem(m) { RELEASE_PROBLEMS.push(m); }
+function sha256File(file) {
+  return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+}
+
+let CPP_MANIFEST = null;
+let CPP_TAG = null;
+let CPP_VERSION = null;
+let CATALOG_LINES = [];
+let CPP_ASSETS = [];
+const RELEASE_NAME = RELEASE_DIR ? path.basename(RELEASE_DIR) : null;
+
 if (!RELEASE_DIR || !fs.existsSync(RELEASE_DIR + '/release-assets.json')) {
-  console.error('ghsync: no cpp/release/<version>/release-assets.json found');
-  process.exit(1);
+  problem('no cpp/release/<version>/release-assets.json found' + (RELEASE_DIR ? ' at ' + RELEASE_DIR : ''));
+} else {
+  try { CPP_MANIFEST = JSON.parse(fs.readFileSync(RELEASE_DIR + '/release-assets.json', 'utf8')); }
+  catch (e) { problem('release-assets.json is not valid JSON (' + RELEASE_DIR + '): ' + e.message); }
 }
-const CPP_MANIFEST = JSON.parse(fs.readFileSync(RELEASE_DIR + '/release-assets.json', 'utf8'));
-const CPP_TAG = CPP_MANIFEST.tag;
-const CATALOG_LINES = fs.readFileSync(RELEASE_DIR + '/name.txt', 'utf8')
-  .split(/\r?\n/).filter(function (s) { return s.trim().length > 0; });
-const CPP_ASSETS = (CPP_MANIFEST.assets || []).map(function (a) {
-  return {
-    repo: String(a.repo || '').split('/').pop(),
-    tag: CPP_TAG,
-    file: RELEASE_DIR + '/' + a.name,
-    name: a.name,
-    catalogAsset: null
-  };
-});
-for (const a of CPP_ASSETS) {
-  const line = CATALOG_LINES.find(function (l) { return l.split(/\s+/)[0] === a.name; });
-  if (!line) {
-    console.error('ghsync: name.txt has no line for ' + a.name + ' (' + RELEASE_DIR + '/name.txt)');
-    process.exit(1);
+
+/*
+ * Everything a real run depends on is proved here, before any mode does any
+ * work: the manifest must describe exactly the six applications, every asset
+ * must exist on disk with the size and (when the manifest carries one) the
+ * sha256 it claims, and name.txt must name exactly those assets. A missing or
+ * inconsistent entry is a hard error, never a silent skip.
+ */
+if (CPP_MANIFEST) {
+  CPP_TAG = CPP_MANIFEST.tag;
+  CPP_VERSION = CPP_MANIFEST.version;
+  const derivedTag = releaseDirToTag(RELEASE_NAME);
+  if (!derivedTag) problem('release directory name is not v<major>.<minor>pre<N>: ' + RELEASE_NAME);
+  else if (CPP_TAG !== derivedTag) {
+    problem('manifest tag ' + CPP_TAG + ' does not match directory ' + RELEASE_NAME + ' (expected ' + derivedTag + ')');
   }
-  a.catalogAsset = line;
+  if (!CPP_VERSION) problem('release-assets.json has no version field');
+  else if (!/^[0-9]+\.[0-9]+\.[0-9]+-pre[0-9]+$/.test(String(CPP_VERSION))) {
+    problem('manifest version is not <major>.<minor>.<patch>-pre<N>: ' + CPP_VERSION);
+  }
+
+  const nameFile = RELEASE_DIR + '/name.txt';
+  if (!fs.existsSync(nameFile)) problem('name.txt missing: ' + nameFile);
+  else CATALOG_LINES = fs.readFileSync(nameFile, 'utf8').split(/\r?\n/)
+    .filter(function (s) { return s.trim().length > 0; });
+
+  const raw = Array.isArray(CPP_MANIFEST.assets) ? CPP_MANIFEST.assets : [];
+  if (raw.length !== EXPECTED_REPOS.length) {
+    problem('release-assets.json has ' + raw.length + ' asset(s), expected ' + EXPECTED_REPOS.length +
+      ' for ' + EXPECTED_APPS.join('/'));
+  }
+  CPP_ASSETS = raw.map(function (a) {
+    return {
+      repo: String(a.repo || '').split('/').pop(),
+      tag: CPP_TAG,
+      file: RELEASE_DIR + '/' + String(a.name || ''),
+      name: String(a.name || ''),
+      size: a.size,
+      sha256: a.sha256 || null,
+      catalogAsset: null
+    };
+  });
+  for (const a of CPP_ASSETS) {
+    if (!a.name) { problem('release-assets.json has an asset without a name'); continue; }
+    if (EXPECTED_REPOS.indexOf(a.repo) < 0) problem('unexpected repository in manifest: ' + a.repo + ' (' + a.name + ')');
+    if (!/^[A-Za-z0-9]+_[0-9]+\.[0-9]+\.[0-9]+-pre[0-9]+_win64_setup\.exe$/.test(a.name)) {
+      problem('asset name is not <Package>_<version>_win64_setup.exe: ' + a.name);
+    }
+    if (CPP_VERSION && a.name.indexOf('_' + CPP_VERSION + '_') < 0) {
+      problem('asset name does not carry version ' + CPP_VERSION + ': ' + a.name);
+    }
+    if (!fs.existsSync(a.file)) { problem('asset file missing: ' + a.file); continue; }
+    const bytes = fs.statSync(a.file).size;
+    if (typeof a.size === 'number' && a.size !== bytes) {
+      problem('asset size mismatch for ' + a.name + ': manifest ' + a.size + ' B, file ' + bytes + ' B');
+    }
+    const digest = sha256File(a.file);
+    if (a.sha256 && digest !== a.sha256) {
+      problem('asset sha256 mismatch for ' + a.name + ': manifest ' + a.sha256 + ', file ' + digest);
+    }
+    const line = CATALOG_LINES.find(function (l) { return l.split(/\s+/)[0] === a.name; });
+    if (!line) problem('name.txt has no line for ' + a.name + ' (' + nameFile + ')');
+    else a.catalogAsset = line;
+  }
+  const seenRepos = [];
+  for (const a of CPP_ASSETS) {
+    if (seenRepos.indexOf(a.repo) >= 0) problem('duplicate asset for repository ' + a.repo);
+    seenRepos.push(a.repo);
+  }
+  const missingRepos = EXPECTED_REPOS.filter(function (r) {
+    return !CPP_ASSETS.some(function (a) { return a.repo === r; });
+  });
+  if (missingRepos.length) problem('release-assets.json has no asset for ' + missingRepos.join(', '));
+  for (const l of CATALOG_LINES) {
+    const first = l.split(/\s+/)[0];
+    if (!CPP_ASSETS.some(function (a) { return a.name === first; })) {
+      problem('name.txt line is not in release-assets.json: ' + l);
+    }
+  }
 }
-const EXPECTED_REPOS = ['Infinity-Cloud', 'Infinity-File-Manager', 'InfinityPackageManager',
-  'Infinity-Installer-Manager', 'Infinity-Toolbox', 'Infinity-Games'];
-const MISSING_REPOS = EXPECTED_REPOS.filter(function (r) {
-  return !CPP_ASSETS.some(function (a) { return a.repo === r; });
-});
-if (MISSING_REPOS.length) {
-  console.error('ghsync: release-assets.json has no asset for ' + MISSING_REPOS.join(', '));
+
+/* A real run must not start on a broken release. The dry run keeps going so it
+ * can print the whole entry list and every problem in one pass. */
+if (RELEASE_PROBLEMS.length && !DRY_RUN) {
+  for (const p of RELEASE_PROBLEMS) console.error('ghsync: ' + p);
   process.exit(1);
 }
 
 /*
- * The application-inc page was moved to v1.0.0-pre4 by the catalogue step.
- * If any name in this manifest still says pre3, writing the catalogue would
- * roll the download page back to files that release no longer holds, so a
- * full sync refuses instead. --source-only does not write the catalogue and
- * only warns.
+ * The application-inc page carries exactly one release of the suite. If any
+ * name in this manifest points at an older pre<N> than the release directory,
+ * writing the catalogue would roll the download page back to files that
+ * release no longer holds, so a full sync refuses instead. The comparison is
+ * numeric and relative to the selected directory, not a hard-coded release
+ * number, so it keeps working for later pre<N> releases. --source-only does
+ * not write the catalogue and only warns.
  */
 function staleFindings() {
   const bad = [];
-  if (/pre3/i.test(String(CPP_TAG))) bad.push('tag ' + CPP_TAG);
+  const current = preNumber(CPP_TAG) !== null ? preNumber(CPP_TAG) : preNumber(RELEASE_NAME);
+  if (current === null) {
+    if (CPP_TAG) bad.push('tag ' + CPP_TAG + ' carries no pre<N>');
+    return bad;
+  }
+  function older(s) {
+    const n = preNumber(s);
+    return n !== null && n < current;
+  }
+  if (older(CPP_TAG)) bad.push('tag ' + CPP_TAG + ' is older than pre' + current);
   for (const a of CPP_ASSETS) {
-    if (/pre3/i.test(a.name)) bad.push('asset ' + a.name);
-    if (a.catalogAsset && /pre3/i.test(a.catalogAsset)) bad.push('name.txt line: ' + a.catalogAsset);
+    if (older(a.name)) bad.push('asset ' + a.name);
+    if (a.catalogAsset && older(a.catalogAsset)) bad.push('name.txt line: ' + a.catalogAsset);
   }
   for (const l of CATALOG_LINES) {
-    if (/pre3/i.test(l) && bad.indexOf('name.txt line: ' + l) < 0) bad.push('name.txt line: ' + l);
+    if (older(l) && bad.indexOf('name.txt line: ' + l) < 0) bad.push('name.txt line: ' + l);
   }
   return bad;
 }
 
-/* Installers to publish, and the repository each one belongs to. */
-const ASSETS = [
-  { repo: 'InfinityPackageManager', tag: 'v1.0pre2', file: DIR + '/InfinityPackageManager/build/setup/win64.exe', name: 'InfinityPackageManager_win64_setup.exe' },
-  { repo: 'InfinityPackageManager', tag: 'v1.0pre2', file: DIR + '/InfinityPackageManager/build/setup/winx86.exe', name: 'InfinityPackageManager_winx86_setup.exe' },
-  { repo: 'InfinityPackageManager', tag: 'v1.0pre2', file: DIR + '/InfinityPackageManager/build/setup/win-arm64.exe', name: 'InfinityPackageManager_win-arm64_setup.exe' },
-  { repo: 'Infinity-Cloud', tag: 'v1.0pre2', file: DIR + '/Infinity Cloud/sourcecode/build/setup/win64.exe', name: 'InfinityCloud_win64_setup.exe' },
-  { repo: 'Infinity-Cloud', tag: 'v1.0pre2', file: DIR + '/Infinity Cloud/sourcecode/build/setup/winx86.exe', name: 'InfinityCloud_winx86_setup.exe' },
-  { repo: 'Infinity-Cloud', tag: 'v1.0pre2', file: DIR + '/Infinity Cloud/sourcecode/build/setup/win-arm64.exe', name: 'InfinityCloud_win-arm64_setup.exe' },
-  { repo: 'Infinity-File-Manager', tag: 'v1.0pre2', file: DIR + '/Infinity File Manager/sourcecode/build/setup/win64.exe', name: 'InfinityFileManager_win64_setup.exe' },
-  { repo: 'Infinity-File-Manager', tag: 'v1.0pre2', file: DIR + '/Infinity File Manager/sourcecode/build/setup/winx86.exe', name: 'InfinityFileManager_winx86_setup.exe' },
-  { repo: 'Infinity-File-Manager', tag: 'v1.0pre2', file: DIR + '/Infinity File Manager/sourcecode/build/setup/win-arm64.exe', name: 'InfinityFileManager_win-arm64_setup.exe' }
-];
-
-/* Names from before the EPM -> IPM rename. They are the same installers under
- * the old product name, and leaving them in the release means the download
- * page offers a build that no longer exists anywhere else. */
-const OBSOLETE = [
-  { repo: 'InfinityPackageManager', pattern: /^EasyPackageManager_.*_setup\.(exe|msi)$/ }
-];
+/* The Node-era installers that used to be listed here (an older pre-N tag,
+ * under InfinityPackageManager/build/setup and the three product source
+ * trees) no longer exist on disk: the C++ rewrite ships exactly six win64
+ * NSIS installers in cpp/release/<version>, and README.md points at those.
+ * The publishable asset list is therefore the validated C++ manifest above
+ * and nothing else, so no stale release number is referenced anywhere. */
 
 /*
  * The IPM catalogue.
@@ -169,16 +264,17 @@ const OBSOLETE = [
  * catalogue page. A page advertises builds through a `name.txt` asset whose
  * lines read
  *
- *   <asset name> <version> <package> <install kind> <company> <platform>
+ *   <asset name> <company> <package> setup <company> <platform>
  *
  * and a name that is not also an asset of that same Release is skipped - so
  * the installers are attached to the catalogue page as well as to their own
- * repository. The page keeps one copy of each installer, which is 870 KB for
+ * repository. The page keeps one copy of each installer, about 1.8 MiB for
  * the whole suite.
  *
- * `application-inc` held the Node v0.1 build of Infinity Cloud. v1.0.0-pre3
- * is the C++ rewrite of all four applications, so it takes the page over
- * rather than sitting next to a build nothing else references any more.
+ * `application-inc` held the Node v0.1 build of Infinity Cloud. The current
+ * C++ rewrite of all six applications takes the page over rather than sitting
+ * next to a build nothing else references any more, so the page always names
+ * exactly the release in cpp/release/<version>.
  */
 const CATALOG_REPO = 'applications';
 const CATALOG_TAG = 'application-inc';
@@ -201,13 +297,19 @@ function log(m) {
  * resolved Promise keeps every existing await api(...) call site unchanged.
  */
 function api(method, route, body) {
-  const args = ['-sS', '--ssl-no-revoke', '--max-time', '300', '-X', method,
-    '-H', 'authorization: Bearer ' + TOKEN,
+  const args = ['-sS', '--ssl-no-revoke', '--max-time', '300', '-X', method];
+  /*
+   * A header only goes out when there is a token to put in it. `Bearer ` with an empty
+   * value is not anonymous: GitHub answers 401 and the read-only --remote dry run then
+   * reported "errors: 0" while every single remote lookup had failed.
+   */
+  if (TOKEN) args.push('-H', 'authorization: Bearer ' + TOKEN);
+  args.push(
     '-H', 'accept: application/vnd.github+json',
     '-H', 'content-type: application/json',
     '-H', 'user-agent: infinity-inc',
     '-w', '\n%{http_code}',
-    'https://api.github.com' + route];
+    'https://api.github.com' + route);
   /*
    * The JSON body goes through stdin, never as an argument: a blob payload is
    * several hundred kilobytes of base64 and Windows caps a command line at
@@ -409,9 +511,7 @@ function scrub(s) {
 
 async function publishAssets() {
   const done = [];
-  const allAssets = ASSETS.map(function (a) { return Object.assign({ tag: 'v1.0pre2', kind: 'node' }, a); })
-    .concat(CPP_ASSETS.map(function (a) { return Object.assign({ tag: CPP_TAG, kind: 'cpp' }, a); }));
-  for (const a of allAssets) {
+  for (const a of CPP_ASSETS) {
     if (!fs.existsSync(a.file)) { done.push(a.name + ' -> missing file'); continue; }
     const rel = await ensureRelease(a.repo, a.tag);
     if (!rel) { done.push(a.name + ' -> no release'); continue; }
@@ -433,22 +533,13 @@ async function publishAssets() {
     done.push(a.name + ' -> ' + uploadAsset(a.repo, rel.id, a.file, a.name));
   }
 
-  for (const o of OBSOLETE) {
-    const rel = await ensureRelease(o.repo, 'v1.0pre2');
-    if (!rel) continue;
-    for (const a of (rel.assets || [])) {
-      if (!o.pattern.test(a.name)) continue;
-      const del = await api('DELETE', '/repos/' + OWNER + '/' + o.repo + '/releases/assets/' + a.id);
-      if (del.status === 204 || del.status === 200) log('removed obsolete asset ' + a.name);
-    }
-  }
   return done;
 }
 
 async function publishCatalog() {
   const stale = staleFindings();
   if (stale.length) {
-    throw new Error('REFUSING catalogue write: pre3 names in ' + RELEASE_DIR + ' -> ' + stale.join(' | '));
+    throw new Error('REFUSING catalogue write: outdated pre<N> names in ' + RELEASE_DIR + ' -> ' + stale.join(' | '));
   }
   const done = [];
   const g = await api('GET', '/repos/' + OWNER + '/' + CATALOG_REPO + '/releases/tags/' + CATALOG_TAG);
@@ -554,17 +645,49 @@ function pushSkips(paths) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Dry run: every GET a real run would make, and no write of any kind. */
+/* Dry run: local validation always; the read-only GitHub GETs only     */
+/* with --remote. It never writes anything and never pushes.            */
 /* ------------------------------------------------------------------ */
-async function dryRun() {
-  log('DRY RUN: no release, no asset, no catalogue write, no git push');
-  log('manifest: ' + RELEASE_DIR + '/release-assets.json');
-  log('manifest tag: ' + CPP_TAG + '   assets: ' + CPP_ASSETS.length + '   repositories: ' + CPP_ASSETS.map(function (a) { return a.repo; }).join(', '));
+function localDryRun() {
+  log('manifest: ' + (RELEASE_DIR ? RELEASE_DIR + '/release-assets.json' : '<none>'));
+  if (CPP_TAG) {
+    log('tag: ' + CPP_TAG + '   version: ' + CPP_VERSION + '   directory: ' + RELEASE_NAME +
+      '   assets: ' + CPP_ASSETS.length);
+  }
   const stale = staleFindings();
-  log('pre3 guard: ' + (stale.length ? 'REFUSED -> ' + stale.join(' | ') : 'ok (no pre3 name in tag, asset names or name.txt)'));
-  for (const a of CPP_ASSETS) log('  catalog line: ' + a.catalogAsset);
+  log('stale guard: ' + (stale.length
+    ? 'REFUSED -> ' + stale.join(' | ')
+    : 'ok (no older pre<N> in tag, asset names or name.txt)'));
+  let total = 0;
+  for (const a of CPP_ASSETS) {
+    const exists = fs.existsSync(a.file);
+    let bytes = null, digest = null;
+    if (exists) {
+      bytes = fs.statSync(a.file).size;
+      total += bytes;
+      digest = sha256File(a.file);
+    }
+    let hash = '';
+    if (digest) {
+      hash = ' sha256=' + digest;
+      if (a.sha256) hash += digest === a.sha256 ? ' (matches manifest)' : ' (MANIFEST MISMATCH)';
+    }
+    log('entry ' + (a.name || '<no name>') + ' [' + (a.repo || '?') + '] -> ' + (exists ? 'EXISTS' : 'MISSING') +
+      (bytes === null ? '' : ' ' + bytes + ' B') + hash);
+    log('  source path: ' + a.file);
+    log('  catalog line: ' + (a.catalogAsset || '<none>'));
+  }
+  log('entries: ' + CPP_ASSETS.length + '   total bytes: ' + total);
+  return total;
+}
 
-  /* source side, read-only */
+async function dryRun() {
+  const remote = ARGV.indexOf('--remote') >= 0;
+  log('DRY RUN (' + (remote ? 'local validation + read-only GitHub GETs' : 'local only, no network call') +
+    '): no release, no asset, no catalogue write, no git push');
+  localDryRun();
+
+  /* source side, read-only and local */
   try {
     const localHead = git(['rev-parse', '--short', 'HEAD']).trim();
     const branch = git(['rev-parse', '--abbrev-ref', 'HEAD']).trim();
@@ -573,13 +696,26 @@ async function dryRun() {
       .filter(function (s) { return s.length > 0; });
     const paths = dirty.map(function (l) { return l.slice(3); });
     const skips = pushSkips(paths);
-    const remote = await api('GET', '/repos/' + OWNER + '/' + REPO);
     log('source: local ' + branch + '@' + localHead + ', tracked=' + tracked.length + ', working-tree changes=' + dirty.length);
-    log('source: remote ' + REPO + ' pushed_at=' + ((remote.data && remote.data.pushed_at) || '?'));
-    log('source: would run  git push -u origin HEAD:main --force');
+    log('source: would run  git push -u origin HEAD:main --force' + (remote ? '' : ' (not attempted in this mode)'));
     log('source: would leave out ' + skips.length + ' path(s): ' + (skips.slice(0, 10).join(', ') || 'none') + (skips.length > 10 ? ' ...' : ''));
   } catch (e) {
     log('source: ' + scrub(String(e && e.message ? e.message : e)));
+  }
+
+  if (!remote) {
+    log('network: skipped (pass --remote for the read-only release and catalogue GETs)');
+    log('errors: ' + RELEASE_PROBLEMS.length);
+    for (const p of RELEASE_PROBLEMS) log('  ERROR ' + p);
+    return RELEASE_PROBLEMS.length ? 1 : 0;
+  }
+
+  try {
+    const remoteInfo = await api('GET', '/repos/' + OWNER + '/' + REPO);
+    if (remoteInfo.status !== 200 || !remoteInfo.data) problem('source: remote lookup HTTP ' + remoteInfo.status + ' for ' + OWNER + '/' + REPO);
+    log('source: remote ' + REPO + ' pushed_at=' + ((remoteInfo.data && remoteInfo.data.pushed_at) || '?'));
+  } catch (e) {
+    problem('source: remote lookup failed: ' + scrub(String(e && e.message ? e.message : e)));
   }
 
   /* release assets */
@@ -588,7 +724,7 @@ async function dryRun() {
     const local = fs.statSync(a.file).size;
     const g = await api('GET', '/repos/' + OWNER + '/' + a.repo + '/releases/tags/' + a.tag);
     if (g.status === 404) { log('asset ' + a.name + ' [' + a.repo + ']: release ' + a.tag + ' absent -> would be created and uploaded'); continue; }
-    if (g.status !== 200 || !g.data) { log('asset ' + a.name + ' [' + a.repo + ']: release lookup HTTP ' + g.status); continue; }
+    if (g.status !== 200 || !g.data) { problem('asset ' + a.name + ' [' + a.repo + ']: release lookup HTTP ' + g.status + ' for ' + a.tag); continue; }
     const ex = (g.data.assets || []).find(function (x) { return x.name === a.name; });
     if (!ex) log('asset ' + a.name + ' [' + a.repo + ']: would upload ' + local + ' B');
     else if (ex.size === local) log('asset ' + a.name + ' [' + a.repo + ']: already current (' + local + ' B) -> untouched');
@@ -597,38 +733,73 @@ async function dryRun() {
 
   /* catalogue page */
   const g = await api('GET', '/repos/' + OWNER + '/' + CATALOG_REPO + '/releases/tags/' + CATALOG_TAG);
-  if (g.status === 404) { log('catalogue ' + CATALOG_TAG + ': absent -> would be created'); return; }
-  if (g.status !== 200 || !g.data) { log('catalogue ' + CATALOG_TAG + ': lookup HTTP ' + g.status); return; }
-  const have = g.data.assets || [];
-  const manifestBytes = Buffer.byteLength(CATALOG_LINES.join('\n') + '\n');
-  const wanted = function (n) { return CPP_ASSETS.find(function (a) { return a.name === n; }); };
-  const wouldDelete = [];
-  for (const x of have) {
-    const expect = wanted(x.name);
-    if (CATALOG_OBSOLETE.test(x.name)) { wouldDelete.push(x.name); continue; }
-    if (x.name === 'name.txt') { if (x.size !== manifestBytes) wouldDelete.push('name.txt'); continue; }
-    if (!expect) { log('catalogue: keeps foreign asset ' + x.name + ' (' + x.size + ' B) -> untouched'); continue; }
-    if (x.size !== fs.statSync(expect.file).size) wouldDelete.push(x.name);
+  if (g.status === 404) {
+    log('catalogue ' + CATALOG_TAG + ': absent -> would be created');
+  } else if (g.status !== 200 || !g.data) {
+    problem('catalogue ' + CATALOG_TAG + ': lookup HTTP ' + g.status);
+  } else {
+    const have = g.data.assets || [];
+    const manifestBytes = Buffer.byteLength(CATALOG_LINES.join('\n') + '\n');
+    const wanted = function (n) { return CPP_ASSETS.find(function (a) { return a.name === n; }); };
+    const wouldDelete = [];
+    for (const x of have) {
+      const expect = wanted(x.name);
+      if (CATALOG_OBSOLETE.test(x.name)) { wouldDelete.push(x.name); continue; }
+      if (x.name === 'name.txt') {
+        /*
+         * Size alone is not evidence: the pre5 manifest and the pre4 one on the page are
+         * both 614 B. GitHub reports a `digest` (sha256:<hex>) for release assets, so when
+         * it is there the comparison is by content; only a page that omits the digest falls
+         * back to size, and then the run says so instead of claiming "already current".
+         */
+        const localDigest = sha256File(RELEASE_DIR + '/name.txt');
+        if (x.digest) { if (x.digest !== 'sha256:' + localDigest) wouldDelete.push('name.txt'); }
+        else if (x.size !== manifestBytes) wouldDelete.push('name.txt');
+        else log('catalogue name.txt: same size (' + x.size + ' B), page reports no digest -> compared at publish time');
+        continue;
+      }
+      if (!expect) { log('catalogue: keeps foreign asset ' + x.name + ' (' + x.size + ' B) -> untouched'); continue; }
+      if (x.size !== fs.statSync(expect.file).size) wouldDelete.push(x.name);
+    }
+    const missing = CPP_ASSETS.filter(function (a) {
+      return !have.some(function (x) { return x.name === a.name; });
+    });
+    const nt = have.find(function (x) { return x.name === 'name.txt'; });
+    log('catalogue: page has ' + have.length + ' asset(s); expected ' + CPP_ASSETS.length + ' asset(s), ' + missing.length + ' missing');
+    log('catalogue: would upload ' + (missing.map(function (a) { return a.name; }).join(', ') || 'nothing'));
+    /*
+     * The verdict follows the same rule as the loop above: content when the page reports a
+     * digest, size only as a fallback — and then it says so rather than claiming equality.
+     */
+    const ntLocalDigest = sha256File(RELEASE_DIR + '/name.txt');
+    const ntDigestMatch = nt && nt.digest === 'sha256:' + ntLocalDigest;
+    const ntSameSize = nt && nt.size === manifestBytes;
+    log('catalogue name.txt: page=' + (nt ? nt.size + ' B' + (nt.digest ? ' ' + nt.digest : ' no digest') : 'absent') + ', local=' + manifestBytes + ' B -> ' +
+      (ntDigestMatch ? 'content identical (sha256), would not be rewritten'
+        : ntSameSize ? 'same size but content not confirmed, would be rewritten' : 'would be rewritten'));
+    log('catalogue: would delete only ' + (wouldDelete.join(', ') || 'nothing'));
   }
-  const missing = CPP_ASSETS.filter(function (a) {
-    return !have.some(function (x) { return x.name === a.name; });
-  });
-  const nt = have.find(function (x) { return x.name === 'name.txt'; });
-  log('catalogue: page has ' + have.length + ' asset(s); expected ' + CPP_ASSETS.length + ' pre4 asset(s), ' + missing.length + ' missing');
-  log('catalogue: would upload ' + (missing.map(function (a) { return a.name; }).join(', ') || 'nothing'));
-  log('catalogue name.txt: page=' + (nt ? nt.size + ' B' : 'absent') + ', local=' + manifestBytes + ' B -> ' +
-    (nt && nt.size === manifestBytes ? 'already current, would not be rewritten' : 'would be rewritten'));
-  log('catalogue: would delete only ' + (wouldDelete.join(', ') || 'nothing'));
+
+  log('errors: ' + RELEASE_PROBLEMS.length);
+  for (const p of RELEASE_PROBLEMS) log('  ERROR ' + p);
+  return RELEASE_PROBLEMS.length ? 1 : 0;
 }
 
 if (DRY_RUN) {
-  try { await dryRun(); log('DRY RUN complete'); process.exit(0); }
-  catch (e) { log('DRY RUN threw: ' + scrub(String(e && e.message ? e.message : e))); process.exit(1); }
+  let code = 1;
+  try {
+    code = await dryRun();
+    log('DRY RUN complete: ' + (code === 0 ? '0 errors' : RELEASE_PROBLEMS.length + ' ERROR(S)'));
+  } catch (e) {
+    log('DRY RUN threw: ' + scrub(String(e && e.message ? e.message : e)));
+    code = 1;
+  }
+  process.exit(code);
 }
 
 if (SOURCE_ONLY) {
   const stale = staleFindings();
-  if (stale.length) log('warning: pre3 names present (' + stale.join(' | ') + '); --source-only does not touch releases or the catalogue');
+  if (stale.length) log('warning: outdated pre<N> names present (' + stale.join(' | ') + '); --source-only does not touch releases or the catalogue');
   const r0 = await ensureRepo();
   log('repo: ' + r0);
   if (String(r0).indexOf('failed') === 0) { log('GAVE UP'); process.exit(1); }
@@ -641,8 +812,8 @@ if (SOURCE_ONLY) {
 
 const staleManifest = staleFindings();
 if (staleManifest.length) {
-  log('REFUSING: pre3 names in ' + RELEASE_DIR + ' -> ' + staleManifest.join(' | '));
-  log('the application-inc page is on v1.0.0-pre4; a pre3 sync would roll it back');
+  log('REFUSING: outdated pre<N> names in ' + RELEASE_DIR + ' -> ' + staleManifest.join(' | '));
+  log('the catalogue must carry only the selected release ' + CPP_TAG + '; an older sync would roll it back');
   process.exit(2);
 }
 

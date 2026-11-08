@@ -1,0 +1,14 @@
+{
+ "archiveBytes": 330381171,
+ "entryLines": 26929,
+ "uniquePaths": 26912,
+ "duplicateEntries": 17,
+ "shadowedChunkIds": [
+  116,
+  127
+ ],
+ "verified": 29,
+ "verifyFailed": 0,
+ "aliased": 29,
+ "generatedAt": "2026-11-08T10:22:07.044Z"
+}

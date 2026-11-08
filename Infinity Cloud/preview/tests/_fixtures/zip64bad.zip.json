@@ -1,0 +1,21 @@
+{
+  "size": 178,
+  "commentBytes": 18,
+  "expectRejected": true,
+  "entries": [
+    {
+      "name": "bad-declared.bin",
+      "method": 0,
+      "compressed": 30,
+      "uncompressed": 30,
+      "crc": 2815161279,
+      "headerOffset": 0,
+      "dataOffset": 46,
+      "localExtraLen": 0,
+      "centralExtraLen": 0,
+      "descriptor": false,
+      "zip64": false,
+      "placeholder": true
+    }
+  ]
+}

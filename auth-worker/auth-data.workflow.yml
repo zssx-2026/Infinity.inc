@@ -1,0 +1,113 @@
+# auth-data/.github/workflows/send-verify.yml
+# Fires on every 'register: <email>' PR, mails the verify link, then stops.
+# The Worker merges the PR only after the human clicks that link.
+#
+# auth-data 仓库 Secrets（Settings -> Secrets and variables -> Actions）:
+#   MAIL_SERVER   如 smtp.qq.com / smtp.163.com / smtp.gmail.com
+#   MAIL_PORT     587（STARTTLS）或 465（SMTPS）
+#   MAIL_USER     发信邮箱（同时作为 SMTP 登录名与信封发件人）
+#   MAIL_PASSWORD 邮箱授权码（QQ/163 是授权码，不是登录密码）
+#   MAIL_FROM     显示发件人，如 Infinity.Inc <no-reply@example.com>
+# 仓库 Variables:
+#   VERIFY_BASE   邮件链接落点，默认 https://zssx-2026.github.io/infinity/login
+
+name: Send verification email
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  contents: read
+
+jobs:
+  send:
+    if: startsWith(github.event.pull_request.title, 'register:')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the registration branch
+        uses: actions/checkout@v4
+        with:
+          ref: \${{ github.event.pull_request.head.ref }}
+
+      - name: Extract the registration record
+        id: reg
+        env:
+          TITLE: \${{ github.event.pull_request.title }}
+        run: |
+          EMAIL="\${TITLE#register: }"
+          FILE="users/\${EMAIL}.json"
+          if [ ! -f "$FILE" ]; then
+            echo "::error::missing $FILE on the PR head"
+            exit 1
+          fi
+          echo "email=\${EMAIL}" >> "$GITHUB_OUTPUT"
+          echo "token=\$(jq -r '.verifyToken' "$FILE")" >> "$GITHUB_OUTPUT"
+
+      - name: Compose the bilingual mail
+        env:
+          EMAIL: \${{ steps.reg.outputs.email }}
+          TOKEN: \${{ steps.reg.outputs.token }}
+          PR: \${{ github.event.pull_request.number }}
+          BASE: \${{ vars.VERIFY_BASE }}
+          MAIL_FROM: \${{ secrets.MAIL_FROM }}
+        run: |
+          BASE="\${BASE:-https://zssx-2026.github.io/infinity/login}"
+          LINK="\${BASE}#verify=\${PR}&e=\${EMAIL}&t=\${TOKEN}"
+          SUBJECT_B64=\$(printf '%s' 'Infinity.Inc 账户验证 / Account verification' | base64 -w0)
+          {
+            printf 'From: %s\r\n' "$MAIL_FROM"
+            printf 'To: %s\r\n' "$EMAIL"
+            printf 'Subject: =?UTF-8?B?%s?=\r\n' "$SUBJECT_B64"
+            printf 'MIME-Version: 1.0\r\n'
+            printf 'Content-Type: text/plain; charset=UTF-8\r\n'
+            printf 'Content-Transfer-Encoding: base64\r\n'
+            printf '\r\n'
+          } > mail.txt
+          {
+            printf '您好！\r\n'
+            printf '\r\n'
+            printf '有人刚刚用这个邮箱注册了 Infinity.Inc 账户。\r\n'
+            printf '如果是您本人，请打开下面的链接完成验证：\r\n'
+            printf '\r\n'
+            printf '%s\r\n' "$LINK"
+            printf '\r\n'
+            printf '（注册请求关闭后链接即失效。若非本人操作，忽略本邮件即可。）\r\n'
+            printf '\r\n'
+            printf '----------------------------------------\r\n'
+            printf '\r\n'
+            printf 'Hello!\r\n'
+            printf '\r\n'
+            printf 'Someone just registered an Infinity.Inc account with this\r\n'
+            printf 'address. If that was you, open the link below to verify:\r\n'
+            printf '\r\n'
+            printf '%s\r\n' "$LINK"
+            printf '\r\n'
+            printf '(The link expires once the registration request is closed.\r\n'
+            printf 'If this was not you, simply ignore this message.)\r\n'
+            printf '\r\n'
+            printf 'Infinity.Inc\r\n'
+          } | base64 -w 76 >> mail.txt
+
+      - name: Send over SMTP
+        env:
+          MAIL_SERVER: \${{ secrets.MAIL_SERVER }}
+          MAIL_PORT: \${{ secrets.MAIL_PORT }}
+          MAIL_USER: \${{ secrets.MAIL_USER }}
+          MAIL_PASSWORD: \${{ secrets.MAIL_PASSWORD }}
+          EMAIL: \${{ steps.reg.outputs.email }}
+        run: |
+          PORT="\${MAIL_PORT:-587}"
+          if [ "$PORT" = "465" ]; then
+            URL="smtps://\${MAIL_SERVER}:\${PORT}"
+            EXTRA=""
+          else
+            URL="smtp://\${MAIL_SERVER}:\${PORT}"
+            EXTRA="--ssl-reqd"
+          fi
+          curl --silent --show-error --fail $EXTRA \
+            --url "$URL" \
+            --mail-from "$MAIL_USER" \
+            --mail-rcpt "$EMAIL" \
+            --user "\${MAIL_USER}:\${MAIL_PASSWORD}" \
+            --upload-file mail.txt

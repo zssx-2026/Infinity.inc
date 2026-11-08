@@ -1,3 +1,5 @@
+> **2026-10-25 产品线收敛注记**：Infinity Toolbox（`int`/`intx`）已退役删除，本文为历史发布记录，文中应用数量与 Toolbox 相关内容以当时版本为准，不代表当前产品线。
+
 # Infinity.Inc v1.0.0-pre4 发行说明 / Release notes
 
 - 版本：`1.0.0-pre4`

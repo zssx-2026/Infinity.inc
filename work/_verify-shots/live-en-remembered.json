@@ -1,0 +1,20 @@
+{
+  "tag": "live-en",
+  "url": "https://zssx-2026.github.io/infinity/",
+  "mode": "remembered",
+  "at500": {
+    "result": "pending",
+    "overlay": true
+  },
+  "final": {
+    "mode": "remembered",
+    "startedAt": 1791106937930,
+    "revealedAt": 1791106938633,
+    "elapsedMs": 702,
+    "result": "shown",
+    "reason": "",
+    "solvedAt": null,
+    "zeros": 5
+  },
+  "wallMs": 820
+}

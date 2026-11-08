@@ -24,21 +24,134 @@
 (function () {
   'use strict';
 
+  var I = window.INFINITY = window.INFINITY || {};
+
   // The script finds its own base so the same files work from a local
-  // directory and from https://zssx-2026.github.io/infinity/ without a
+  // directory and from https://zssx-2026.github.io/ without a
   // constant to keep in step with the deployment.
   var SELF = document.currentScript ? document.currentScript.src : '';
   var MARK = '/assets/site.js';
-  var BASE = SELF.indexOf(MARK) >= 0 ? SELF.slice(0, SELF.indexOf(MARK)) : '/infinity';
+  var BASE = SELF.indexOf(MARK) >= 0 ? SELF.slice(0, SELF.indexOf(MARK)) : '';
 
   // The same base, as a path. Once the browser has resolved
   // document.currentScript.src, BASE is an absolute URL, so it can never be a
   // prefix of location.pathname - comparing the two is what made the English
   // "中文" switch point back at the page it was already on.
-  var BASE_PATH = '/infinity';
+  var BASE_PATH = '';
   try {
-    BASE_PATH = new URL(BASE, location.href).pathname.replace(/\/+$/, '') || '/infinity';
+    BASE_PATH = new URL(BASE, location.href).pathname.replace(/\/+$/, '') || '';
   } catch (e) { /* keep the fallback */ }
+
+  /*
+   * The content source: which host the releases, documents and downloads a
+   * page shows come from. assets/sources.js owns the rule (English reads
+   * GitHub, Chinese reads Gitee); this is the same four facts for any page
+   * that does not load that file, so nothing here has to guess. The English
+   * answer is exactly the GitHub host this file used before.
+   */
+  function buildFallback(lang) {
+    var b = (lang === 'zh') ? {
+      key: 'gitee', label: 'Gitee', lang: 'zh', owner: 'zssx2026',
+      api: 'https://gitee.com/api/v5/repos/zssx2026/',
+      apiRoot: 'https://gitee.com/api/v5',
+      web: 'https://gitee.com/zssx2026',
+      raw: 'https://gitee.com/zssx2026/<repo>/raw/main/'
+    } : {
+      key: 'github', label: 'GitHub', lang: 'en', owner: 'zssx-2026',
+      api: 'https://api.github.com/repos/zssx-2026/',
+      apiRoot: 'https://api.github.com',
+      web: 'https://github.com/zssx-2026',
+      raw: 'https://raw.githubusercontent.com/zssx-2026/'
+    };
+    return {
+      key: b.key, label: b.label, lang: b.lang, owner: b.owner,
+      api: b.api, apiRoot: b.apiRoot, web: b.web, raw: b.raw,
+      repoWeb: function (repo) { return b.web + '/' + repo; },
+      repoApi: function (repo) { return b.api + repo; },
+      releasesApi: function (repo, perPage) {
+        return b.api + repo + '/releases?per_page=' + (perPage || 30);
+      },
+      releasePage: function (repo, tag) { return b.web + '/' + repo + '/releases/tag/' + tag; },
+      assetUrl: function (repo, tag, name) {
+        return b.web + '/' + repo + '/releases/download/' + tag + '/' + name;
+      },
+      contentsApi: function (repo, path, ref) {
+        return b.api + repo + '/contents/' + String(path).replace(/^\/+/, '') +
+          '?ref=' + (ref || (b.key === 'gitee' ? 'master' : 'main'));
+      },
+      rawUrl: function (repo, path, ref) {
+        ref = ref || (b.key === 'gitee' ? 'master' : 'main');
+        path = String(path).replace(/^\/+/, '');
+        if (b.key === 'gitee') {
+          return 'https://gitee.com/' + b.owner + '/' + repo + '/raw/' + ref + '/' + path;
+        }
+        return 'https://raw.githubusercontent.com/' + b.owner + '/' + repo + '/' + ref + '/' + path;
+      }
+    };
+  }
+  function fallbackSource() {
+    var path = '';
+    try { path = String(location.pathname || ''); } catch (e2) { path = ''; }
+    var zh = /(^|\/)cn(\/|$)/.test(path);
+    if (!zh) {
+      zh = String((document.documentElement && document.documentElement.lang) || '')
+        .toLowerCase().indexOf('zh') === 0;
+    }
+    return buildFallback(zh ? 'zh' : 'en');
+  }
+  function source() {
+    if (I.sources && typeof I.sources.source === 'function') return I.sources.source();
+    return fallbackSource();
+  }
+  /* The same URL migration assets/sources.js performs, for a page that did not
+   * load that file: an owner page, a REST base and a raw file, both ways. */
+  function fallbackMirror(url, lang) {
+    if (!url) return url;
+    var zh = (lang === 'zh' || lang === 'gitee') ||
+      ((lang === undefined || lang === null) && source().key === 'gitee');
+    var s = String(url);
+    if (zh) {
+      s = s.replace(/^https:\/\/api\.github\.com\/repos\/zssx-2026/,
+        'https://gitee.com/api/v5/repos/zssx2026');
+      s = s.replace(/^https:\/\/raw\.githubusercontent\.com\/zssx-2026\/([^/]+)\/([^/]+)\/(.*)$/,
+        'https://gitee.com/zssx2026/$1/raw/$2/$3');
+      s = s.replace(/^https:\/\/github\.com\/zssx-2026/, 'https://gitee.com/zssx2026');
+    } else {
+      s = s.replace(/^https:\/\/gitee\.com\/api\/v5\/repos\/zssx2026/,
+        'https://api.github.com/repos/zssx-2026');
+      s = s.replace(/^https:\/\/gitee\.com\/zssx2026\/([^/]+)\/raw\/([^/]+)\/(.*)$/,
+        'https://raw.githubusercontent.com/zssx-2026/$1/$2/$3');
+      s = s.replace(/^https:\/\/gitee\.com\/zssx2026/, 'https://github.com/zssx-2026');
+    }
+    return s;
+  }
+  function fallbackNormalize(list, repo, lang) {
+    if (!Array.isArray(list)) return [];
+    var v = source();
+    return list.map(function (r) {
+      if (!r) return r;
+      var tag = r.tag_name || r.tag || '';
+      var raw = r.assets || r.attach_files || [];
+      return Object.assign({}, r, {
+        tag_name: tag,
+        name: r.name || tag,
+        prerelease: !!r.prerelease,
+        draft: !!r.draft,
+        published_at: r.published_at || r.created_at || r.updated_at || '',
+        created_at: r.created_at || r.published_at || '',
+        html_url: fallbackMirror(r.html_url || r.url || v.releasePage(repo, tag), lang),
+        assets: (Array.isArray(raw) ? raw : []).map(function (a) {
+          return Object.assign({}, a, {
+            name: a.name || a.file_name || '',
+            size: a.size || a.size_bytes || 0,
+            created_at: a.created_at || a.updated_at || r.created_at || '',
+            browser_download_url: fallbackMirror(
+              a.browser_download_url || a.download_url || a.url || '', lang)
+          });
+        })
+      });
+    });
+  }
 
   /*
    * The release the download cards point at, in one place.
@@ -48,11 +161,11 @@
    * resolves to the Node-era stable v1.0pre1, which is not what the cards
    * should hand anybody. The tag is therefore named explicitly.
    *
-   * Keep in step with cpp/release/v1.0pre4/release-assets.json ("tag") - the
+   * Keep in step with cpp/release/v1.0pre5/release-assets.json ("tag") - the
    * directory name carries the same version. Both language versions read it
    * from here, so there is nothing else to update when it moves.
    */
-  var RELEASE_TAG = 'v1.0.0-pre4';
+  var RELEASE_TAG = 'v1.0.0-pre5';
 
   var TOKEN_KEY = 'infinity.token';
   var SETTINGS_KEY = 'infinity.settings';
@@ -63,37 +176,28 @@
       tagline: 'A cloud drive whose storage is GitHub releases. A file tree kept in a manifest, split across release assets, with a recycle bin.',
       taglineZh: '把 GitHub release 当存储的云盘：文件树写在清单里，按分片存进 release 资产，并带回收站。'
     },
-    {
-      slug: 'infinityfilemanager', short: 'ifm', name: 'Infinity File Manager', repo: 'Infinity-File-Manager',
-      tagline: 'A local file manager. Copy, move, rename and delete, with a recycle bin instead of a delete that cannot be undone.',
-      taglineZh: '本地文件管理器：复制、移动、重命名、删除，用回收站替代无法撤销的删除。'
-    },
+
     {
       slug: 'infinitypackagemanager', short: 'ipm', name: 'InfinityPackageManager', repo: 'InfinityPackageManager',
       tagline: 'A package catalogue and installer. Every package is a release asset in one repository; nothing is installed without a matching SHA-256.',
       taglineZh: '软件包目录与安装器：每个包都是同一仓库里的 release 资产，SHA-256 不匹配就不会安装。'
     },
+
     {
-      slug: 'infinitytoolbox', short: 'int', name: 'Infinity Toolbox', repo: 'Infinity-Toolbox',
-      tagline: 'A toolbox system. Steam++ , FastGithub and a download manager rewritten in C++ and compiled in, with third-party tools added as plugins.',
-      taglineZh: '工具箱：Steam++、FastGithub 与下载管理器的 C++ 重写版，第三方工具以插件形式接入。'
-    },
-    {
-      slug: 'infinityinstallmanager', short: 'iim', name: 'Infinity Installer Manager', repo: 'Infinity-Installer-Manager',
-      tagline: 'The single entry point. Installs the products, the plugins they drive and the resource packs they load, from one catalogue.',
-      taglineZh: '统一入口：从同一份目录安装产品、它们驱动的插件以及加载的资源包。'
-    },
-    {
-      slug: 'infinitygames', short: 'ing', name: 'Infinity Games', repo: 'Infinity-Games',
-      tagline: 'A games library: online games played inside the window and local games run from disk, in one catalogue.',
-      taglineZh: '游戏库：窗口里玩的在线游戏与从磁盘启动的本地游戏，收在同一个目录中。'
+      slug: 'infinityserver', short: 'isv', name: 'Infinity Server', repo: 'InfinityServer',
+      /* A product of its own, released separately: it has no installer in this
+       * release set, so its card must not pretend to have a download page. */
+      standalone: true,
+      tagline: 'A rack-scale compute console: a six tier cache with a latency and capacity per tier, a hash ring that routes by key, and a billing chain whose every entry is checkable.',
+      taglineZh: '机架级计算控制台：六级缓存各有延迟与容量，哈希环按键路由，计费链每一笔都可核验。'
     }
+
   ];
 
   /*
    * The two languages, in one table.
    *
-   * The site is served in English at /infinity/ and in Chinese at /infinity/cn/.
+   * The site is served in English at / and in Chinese at /cn/.
    * Every string lives here rather than in the pages, because a copy of each
    * page carrying its own translated prose is a pair that drifts the first time
    * somebody edits one of them - which is how a site ends up saying two things.
@@ -103,7 +207,7 @@
   var T = {
     en: {
       suiteTitle: 'The Infinity suite',
-      suiteLede: 'Six Windows applications that need nothing but Windows. No runtime, no DLL to install beside them, no installer required to get them running — each product is a single executable of a few hundred kilobytes.',
+      suiteLede: 'Four Windows applications. Each one ships as a folder with its own copy of Node.js and a small launcher for every face, so there is no runtime to hunt for and no DLL to install beside it; the installer only unpacks that folder.',
       products: 'Products',
       latest: 'Latest releases',
       howItFits: 'How it fits together',
@@ -116,20 +220,20 @@
       twoFaces: 'Two faces, one executable',
       twoFacesText: 'Every product has a command line (<code>&lt;p&gt;_cli.exe</code>) and a window (<code>&lt;p&gt;_gui.exe</code>). The window is Electron rendering a page served by the same executable, so the executable is still the whole program. The terminal interface was removed: it duplicated the window without being better at anything.',
       oneCatalogue: 'One catalogue',
-      oneCatalogueText: 'Products, plugins and resource packs all come from one index — a GitHub repository where each release is a catalogue page. Infinity Installer Manager is the single entry point that reads it.',
+      oneCatalogueText: 'Products, plugins and resource packs all come from one index — a GitHub repository where each release is a catalogue page. InfinityPackageManager is the single entry point that reads it.',
       unverified: 'Nothing runs unverified',
       unverifiedText: 'A package is only installed if the SHA-256 of the bytes on disk matches the digest GitHub reports for that asset. A build with no digest is refused rather than trusted.',
       wantEverything: 'If you want everything',
-      wantEverythingText: 'Install <a href="./download/infinityinstallmanager/">Infinity Installer Manager</a>. It is the single entry point: one catalogue covering the products, the plugins they drive and the resource packs they load.',
+      wantEverythingText: 'Install <a href="./download/infinitypackagemanager/">InfinityPackageManager</a>. It is the single entry point: one catalogue covering the products, the plugins they drive and the resource packs they load.',
       wantOne: 'If you want one thing',
       wantOneText: 'Every product installs on its own. Pick it from <a href="./download/">the download page</a> and ignore the rest.',
       wantRead: 'If you want to read first',
-      wantReadText: 'The <a href="./docs/">documentation</a> is the project’s own files, rendered as they are — what is written there is what the code says.',
+      wantReadText: 'The <a href="https://github.com/zssx-2026">documentation</a> is the project’s own files, rendered as they are — what is written there is what the code says.',
       downloadTitle: 'Download',
-      downloadLede: 'Six applications. Pick one — the card opens its latest release on GitHub.',
+      downloadLede: 'Three installers, one per product. Pick one — the card opens its latest release.',
       platform: 'Platform', requirements: 'Requirements',
       requirementsText: 'Windows 10 or later. That is the whole list. The executables import only DLLs that ship with Windows — <code>kernel32</code>, <code>user32</code>, <code>gdi32</code>, <code>winhttp</code> and the UCRT forwarders — so there is no runtime to install, no framework to download and nothing to keep updated beside the program itself.',
-      requirementsNote: 'You will need a GitHub account and a personal access token: the suite stores its data in GitHub releases. See <a href="../docs/">the documentation</a> for how to create one.',
+      requirementsNote: 'You will need a GitHub account and a personal access token: the suite stores its data in GitHub releases. See <a href="https://github.com/zssx-2026">the documentation</a> for how to create one.',
       downloadAction: 'Download',
       noBuild: 'no build for',
       contents: 'Contents',
@@ -148,11 +252,14 @@
       storage: 'Storage',
       signIn: 'Sign in', signUp: 'Sign up', token: 'GitHub personal access token',
       account: 'Account', settings: 'Settings', cloud: 'Cloud', docs: 'Documentation',
-      overview: 'Overview', profile: 'Account', linkProduct: 'Link a product'
+      overview: 'Overview', profile: 'Account', linkProduct: 'Link a product',
+      sourceNote: 'The repository list comes from your GitHub account - the account and token endpoints exist only on GitHub. Repository content (releases and files) is read from Gitee on a Chinese page.',
+      giteePendingNote: 'Note: the Chinese site reads Gitee, but the Gitee mirror is not published yet, so live data may be empty and links may not work; the page falls back to the local snapshot built into this site. As a manual exit, the matching GitHub page can be opened by hand - this page never requests GitHub automatically:',
+      giteePendingLink: 'Open on GitHub'
     },
     zh: {
       suiteTitle: 'Infinity 套件',
-      suiteLede: '六款只需要 Windows 的 Windows 应用。没有运行时，没有要一并安装的 DLL，也不需要安装程序才能跑起来 —— 每个产品都是一个几百 KB 的可执行文件。',
+      suiteLede: '四款只需要 Windows 的 Windows 应用。每个产品都是一个自带 Node.js 的文件夹，每个面孔配一个很小的启动器 —— 不用另找运行时，也没有要一并安装的 DLL；安装包只是把这个文件夹解开。',
       products: '产品',
       latest: '最新发布',
       howItFits: '它们是怎么配合的',
@@ -161,24 +268,24 @@
       size: '大小', noReleases: '暂无发布', unavailable: '无法获取', nothingYet: '尚未发布',
       releaseNotes: '发布说明',
       reading: '正在读取发布…',
-      liveNote: '实时读取自 GitHub。没有发布的产品会如实显示，而不是给一个点不开的链接。',
+      liveNote: '实时读取自 Gitee。没有发布的产品会如实显示，而不是给一个点不开的链接。',
       twoFaces: '两种形态，一个可执行文件',
       twoFacesText: '每个产品都有命令行（<code>&lt;p&gt;_cli.exe</code>）和窗口（<code>&lt;p&gt;_gui.exe</code>）。窗口是 Electron 渲染同一个可执行文件提供的页面，所以那个可执行文件仍然是整个程序。终端界面已移除：它只是把窗口重做了一遍，并没有更好。',
       oneCatalogue: '一份目录',
-      oneCatalogueText: '产品、插件和资源包都来自同一份索引 —— 一个 GitHub 仓库，其中每个 release 就是一个目录页。Infinity Installer Manager 是读取它的统一入口。',
+      oneCatalogueText: '产品、插件和资源包都来自同一份索引 —— 一个 GitHub 仓库，其中每个 release 就是一个目录页。InfinityPackageManager 是读取它的统一入口。',
       unverified: '未校验的东西不会运行',
-      unverifiedText: '只有在磁盘上算出的 SHA-256 与 GitHub 报告的摘要一致时，包才会被安装。没有摘要的构建会被拒绝，而不是被信任。',
+      unverifiedText: '只有在磁盘上算出的 SHA-256 与内容源报告的摘要一致时，包才会被安装。没有摘要的构建会被拒绝，而不是被信任。',
       wantEverything: '如果你全都想要',
-      wantEverythingText: '安装 <a href="./download/infinityinstallmanager/">Infinity Installer Manager</a>。它是统一入口：一份目录覆盖产品、产品所驱动的插件以及资源包。',
+      wantEverythingText: '安装 <a href="./download/infinitypackagemanager/">InfinityPackageManager</a>。它是统一入口：一份目录覆盖产品、产品所驱动的插件以及资源包。',
       wantOne: '如果你只要一个',
       wantOneText: '每个产品都能单独安装。从<a href="./download/">下载页</a>挑一个，其余的不用管。',
       wantRead: '如果你想先读一读',
-      wantReadText: '<a href="./docs/">文档</a>是项目自己的文件，原样渲染 —— 写在那里的就是代码里说的。',
+      wantReadText: '<a href="https://github.com/zssx-2026">文档</a>是项目自己的文件，原样渲染 —— 写在那里的就是代码里说的。',
       downloadTitle: '下载',
-      downloadLede: '六款应用。选一个 —— 卡片会打开它在 GitHub 上的最新发布。',
+      downloadLede: '三个安装包，一个产品一个。选一个 —— 卡片会打开它在 Gitee 上的最新发布。',
       platform: '平台', requirements: '系统要求',
       requirementsText: 'Windows 10 或更高版本。这就是全部要求。这些可执行文件只导入 Windows 自带的 DLL —— <code>kernel32</code>、<code>user32</code>、<code>gdi32</code>、<code>winhttp</code> 以及 UCRT 转发器 —— 所以没有运行时要安装，没有框架要下载，除了程序本身也没有别的东西需要保持更新。',
-      requirementsNote: '你需要一个 GitHub 账号和个人访问令牌：这套软件把数据存在 GitHub release 里。如何创建，见<a href="../docs/">文档</a>。',
+      requirementsNote: '你需要一个 GitHub 账号和个人访问令牌：套件的数据仍存在 GitHub release，登录与令牌校验也仍走 GitHub API —— 官网内容读取自 Gitee。如何创建，见<a href="https://github.com/zssx-2026">文档</a>。',
       downloadAction: '下载',
       noBuild: '没有适用于',
       contents: '目录',
@@ -197,7 +304,10 @@
       storage: '存储',
       signIn: '登录', signUp: '注册', token: 'GitHub 个人访问令牌',
       account: '账户', settings: '设置', cloud: '云盘', docs: '文档',
-      overview: '概览', profile: '账户', linkProduct: '关联产品'
+      overview: '概览', profile: '账户', linkProduct: '关联产品',
+      sourceNote: '仓库列表来自你的 GitHub 账户 —— 账户与令牌接口只有 GitHub 提供；仓库内容（release 与文件）在中文站按规则读取 Gitee。',
+      giteePendingNote: '注意：中文站的内容源为 Gitee，但 Gitee 镜像目前尚未就绪，实时数据可能为空、链接可能不可用；页面已回退到本站内置的本地快照。作为人工出口，可以手动打开 GitHub 上的对应页面 —— 本页不会自动请求 GitHub：',
+      giteePendingLink: '在 GitHub 上查看'
     }
   };
 
@@ -264,7 +374,7 @@
     notPushedNote: '这里的 404 通常表示文档还没推送，而不是项目里没有它。',
     loginTitle: '登录',
     loginLede: '本站点没有自己的账户。登录就是把一个 GitHub 个人访问令牌交给它，它把这个令牌保存在这个浏览器里，用来读取套件存放数据的那些仓库。',
-    tokenHint: '保存在本浏览器的本地存储中。它只会发给 api.github.com，绝不会发给本站 —— 这里没有服务器可以接收它。',
+    tokenHint: '保存在本浏览器的本地存储中。内容请求发给 Gitee；登录与令牌校验仍发给 api.github.com（Gitee 没有等价的账户接口，这是唯一例外）。两者都不会发给本站 —— 这里没有服务器可以接收它。',
     doSignIn: '登录',
     createToken: '创建令牌',
     tokenNeeds: '令牌需要什么权限',
@@ -345,9 +455,217 @@
     selfContained: '自包含，无运行时'
   });
 
-  // The language comes from <html lang>, so a page does not have to know
-  // whether it is the English copy or the Chinese one.
+  /*
+   * The strings the Chinese pages read by key: settings, account, cloud,
+   * docs, the run pages and the pages' shared labels. They live here for the
+   * same reason as every other string on the site - one table, two languages,
+   * and a page that never has to know which copy of itself it is.
+   */
+  Object.assign(T.en, {
+    footerSuite: 'Infinity.Inc \u2014 the Infinity suite.',
+    loadingDefault: 'Loading\u2026',
+    errTokenRejected: 'The token was rejected. Sign in again.',
+    errGithubRefused: 'GitHub refused the request: ',
+    errGithubRefusedNote: ' (a rate limit or a missing scope, not a bad token)',
+    errNotFound: 'Not found: ',
+    accountFailed: 'The account could not be read: ',
+    appearanceGroup: 'Appearance',
+    charactersOf: 'characters of',
+    charactersWord: 'characters',
+    checkIt: 'Check it',
+    checkingWord: 'checking\u2026',
+    cloudStorage: 'Cloud storage',
+    continueToRun: 'Continue to the run page',
+    credentialGroup: 'Credential',
+    darkWord: 'Dark',
+    deletedWord: 'Deleted',
+    docCatalogue: 'Catalogue format',
+    docCatalogueNote: 'How a catalogue page is written.',
+    docDecodeFailed: 'The document could not be decoded.',
+    docEmpty: 'The document is empty.',
+    docMissing404: 'A 404 usually means the file has not been pushed yet rather than that it is missing.',
+    docPreview: 'Streaming preview',
+    docPreviewNote: 'How the preview opens huge files without reading them whole.',
+    docSuite: 'The suite',
+    docSuiteNote: 'The C++ README, which describes the suite as a whole.',
+    docUnreadable: 'The document could not be read: ',
+    docUsing: 'Using it',
+    docUsingNote: 'The top-level README, which says what each product is for.',
+    downloadsGroup: 'Downloads',
+    driveFailed: 'The drive could not be read: ',
+    fileWord: 'File',
+    findingStores: 'Finding storage repositories\u2026',
+    folderWord: 'Folder',
+    forgetWord: 'Forget',
+    getInfinityCloud: 'Get Infinity Cloud',
+    lightWord: 'Light',
+    linkIdLabel: 'Link id',
+    manageTokens: 'Manage tokens on GitHub',
+    manifestNotJson: 'The manifest is not readable JSON.',
+    modifiedWord: 'Modified',
+    noAccountReturned: 'no account returned',
+    noRequestHere: 'No request was found in this address.',
+    noStableOnly: 'No, only stable releases',
+    noStoreYet: 'No storage repository found yet.',
+    noTokenHere: 'No token in this browser.',
+    noneWord: 'none',
+    nothingSaved: 'Nothing saved.',
+    openWord: 'Open',
+    partsWord: 'parts',
+    pathWord: 'Path',
+    payloadLabel: 'Payload',
+    payloadUndecodable: 'the payload could not be decoded',
+    platformArm: 'Windows on ARM',
+    platformWin64: 'Windows x64',
+    platformX86: 'Windows x86',
+    privateWord: 'private',
+    publicWord: 'public',
+    publishedInRepo: 'It is published in the repository: ',
+    readingAccount: 'Reading the account\u2026',
+    readingFile: 'Reading',
+    readingManifest: 'Reading the manifest\u2026',
+    rejectedWord: 'rejected: ',
+    repoItself: 'the repository itself',
+    reposFailed: 'The repositories could not be listed: ',
+    repositoryWord: 'Repository',
+    requestTitle: 'Request',
+    resetButton: "Clear this browser's data",
+    resetDone: 'Cleared. The token was left alone \u2014 sign out from the account page if you want it gone.',
+    resetGroup: 'Reset',
+    resetText: 'Clears every preference and every saved request in this browser. It does not touch your GitHub account or any repository.',
+    runExplains: 'The run page hands the request to the copy of the suite you already have.',
+    runIdLabel: 'Run id',
+    savedRequestsText: 'Run requests this browser has been handed, newest last. A desktop program collects them when it starts.',
+    savedWord: 'Saved',
+    showPrereleaseLabel: 'Show pre-releases',
+    showingFirst: 'Showing the first',
+    signInAndContinue: 'Sign in and continue',
+    signInToContinue: 'Sign in to continue.',
+    signOutButton: 'Sign out',
+    signedInAs: 'Signed in as',
+    sourceLabel: 'Source: ',
+    storeWarning: 'A storage repository is a GitHub repository the desktop program writes to; this page only reads it.',
+    themeNote: 'The choice applies immediately and is remembered in this browser.',
+    themeToggle: 'Switch theme',
+    thisBrowser: 'this browser',
+    tokenStoredNote: 'A token is stored in this browser and sent only to api.github.com.',
+    typeWord: 'Type',
+    updatedWord: 'Updated',
+    validAs: 'valid, signed in as',
+    visibilityWord: 'Visibility',
+    volumeWord: 'Volume',
+    whatHappensNext: 'What happens next',
+    yesBrowserOnly: 'yes, in this browser only',
+    yesWord: 'Yes'
+  });
+
+  Object.assign(T.zh, {
+    footerSuite: 'Infinity.Inc \u2014\u2014 Infinity \u5957\u4ef6\u3002',
+    loadingDefault: '\u6b63\u5728\u52a0\u8f7d\u2026',
+    errTokenRejected: '\u4ee4\u724c\u88ab\u62d2\u7edd\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55\u3002',
+    errGithubRefused: '\u5185\u5bb9\u6e90\u62d2\u7edd\u4e86\u8be5\u8bf7\u6c42\uff1a',
+    errGithubRefusedNote: '\uff08\u9650\u6d41\u6216\u6743\u9650\u4e0d\u8db3\uff0c\u4e0d\u662f\u4ee4\u724c\u672c\u8eab\u7684\u95ee\u9898\uff09',
+    errNotFound: '\u672a\u627e\u5230\uff1a',
+    accountFailed: '\u65e0\u6cd5\u8bfb\u53d6\u8d26\u6237\uff1a',
+    appearanceGroup: '\u5916\u89c2',
+    charactersOf: '\u4e2a\u5b57\u7b26\uff0c\u5171',
+    charactersWord: '\u4e2a\u5b57\u7b26',
+    checkIt: '\u6821\u9a8c\u4e00\u4e0b',
+    checkingWord: '\u6b63\u5728\u6821\u9a8c\u2026',
+    cloudStorage: '\u4e91\u76d8\u5b58\u50a8',
+    continueToRun: '\u7ee7\u7eed\u524d\u5f80\u8fd0\u884c\u9875',
+    credentialGroup: '\u51ed\u636e',
+    darkWord: '\u6df1\u8272',
+    deletedWord: '\u5220\u9664\u65f6\u95f4',
+    docCatalogue: '\u76ee\u5f55\u683c\u5f0f',
+    docCatalogueNote: '\u76ee\u5f55\u9875\u662f\u600e\u4e48\u5199\u7684\u3002',
+    docDecodeFailed: '\u65e0\u6cd5\u89e3\u7801\u8be5\u6587\u6863\u3002',
+    docEmpty: '\u8be5\u6587\u6863\u662f\u7a7a\u7684\u3002',
+    docMissing404: '404 \u901a\u5e38\u8868\u793a\u6587\u4ef6\u8fd8\u6ca1\u6709\u63a8\u9001\uff0c\u800c\u4e0d\u662f\u9879\u76ee\u91cc\u6ca1\u6709\u5b83\u3002',
+    docPreview: '流式预览',
+    docPreviewNote: '预览如何在不整份读入的前提下打开超大文件。',
+    docSuite: '\u5957\u4ef6\u603b\u89c8',
+    docSuiteNote: 'C++ \u7684 README\uff0c\u8bb2\u6574\u4e2a\u5957\u4ef6\u3002',
+    docUnreadable: '\u65e0\u6cd5\u8bfb\u53d6\u8be5\u6587\u6863\uff1a',
+    docUsing: '\u4f7f\u7528\u8bf4\u660e',
+    docUsingNote: '\u9876\u5c42 README\uff0c\u8bb2\u6bcf\u4e2a\u4ea7\u54c1\u7684\u7528\u9014\u3002',
+    downloadsGroup: '\u4e0b\u8f7d',
+    driveFailed: '\u65e0\u6cd5\u8bfb\u53d6\u4e91\u76d8\uff1a',
+    fileWord: '\u6587\u4ef6',
+    findingStores: '\u6b63\u5728\u67e5\u627e\u5b58\u50a8\u4ed3\u5e93\u2026',
+    folderWord: '\u6587\u4ef6\u5939',
+    forgetWord: '\u5fd8\u8bb0',
+    getInfinityCloud: '\u83b7\u53d6 Infinity Cloud',
+    lightWord: '\u6d45\u8272',
+    linkIdLabel: '\u5173\u8054 ID',
+    manageTokens: '\u5728 GitHub \u4e0a\u7ba1\u7406\u4ee4\u724c',
+    manifestNotJson: '\u6e05\u5355\u4e0d\u662f\u53ef\u8bfb\u7684 JSON\u3002',
+    modifiedWord: '\u4fee\u6539\u65f6\u95f4',
+    noAccountReturned: '\u6ca1\u6709\u8fd4\u56de\u8d26\u6237',
+    noRequestHere: '\u8be5\u5730\u5740\u91cc\u6ca1\u6709\u627e\u5230\u8bf7\u6c42\u3002',
+    noStableOnly: '\u5426\uff0c\u53ea\u663e\u793a\u7a33\u5b9a\u7248',
+    noStoreYet: '\u8fd8\u6ca1\u6709\u627e\u5230\u5b58\u50a8\u4ed3\u5e93\u3002',
+    noTokenHere: '\u672c\u6d4f\u89c8\u5668\u4e2d\u6ca1\u6709\u4ee4\u724c\u3002',
+    noneWord: '\u65e0',
+    nothingSaved: '\u6ca1\u6709\u5df2\u4fdd\u5b58\u7684\u5185\u5bb9\u3002',
+    openWord: '\u6253\u5f00',
+    partsWord: '\u4e2a\u5206\u7247',
+    pathWord: '\u8def\u5f84',
+    payloadLabel: '\u8f7d\u8377',
+    payloadUndecodable: '\u8f7d\u8377\u65e0\u6cd5\u89e3\u7801',
+    platformArm: 'Windows ARM',
+    platformWin64: 'Windows x64',
+    platformX86: 'Windows x86',
+    privateWord: '\u79c1\u6709',
+    publicWord: '\u516c\u5f00',
+    publishedInRepo: '\u5b83\u53d1\u5e03\u5728\u4ed3\u5e93\u4e2d\uff1a',
+    readingAccount: '\u6b63\u5728\u8bfb\u53d6\u8d26\u6237\u2026',
+    readingFile: '\u6b63\u5728\u8bfb\u53d6',
+    readingManifest: '\u6b63\u5728\u8bfb\u53d6\u6e05\u5355\u2026',
+    rejectedWord: '\u88ab\u62d2\u7edd\uff1a',
+    repoItself: '\u4ed3\u5e93\u672c\u8eab',
+    reposFailed: '\u65e0\u6cd5\u5217\u51fa\u4ed3\u5e93\uff1a',
+    repositoryWord: '\u4ed3\u5e93',
+    requestTitle: '\u8bf7\u6c42',
+    resetButton: '\u6e05\u9664\u672c\u6d4f\u89c8\u5668\u7684\u6570\u636e',
+    resetDone: '\u5df2\u6e05\u9664\u3002\u4ee4\u724c\u672a\u88ab\u6539\u52a8 \u2014\u2014 \u5982\u679c\u60f3\u53bb\u6389\u5b83\uff0c\u8bf7\u5230\u8d26\u6237\u9875\u9000\u51fa\u767b\u5f55\u3002',
+    resetGroup: '\u91cd\u7f6e',
+    resetText: '\u6e05\u9664\u672c\u6d4f\u89c8\u5668\u4e2d\u7684\u6240\u6709\u504f\u597d\u4e0e\u5df2\u4fdd\u5b58\u8bf7\u6c42\uff0c\u4e0d\u4f1a\u5f71\u54cd\u4f60\u7684 GitHub \u8d26\u6237\u6216\u4efb\u4f55\u4ed3\u5e93\u3002',
+    runExplains: '\u8fd0\u884c\u9875\u4f1a\u628a\u8bf7\u6c42\u4ea4\u7ed9\u4f60\u5df2\u7ecf\u5b89\u88c5\u7684\u90a3\u4efd\u5957\u4ef6\u3002',
+    runIdLabel: '\u8fd0\u884c ID',
+    savedRequestsText: '\u672c\u6d4f\u89c8\u5668\u6536\u5230\u7684\u8fd0\u884c\u8bf7\u6c42\uff0c\u6700\u65b0\u7684\u6392\u5728\u6700\u540e\u3002\u684c\u9762\u7a0b\u5e8f\u542f\u52a8\u65f6\u4f1a\u53d6\u8d70\u5b83\u4eec\u3002',
+    savedWord: '\u4fdd\u5b58\u65f6\u95f4',
+    showPrereleaseLabel: '\u663e\u793a\u9884\u53d1\u5e03\u7248\u672c',
+    showingFirst: '\u53ea\u663e\u793a\u524d',
+    signInAndContinue: '\u767b\u5f55\u5e76\u7ee7\u7eed',
+    signInToContinue: '\u8bf7\u767b\u5f55\u540e\u7ee7\u7eed\u3002',
+    signOutButton: '\u9000\u51fa\u767b\u5f55',
+    signedInAs: '\u5df2\u767b\u5f55\u4e3a',
+    sourceLabel: '\u6765\u6e90\uff1a',
+    storeWarning: '\u5b58\u50a8\u4ed3\u5e93\u662f\u684c\u9762\u7a0b\u5e8f\u5199\u5165\u7684 GitHub \u4ed3\u5e93\uff1b\u672c\u9875\u53ea\u8bfb\u53d6\u5b83\u3002',
+    themeNote: '\u9009\u597d\u5c31\u7acb\u5373\u751f\u6548\uff0c\u5e76\u8bb0\u5728\u8fd9\u4e2a\u6d4f\u89c8\u5668\u91cc\u3002',
+    themeToggle: '\u5207\u6362\u4e3b\u9898',
+    thisBrowser: '\u672c\u6d4f\u89c8\u5668',
+    tokenStoredNote: '\u4ee4\u724c\u4fdd\u5b58\u5728\u672c\u6d4f\u89c8\u5668\u4e2d\uff1b\u5185\u5bb9\u8bfb\u53d6\u53d1\u7ed9 Gitee\uff0c\u767b\u5f55\u6821\u9a8c\u4ecd\u53d1\u7ed9 api.github.com\u3002',
+    typeWord: '\u7c7b\u578b',
+    updatedWord: '\u66f4\u65b0\u65f6\u95f4',
+    validAs: '\u6709\u6548\uff0c\u5df2\u767b\u5f55\u4e3a',
+    visibilityWord: '\u53ef\u89c1\u6027',
+    volumeWord: '\u5206\u5377',
+    whatHappensNext: '\u63a5\u4e0b\u6765\u4f1a\u600e\u6837',
+    yesBrowserOnly: '\u662f\uff0c\u4ec5\u5728\u672c\u6d4f\u89c8\u5668',
+    yesWord: '\u662f'
+  });
+
+  // The language is the directory first (/cn/ is Chinese) and the
+  // declared <html lang> second, so a page never has to be told which copy of
+  // itself it is. assets/i18n.js holds the same rule; when that module is on
+  // the page this reads it, so there is one decided language everywhere.
   function lang() {
+    if (window.INFINITY && window.INFINITY.i18n && window.INFINITY.i18n.lang) return window.INFINITY.i18n.lang();
+    var path = '';
+    try { path = String(location.pathname || ''); } catch (e) { path = ''; }
+    if (/(^|\/)cn(\/|$)/.test(path)) return 'zh';
     var declared = (document.documentElement && document.documentElement.lang) ? document.documentElement.lang : '';
     if (declared && declared.toLowerCase().indexOf('zh') === 0) return 'zh';
     return 'en';
@@ -362,6 +680,12 @@
     var table = T[lang()] || T.en;
     if (key in table) return table[key];
     return (key in T.en) ? T.en[key] : key;
+  }
+
+  // When assets/i18n.js is on the page it holds the same table, and the other
+  // asset scripts ask it for strings. Registering keeps one dictionary.
+  if (window.INFINITY && window.INFINITY.i18n && window.INFINITY.i18n.register) {
+    window.INFINITY.i18n.register(T);
   }
 
   var DEFAULT_SETTINGS = {
@@ -397,7 +721,36 @@
     var merged = settings();
     for (var k in next) merged[k] = next[k];
     write(SETTINGS_KEY, JSON.stringify(merged));
+
     return merged;
+  }
+
+  /*
+   * The theme is an attribute on <html>, not a class on <body>, because
+   * assets/theme.js has to set it from <head> before the first paint and it
+   * can only reach the root element. Everything visual hangs off the CSS
+   * variables that attribute selects, so switching is one attribute write and
+   * no element has to be re-rendered.
+   */
+  function applyTheme(theme) {
+    var value = (theme === 'light') ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', value);
+    document.documentElement.style.colorScheme = value;
+    var button = document.querySelector('header.site .theme');
+    if (button) {
+      var next = (value === 'light') ? 'dark' : 'light';
+      button.setAttribute('data-next', next);
+      button.setAttribute('aria-label', t('themeToggle'));
+      button.setAttribute('title', t('themeToggle'));
+      button.textContent = (value === 'light') ? t('darkWord') : t('lightWord');
+    }
+    return value;
+  }
+  function toggleTheme() {
+    var current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    var next = (current === 'light') ? 'dark' : 'light';
+    saveSettings({ theme: next });
+    return applyTheme(next);
   }
 
   // ------------------------------------------------------------ network
@@ -413,7 +766,20 @@
     var opts = options || {};
     var headers = { 'Accept': 'application/vnd.github+json', 'User-Agent': 'Infinity.Inc-site' };
     if (token) headers['Authorization'] = 'Bearer ' + token;
-    return fetch('https://api.github.com' + path, {
+    /*
+     * Repository content - releases, contents, repository metadata - is read
+     * from the reader's own content source. Everything else (/user,
+     * /user/repos, /gists and the rest of the account conversation) stays on
+     * api.github.com in both languages: the suite's data lives in GitHub
+     * releases and a GitHub token is the only credential those endpoints
+     * accept. That exception is stated on the pages, not hidden here.
+     */
+    var url = 'https://api.github.com' + path;
+    if (/^\/repos\//.test(String(path || ''))) {
+      var s = source();
+      url = s.apiRoot + String(path).replace(/^\/repos\/zssx-2026\//, '/repos/' + s.owner + '/');
+    }
+    return fetch(url, {
       method: opts.method || 'GET',
       headers: headers,
       body: opts.body ? JSON.stringify(opts.body) : undefined
@@ -424,10 +790,9 @@
         try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
         if (!res.ok) {
           var message = (data && data.message) || ('HTTP ' + res.status);
-          if (res.status === 401) message = 'The token was rejected. Sign in again.';
-          else if (res.status === 403) message = 'GitHub refused the request: ' + message +
-            ' (a rate limit or a missing scope, not a bad token)';
-          else if (res.status === 404) message = 'Not found: ' + path;
+          if (res.status === 401) message = t('errTokenRejected');
+          else if (res.status === 403) message = t('errGithubRefused') + message + t('errGithubRefusedNote');
+          else if (res.status === 404) message = t('errNotFound') + path;
           var err = new Error(message);
           err.status = res.status;
           throw err;
@@ -438,14 +803,23 @@
   }
 
   function releases(repo) {
-    return gh('/repos/zssx-2026/' + repo + '/releases?per_page=30').catch(function (e) {
+    var s = source();
+    return gh('/repos/' + s.owner + '/' + repo + '/releases?per_page=30').then(function (list) {
+      /* Gitee describes a release slightly differently; sources.js folds it
+       * into the shape the pages already read. */
+      if (s.key !== 'github' && I.sources && I.sources.normalizeReleases) {
+        return I.sources.normalizeReleases(list, repo, s.lang);
+      }
+      return list;
+    }).catch(function (e) {
       if (e.status === 404) return [];
       throw e;
     });
   }
 
   function repoInfo(repo) {
-    return gh('/repos/zssx-2026/' + repo).catch(function (e) {
+    var s = source();
+    return gh('/repos/' + s.owner + '/' + repo).catch(function (e) {
       if (e.status === 404) return null;
       throw e;
     });
@@ -523,6 +897,7 @@
   }
 
   function link(href, text, className) {
+    href = mirror(href);
     var node = el('a', { href: href, class: className || null, text: text });
     if (isExternal(href)) {
       node.setAttribute('target', '_blank');
@@ -534,7 +909,7 @@
   /*
    * A route inside the site, in whichever language this page is in.
    *
-   * The Chinese copy lives at /infinity/cn/ and is otherwise identical, so
+   * The Chinese copy lives at /cn/ and is otherwise identical, so
    * every link has to come back to the language the reader is already in -
    * nav, breadcrumbs, the sign-in redirect and the product pages all go
    * through here. A page therefore never needs to know which directory it
@@ -561,12 +936,49 @@
    */
   function inChinese() { return location.pathname.indexOf('/cn/') >= 0; }
 
+  /*
+   * Chinese pages hand the reader to the same repositories and the same release
+   * assets, on the host that is reachable from there. It is a plain URL swap in
+   * one place: nothing on the page names the mirror, and calls made for signing
+   * in (api.github.com) are deliberately left alone because they are an API
+   * conversation, not a link the reader follows.
+   */
+  var MIRROR_FROM = 'https://github.com/zssx-2026';
+  var MIRROR_TO = 'https://gitee.com/zssx2026';
+
+  function mirror(href) {
+    if (!href || !inChinese()) return href;
+    /* sources.js rewrites the owner page, the REST base and raw files;
+     * the two constants are the plain URL-swap fallback for a page that did
+     * not load it. */
+    if (I.sources && typeof I.sources.mirror === 'function') {
+      return I.sources.mirror(href, 'zh');
+    }
+    if (href.indexOf(MIRROR_FROM) !== 0) return href;
+    return MIRROR_TO + href.slice(MIRROR_FROM.length);
+  }
+
+  /*
+   * Links built by the download and archive modules go straight into the DOM,
+   * so after every render the anchors already on the page are swapped too.
+   */
+  function applyMirror(root) {
+    if (!inChinese()) return;
+    var nodes = (root || document).querySelectorAll('a[href],img[src],[data-href]');
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      if (n.hasAttribute('href')) n.setAttribute('href', mirror(n.getAttribute('href')));
+      if (n.hasAttribute('data-href')) n.setAttribute('data-href', mirror(n.getAttribute('data-href')));
+      if (n.hasAttribute('src')) n.setAttribute('src', mirror(n.getAttribute('src')));
+    }
+  }
+
   function otherLanguageHref() {
     var path = location.pathname;
     var suffix = location.search || '';
     if (inChinese()) return path.replace('/cn/', '/') + suffix;
-    // Insert /cn/ right after the site base: /infinity/download/ becomes
-    // /infinity/cn/download/, and so on for every route.
+    // Insert /cn/ right after the site base: /download/ becomes
+    // /cn/download/, and so on for every route.
     if (path.indexOf(BASE_PATH) === 0) {
       var rest = path.slice(BASE_PATH.length);
       return BASE_PATH + '/cn' + (rest === '' || rest === '/' ? '/' : rest) + suffix;
@@ -595,40 +1007,49 @@
     // The other language, one click. The Chinese copy lives under /cn/ and
     // everything else is identical, so the switch is a path rewrite: take the
     // current route and move it in or out of /cn/.
+    // The theme switch sits in the header so the choice is reachable from
+    // every page, not only from the settings page. Two states, one button.
+    var themeBtn = el('button', {
+      class: 'theme', type: 'button',
+      'aria-label': t('themeToggle'), title: t('themeToggle')
+    });
+    themeBtn.addEventListener('click', function () { toggleTheme(); });
+    bar.appendChild(themeBtn);
     var other = el('a', { class: 'lang', href: otherLanguageHref(), title: labelForOtherLanguage() },
       [labelForOtherLanguage()]);
     bar.appendChild(other);
     bar.appendChild(who);
     var header = el('header', { class: 'site' }, [bar]);
     document.body.insertBefore(header, document.body.firstChild);
+    applyTheme(settings().theme);
     renderWho(who);
   }
 
   function renderWho(host) {
     clear(host);
     if (!token) {
-      host.appendChild(link(page('/login/'), 'Sign in'));
-      host.appendChild(link(page('/signup/'), 'Sign up'));
+      host.appendChild(link(page('/login/'), t('signIn')));
+      host.appendChild(link(page('/signup/'), t('signUp')));
       return;
     }
     if (user) {
       host.appendChild(el('img', { src: user.avatar_url, alt: '' }));
       host.appendChild(link(page('/myself/'), user.login));
     } else {
-      host.appendChild(link(page('/myself/'), 'Account'));
+      host.appendChild(link(page('/myself/'), t('account')));
     }
-    host.appendChild(link(page('/login/link/'), 'Link a product'));
+    host.appendChild(link(page('/login/link/'), t('linkProduct')));
   }
 
   function footer() {
     var inner = el('div', { class: 'inner' }, [
-      el('span', { text: 'Infinity.Inc — the Infinity suite.' }),
+      el('span', { text: t('footerSuite') }),
       el('span', {}, [
-        link('https://github.com/zssx-2026', 'GitHub'),
+        link(source().web, source().label),
         ' · ',
-        link(page('/docs/'), 'Documentation'),
+        link(page('/docs/'), t('docs')),
         ' · ',
-        link(page('/settings/'), 'Settings')
+        link(page('/settings/'), t('settings'))
       ])
     ]);
     document.body.appendChild(el('footer', { class: 'site' }, [inner]));
@@ -765,20 +1186,50 @@
 
       if (/^(-{3,}|\*{3,})$/.test(line.trim())) { closeList(); html.push('<hr>'); i++; continue; }
 
+      /*
+       * A four-space indent is a code block. Without this the indented
+       * examples in the project's own documents fall through to the
+       * paragraph rule below and lose every line break.
+       */
+      var indented = line.match(/^ {4}(.*)$/);
+      if (indented) {
+        closeList();
+        var block = [indented[1]];
+        i++;
+        while (i < lines.length && (/^ {4}/.test(lines[i]) || /^\s*$/.test(lines[i]))) {
+          block.push(lines[i].replace(/^ {4}/, ''));
+          i++;
+        }
+        html.push('<pre><code>' + esc(block.join('\n').replace(/\n+$/, '')) + '</code></pre>');
+        continue;
+      }
+
       var bullet = line.match(/^\s*[-*]\s+(.*)$/);
       var ordered = line.match(/^\s*\d+[.)]\s+(.*)$/);
       if (bullet || ordered) {
         var want = bullet ? 'ul' : 'ol';
         if (list !== want) { closeList(); html.push('<' + want + '>'); list = want; }
-        html.push('<li>' + inline((bullet || ordered)[1]) + '</li>');
+        var item = [(bullet || ordered)[1]];
         i++;
+        /*
+         * A wrapped item keeps its continuation lines: the indentation a
+         * writer uses is what CommonMark calls the block's content column,
+         * and a line indented to that column belongs to the item above it.
+         */
+        while (i < lines.length && !/^\s*$/.test(lines[i]) &&
+               !/^(#{1,6}\s|>|\s*```|\||\s*\d+[.)]\s|\s*[-*]\s)/.test(lines[i]) &&
+               /^ {2,}/.test(lines[i])) {
+          item.push(lines[i].trim());
+          i++;
+        }
+        html.push('<li>' + inline(item.join(' ')) + '</li>');
         continue;
       }
 
       closeList();
       var para = [line];
       i++;
-      while (i < lines.length && !/^\s*$/.test(lines[i]) && !/^(#|>|```|\||\s*[-*]\s|\s*\d+[.)]\s)/.test(lines[i])) {
+      while (i < lines.length && !/^\s*$/.test(lines[i]) && !/^(#|>|```|\||\s*[-*]\s|\s*\d+[.)]\s| {4}\S)/.test(lines[i])) {
         para.push(lines[i]);
         i++;
       }
@@ -804,7 +1255,7 @@
 
   function loading(host, what) {
     clear(host);
-    host.appendChild(el('div', { class: 'empty' }, [el('span', { class: 'spinner' }), ' ' + (what || 'Loading…')]));
+    host.appendChild(el('div', { class: 'empty' }, [el('span', { class: 'spinner' }), ' ' + (what || t('loadingDefault'))]));
   }
 
   function failure(host, message) {
@@ -874,10 +1325,17 @@
      * release itself, the one link that cannot go stale.
      */
     var here = location.pathname.replace(/\/+$/, '');
+    if (p.standalone) {
+      /* No installer ships for this product, so there is no download page to
+       * open: the card goes to the repository, which always exists. */
+      return mirror('https://github.com/zssx-2026/' + p.repo);
+    }
     if (/(^|\/)download$/.test(here) || /(^|\/)download\/index\.html$/.test(here)) {
       return page('/download/' + p.slug + '/');
     }
-    return 'https://github.com/zssx-2026/' + p.repo + '/releases/tag/' + RELEASE_TAG;
+    return source().releasePage
+      ? source().releasePage(p.repo, RELEASE_TAG)
+      : mirror('https://github.com/zssx-2026/' + p.repo + '/releases/tag/' + RELEASE_TAG);
   }
 
   function tagline(p) {
@@ -905,8 +1363,23 @@
     PRODUCTS.forEach(function (p) { host.appendChild(productCard(p)); });
   }
 
-  window.INFINITY = {
+  /* assets/sources.js is the canonical resolver; a page that did not load it
+   * still gets the same contract here, so a content URL can never silently
+   * stay on the wrong host. */
+  if (!I.sources) {
+    I.sources = {
+      github: buildFallback('en'),
+      gitee: buildFallback('zh'),
+      source: fallbackSource,
+      other: function (lang) { return buildFallback(lang === 'zh' ? 'en' : 'zh'); },
+      mirror: fallbackMirror,
+      normalizeReleases: fallbackNormalize
+    };
+  }
+
+  window.INFINITY = Object.assign(window.INFINITY || {}, {
     BASE: BASE,
+    source: source,
     BASE_PATH: BASE_PATH,
     RELEASE_TAG: RELEASE_TAG,
     PRODUCTS: PRODUCTS,
@@ -930,6 +1403,8 @@
     t: t,
     lang: lang,
     inChinese: inChinese,
+    mirror: mirror,
+    applyMirror: applyMirror,
     otherLanguageHref: otherLanguageHref,
     fmtSize: fmtSize,
     fmtDate: fmtDate,
@@ -941,6 +1416,8 @@
     assetsFor: assetsFor,
     settings: settings,
     saveSettings: saveSettings,
+    applyTheme: applyTheme,
+    toggleTheme: toggleTheme,
     token: function () { return token; },
     setToken: setToken,
     signOut: signOut,
@@ -948,5 +1425,18 @@
     requireAuth: requireAuth,
     user: function () { return user; },
     decodePayload: decodePayload
-  };
+  });
+
+  /*
+   * Renders happen after load as well (the download table fills in when its
+   * data arrives), so keep re-applying on new nodes instead of only once.
+   */
+  (function watch() {
+    var run = function () { applyMirror(document); };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+    else run();
+    if (window.MutationObserver) {
+      new MutationObserver(run).observe(document.documentElement, { childList: true, subtree: true });
+    }
+  })();
 })();

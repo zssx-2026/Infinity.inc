@@ -33,6 +33,21 @@ export function electronArch(targetId) {
   return null;
 }
 
+/*
+ * 管理员窗口的名字：<admin>_gui.exe。
+ *
+ * "prefix 后面加 x" 只在 ifm/ipm/int/ing 上成立；inc 的管理员前缀是
+ * inx（把 c 换成 x，不是 incx）。这一点由 cpp/tools/package.mjs 的 admin
+ * 字段、shell/main.js 的 ADMIN_TO_BASE 和各产品 mode.js 的 PREFIX 共同定义，
+ * 所以这里把六行写成一张表，名字不再依赖巧合。
+ */
+export const ADMIN_PREFIX = {
+  inc: 'inx', ipm: 'ipmx', int: 'intx'
+};
+export function adminGuiName(prefix) {
+  return (ADMIN_PREFIX[prefix] || (prefix + 'x')) + '_gui.exe';
+}
+
 export function guiDir(prefix, arch) {
   return path.join(BUILD, prefix + '_gui-win32-' + arch);
 }
@@ -66,9 +81,10 @@ export function stageGui(dest, prefix, targetId) {
 
   fs.cpSync(src, dest, { recursive: true, dereference: false });
 
-  const admin = path.join(dest, prefix + 'x_gui.exe');
+  const adminName = adminGuiName(prefix);
+  const admin = path.join(dest, adminName);
   try { fs.copyFileSync(main, admin); }
   catch (e) { /* the copy is best effort; the user's name is what matters */ }
 
-  return [prefix + '_gui.exe', prefix + 'x_gui.exe'];
+  return [prefix + '_gui.exe', adminName];
 }

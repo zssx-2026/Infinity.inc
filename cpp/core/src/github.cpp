@@ -5,7 +5,7 @@
 
 namespace inc {
 
-const char* version() { return "1.0.0-pre4"; }
+const char* version() { return "1.0.0-pre5"; }
 
 static std::string api(const std::string& path) {
   return std::string(GitHub::apiBase()) + path;

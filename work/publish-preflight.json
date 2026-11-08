@@ -1,0 +1,83 @@
+{
+ "at": "2026-10-18T11:39:19.211Z",
+ "tag": "v1.0.0-pre5",
+ "version": "1.0.0-pre5",
+ "assets": 5,
+ "techOk": true,
+ "anonymousApiQuota": false,
+ "checks": [
+  {
+   "name": "release-set-parity",
+   "exit": 0,
+   "ok": true,
+   "needle": "RELEASE-SET-PARITY-PASS",
+   "secs": 0.2
+  },
+  {
+   "name": "sha256sums:cpp/release/v1.0pre5",
+   "exit": 0,
+   "ok": true,
+   "needle": "\"problems\": []",
+   "secs": 0.1
+  },
+  {
+   "name": "sha256sums:installers/packaging/v1.0pre5",
+   "exit": 0,
+   "ok": true,
+   "needle": "\"problems\": []",
+   "secs": 0.1
+  },
+  {
+   "name": "gen-releases-check",
+   "exit": 0,
+   "ok": true,
+   "needle": "RELEASES-CHECK-PASS",
+   "secs": 0.1
+  },
+  {
+   "name": "site-release-consistency",
+   "exit": 0,
+   "ok": true,
+   "needle": "failed: 0",
+   "secs": 0.1
+  },
+  {
+   "name": "ghsync-dry-local",
+   "exit": 0,
+   "ok": true,
+   "needle": "0 errors",
+   "secs": 0.4
+  },
+  {
+   "name": "docs-hash-coverage",
+   "exit": 0,
+   "ok": true,
+   "needle": "12/12 in both docs",
+   "secs": 0
+  }
+ ],
+ "docsCoverage": {
+  "docs/RELEASE-v1.0pre5.md": {
+   "hashes": 12,
+   "missing": 0
+  },
+  "docs/RELEASE-v1.0pre5-body.md": {
+   "hashes": 12,
+   "missing": 0
+  }
+ },
+ "gates": [
+  {
+   "gate": "EV_GH_TOKEN",
+   "present": false,
+   "note": "Contents:Read+Write 的 GitHub token（环境变量）"
+  },
+  {
+   "gate": "written-approval",
+   "present": false,
+   "note": "work/_publish-approval.txt 内的书面批准"
+  }
+ ],
+ "publishReady": false,
+ "nextCommand": "node work/ghsync.mjs --apply --remote   (需 token + 批准后手动执行)"
+}

@@ -24,7 +24,7 @@ import { Store, normPath, parentOf } from '../store/store.js';
 import { load } from '../core/config.js';
 import { openBrowser } from '../core/mode.js';
 
-const VERSION = 'v1.0pre2';
+const VERSION = 'v1.0.0-pre5';
 const PORT = 7621;
 
 /* ------------------------------------------------------------------ state */
@@ -257,6 +257,8 @@ button.b.p{background:var(--acc);color:#08111c;border-color:var(--acc);font-weig
 .card:hover .act{display:flex}
 .card .act button{background:#0b1017cc;border:1px solid var(--line);color:var(--dim);border-radius:5px;width:24px;height:24px;cursor:pointer;font-size:12px;line-height:1}
 .card .act button:hover{color:var(--fg);border-color:var(--acc)}
+.guide{padding:8px 18px;color:var(--dim);font-size:12.5px;border-bottom:1px solid var(--line);background:var(--panel)}
+.guide.hide{display:none}
 .empty{margin:auto;text-align:center;color:var(--dim);grid-column:1/-1;padding:60px 0}
 footer{padding:8px 18px;border-top:1px solid var(--line);color:var(--dim);font-size:12px;display:flex;gap:16px}
 .modal{position:fixed;inset:0;background:#000000b0;display:none;align-items:center;justify-content:center;z-index:50}
@@ -280,6 +282,7 @@ footer{padding:8px 18px;border-top:1px solid var(--line);color:var(--dim);font-s
   <button class="b" id="newdir">新建文件夹</button>
   <button class="b" id="refresh">刷新</button>
 </div>
+<div class="guide" id="guide">第一次使用：先登录 → 点「上传」或拖入文件 → 双击文件夹进入。</div>
 <div class="grid" id="grid"></div>
 <footer><span id="stat">-</span><span id="hint">拖拽文件到此处上传</span></footer>
 <input type="file" id="file" multiple hidden>
@@ -335,7 +338,7 @@ async function load(){
     if(!(j.items||[]).length)g.innerHTML='<div class="empty">回收站是空的</div>'; $('#stat').textContent=(j.count||0)+' 项'; return; }
   var j=await api('/api/list?path='+encodeURIComponent(cwd));
   if(!j.ok) return needSignIn(j.reason);
-  cwd=j.path; $('#who').textContent=j.user||''; $('#total').textContent='共 '+j.total;
+  cwd=j.path; $('#who').textContent=j.user||''; $('#total').textContent='共 '+j.total; $('#guide').classList.add('hide');
   renderCrumbs(j.crumbs); g.innerHTML='';
   (j.items||[]).forEach(function(it){g.appendChild(card(it))});
   if(!(j.items||[]).length)g.innerHTML='<div class="empty">这个文件夹是空的<br>把文件拖进来，或点「上传」</div>';

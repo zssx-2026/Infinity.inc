@@ -23,6 +23,12 @@ if(NOT WIN32)
   message(FATAL_ERROR "Infinity.Inc is built for Windows; the Win32 API is used directly.")
 endif()
 
+# The product icon and the VERSIONINFO block are resources, and resources are
+# compiled by windres rather than by the C++ compiler. Naming RC as a language
+# here is what makes CMake route a .rc source to the resource compiler and link
+# the object it produces.
+enable_language(RC)
+
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -49,16 +55,33 @@ target_link_libraries(inc_core PUBLIC winhttp bcrypt shell32 comctl32 ws2_32)
 add_library(inc_common STATIC ${CMAKE_CURRENT_SOURCE_DIR}/common/unblock.cpp)
 target_include_directories(inc_common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/common)
 
+# ---------------------------------------------------------------- resources
+
+# One resource script per application carries the product icon (an icon group
+# plus the icons it names) and the VERSIONINFO strings Explorer shows.
+# tools/build.mjs writes <app>.rc into this build directory before configuring,
+# because the icon file and the version already live outside CMake; the build
+# here only has to hand the file to windres and link the object. The file is
+# added when it exists so a hand-run configure still works, and build.mjs fails
+# the build afterwards if an executable came out without a resource directory.
+set(INC_RC_DIR ${CMAKE_CURRENT_BINARY_DIR}/rc)
+
 # ---------------------------------------------------------------- apps
 
-# Each application produces ONE executable. The eight names are copies of it,
+# Each application produces ONE executable. Its names are copies of it,
 # made after the build by tools/build.mjs, exactly as the Node build hard
 # linked them - the program reads its own file name to know which face to be.
-set(INC_APPS inc ifm ipm iim int ing)
+set(INC_APPS inc ipm)
 
 foreach(app ${INC_APPS})
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/apps/${app}/main.cpp)
-    add_executable(${app} apps/${app}/main.cpp)
+    set(INC_RC_SRC ${INC_RC_DIR}/${app}.rc)
+    if(EXISTS ${INC_RC_SRC})
+      add_executable(${app} apps/${app}/main.cpp ${INC_RC_SRC})
+    else()
+      message(WARNING "${app}: ${INC_RC_SRC} is missing, so the icon and VERSIONINFO resource are not built in; run tools/build.mjs")
+      add_executable(${app} apps/${app}/main.cpp)
+    endif()
     target_link_libraries(${app} PRIVATE inc_core inc_common)
     set_target_properties(${app} PROPERTIES OUTPUT_NAME ${app})
   endif()

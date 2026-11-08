@@ -1,0 +1,615 @@
+{
+  "newtab@120": {
+    "phase": "newtab",
+    "cycle": "0",
+    "frozenAt": "120",
+    "pausedAnimations": "4",
+    "animations": [
+      "transform 120/220 paused",
+      "tab-enter 120/260 paused",
+      "view-in 120/200 paused"
+    ],
+    "indicator": {
+      "x": "294",
+      "width": "0px",
+      "transform": "matrix(1, 0, 0, 1, 283.582, 0)",
+      "transitionDuration": "0.22s, 0.22s, 0.12s"
+    },
+    "tabs": [
+      {
+        "id": "tab-7cuwr",
+        "title": "新建标签页",
+        "cls": "tab",
+        "active": false,
+        "x": 8,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "background, color, box-shadow, transform 0.16s, 0.16s, 0.16s, 0.14s"
+      },
+      {
+        "id": "tab-8ae7s",
+        "title": "Infinity 云",
+        "cls": "tab",
+        "active": false,
+        "x": 79,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "background, color, box-shadow, transform 0.16s, 0.16s, 0.16s, 0.14s"
+      },
+      {
+        "id": "tab-9n9lp",
+        "title": "Infinity 工具箱",
+        "cls": "tab",
+        "active": false,
+        "x": 150,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "background, color, box-shadow, transform 0.16s, 0.16s, 0.16s, 0.14s"
+      },
+      {
+        "id": "tab-aplub",
+        "title": "Infinity 文件管理器",
+        "cls": "tab",
+        "active": false,
+        "x": 221,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "background, color, box-shadow, transform 0.16s, 0.16s, 0.16s, 0.14s"
+      },
+      {
+        "id": "tab-clxtg",
+        "title": "新建标签页",
+        "cls": "tab active enter",
+        "active": true,
+        "x": 292,
+        "w": 65,
+        "h": 34,
+        "opacity": "0.999453",
+        "transform": "matrix(0.997715, 0, 0, 0.997715, 0, 0.228515)",
+        "animation": "tab-enter 0.26s cubic-bezier(0.16, 1, 0.3, 1)",
+        "transition": "background, color, box-shadow, transform 0.22s, 0.22s, 0.16s, 0.14s"
+      }
+    ],
+    "bootError": null,
+    "jsError": null
+  },
+  "newtab@250": {
+    "phase": "newtab",
+    "cycle": "0",
+    "frozenAt": "250",
+    "pausedAnimations": "4",
+    "animations": [
+      "tab-enter 250/260 paused"
+    ],
+    "indicator": {
+      "x": "294",
+      "width": "0px",
+      "transform": "matrix(1, 0, 0, 1, 294.06, 0)",
+      "transitionDuration": "0.22s, 0.22s, 0.12s"
+    },
+    "tabs": [
+      {
+        "id": "tab-bwtth",
+        "title": "新建标签页",
+        "cls": "tab",
+        "active": false,
+        "x": 8,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "background, color, box-shadow, transform 0.16s, 0.16s, 0.16s, 0.14s"
+      },
+      {
+        "id": "tab-c7bia",
+        "title": "Infinity 云",
+        "cls": "tab",
+        "active": false,
+        "x": 79,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "background, color, box-shadow, transform 0.16s, 0.16s, 0.16s, 0.14s"
+      },
+      {
+        "id": "tab-d6by9",
+        "title": "Infinity 工具箱",
+        "cls": "tab",
+        "active": false,
+        "x": 150,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "background, color, box-shadow, transform 0.16s, 0.16s, 0.16s, 0.14s"
+      },
+      {
+        "id": "tab-ecuoq",
+        "title": "Infinity 文件管理器",
+        "cls": "tab",
+        "active": false,
+        "x": 221,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "background, color, box-shadow, transform 0.16s, 0.16s, 0.16s, 0.14s"
+      },
+      {
+        "id": "tab-gq1i5",
+        "title": "新建标签页",
+        "cls": "tab active enter",
+        "active": true,
+        "x": 292,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "matrix(1, 0, 0, 1, 0, 3.85451e-05)",
+        "animation": "tab-enter 0.26s cubic-bezier(0.16, 1, 0.3, 1)",
+        "transition": "background, color, box-shadow, transform 0.22s, 0.22s, 0.16s, 0.14s"
+      }
+    ],
+    "bootError": null,
+    "jsError": null
+  },
+  "close@60": {
+    "phase": "close",
+    "cycle": "0",
+    "frozenAt": "60",
+    "pausedAnimations": "8",
+    "animations": [
+      "opacity 60/120 paused",
+      "transform 60/220 paused",
+      "width 60/220 paused",
+      "transform 60/140 paused",
+      "transform 60/240 paused",
+      "transform 60/240 paused",
+      "tab-exit 60/200 paused",
+      "view-in 60/200 paused"
+    ],
+    "indicator": {
+      "x": "81",
+      "width": "49.125px",
+      "transform": "matrix(1, 0, 0, 1, 70.4244, 0)",
+      "transitionDuration": "0.22s, 0.22s, 0.12s"
+    },
+    "tabs": [
+      {
+        "id": "tab-b9drs",
+        "title": "新建标签页",
+        "cls": "tab exit",
+        "active": false,
+        "x": 8,
+        "w": 64,
+        "h": 34,
+        "opacity": "0.946291",
+        "transform": "matrix(0.994629, 0, 0, 0.994629, 0, 0.214837)",
+        "animation": "tab-exit 0.2s cubic-bezier(0.55, 0.06, 0.68, 0.19)",
+        "transition": "background, color, box-shadow, transform 0.16s, 0.16s, 0.16s, 0.14s"
+      },
+      {
+        "id": "tab-ca67i",
+        "title": "Infinity 云",
+        "cls": "tab active flip",
+        "active": true,
+        "x": 11,
+        "w": 82,
+        "h": 34,
+        "opacity": "1",
+        "transform": "matrix(1, 0, 0, 1, 3.46649, 0)",
+        "animation": "none 0s ease",
+        "transition": "background, color, box-shadow, transform 0.22s, 0.22s, 0.16s, 0.14s"
+      },
+      {
+        "id": "tab-dmr34",
+        "title": "Infinity 工具箱",
+        "cls": "tab flip",
+        "active": false,
+        "x": 107,
+        "w": 82,
+        "h": 34,
+        "opacity": "1",
+        "transform": "matrix(1, 0, 0, 1, 13.6164, 0)",
+        "animation": "none 0s ease",
+        "transition": "transform 0.24s"
+      },
+      {
+        "id": "tab-efy7m",
+        "title": "Infinity 文件管理器",
+        "cls": "tab flip",
+        "active": false,
+        "x": 188,
+        "w": 82,
+        "h": 34,
+        "opacity": "1",
+        "transform": "matrix(1, 0, 0, 1, 10.272, 0)",
+        "animation": "none 0s ease",
+        "transition": "transform 0.24s"
+      }
+    ],
+    "bootError": null,
+    "jsError": null
+  },
+  "close@160": {
+    "phase": "close",
+    "cycle": "0",
+    "frozenAt": "160",
+    "pausedAnimations": "8",
+    "animations": [
+      "transform 160/220 paused",
+      "width 160/220 paused",
+      "transform 160/240 paused",
+      "transform 160/240 paused",
+      "tab-exit 160/200 paused",
+      "view-in 160/200 paused"
+    ],
+    "indicator": {
+      "x": "81",
+      "width": "61.4531px",
+      "transform": "matrix(1, 0, 0, 1, 80.3783, 0)",
+      "transitionDuration": "0.22s, 0.22s, 0.12s"
+    },
+    "tabs": [
+      {
+        "id": "tab-985vz",
+        "title": "新建标签页",
+        "cls": "tab exit",
+        "active": false,
+        "x": 9,
+        "w": 30,
+        "h": 32,
+        "opacity": "0.462258",
+        "transform": "matrix(0.946226, 0, 0, 0.946226, 0, 2.15097)",
+        "animation": "tab-exit 0.2s cubic-bezier(0.55, 0.06, 0.68, 0.19)",
+        "transition": "background, color, box-shadow, transform 0.16s, 0.16s, 0.16s, 0.14s"
+      },
+      {
+        "id": "tab-ag9ht",
+        "title": "Infinity 云",
+        "cls": "tab active flip",
+        "active": true,
+        "x": 8,
+        "w": 82,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "background, color, box-shadow, transform 0.22s, 0.22s, 0.16s, 0.14s"
+      },
+      {
+        "id": "tab-bbcyd",
+        "title": "Infinity 工具箱",
+        "cls": "tab flip",
+        "active": false,
+        "x": 94,
+        "w": 82,
+        "h": 34,
+        "opacity": "1",
+        "transform": "matrix(1, 0, 0, 1, 0.851854, 0)",
+        "animation": "none 0s ease",
+        "transition": "transform 0.24s"
+      },
+      {
+        "id": "tab-cw1dn",
+        "title": "Infinity 文件管理器",
+        "cls": "tab flip",
+        "active": false,
+        "x": 179,
+        "w": 82,
+        "h": 34,
+        "opacity": "1",
+        "transform": "matrix(1, 0, 0, 1, 0.642626, 0)",
+        "animation": "none 0s ease",
+        "transition": "transform 0.24s"
+      }
+    ],
+    "bootError": null,
+    "jsError": null
+  },
+  "switch@110": {
+    "phase": "switch",
+    "cycle": "0",
+    "frozenAt": "110",
+    "pausedAnimations": "4",
+    "animations": [
+      "opacity 110/120 paused",
+      "width 110/220 paused",
+      "transform 110/220 paused",
+      "view-in 110/200 paused"
+    ],
+    "indicator": {
+      "x": "152",
+      "width": "45.5938px",
+      "transform": "matrix(1, 0, 0, 1, 144.895, 0)",
+      "transitionDuration": "0.22s, 0.22s, 0.12s"
+    },
+    "tabs": [
+      {
+        "id": "tab-9cd1r",
+        "title": "新建标签页",
+        "cls": "tab",
+        "active": false,
+        "x": 8,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "background, color, box-shadow, transform 0.16s, 0.16s, 0.16s, 0.14s"
+      },
+      {
+        "id": "tab-ahuew",
+        "title": "Infinity 云",
+        "cls": "tab",
+        "active": false,
+        "x": 79,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "background, color, box-shadow, transform 0.16s, 0.16s, 0.16s, 0.14s"
+      },
+      {
+        "id": "tab-bm3v3",
+        "title": "Infinity 工具箱",
+        "cls": "tab active",
+        "active": true,
+        "x": 150,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "background, color, box-shadow, transform 0.22s, 0.22s, 0.16s, 0.14s"
+      },
+      {
+        "id": "tab-cm1zd",
+        "title": "Infinity 文件管理器",
+        "cls": "tab",
+        "active": false,
+        "x": 221,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "background, color, box-shadow, transform 0.16s, 0.16s, 0.16s, 0.14s"
+      }
+    ],
+    "bootError": null,
+    "jsError": null
+  },
+  "switch@210": {
+    "phase": "switch",
+    "cycle": "0",
+    "frozenAt": "210",
+    "pausedAnimations": "4",
+    "animations": [
+      "width 210/220 paused",
+      "transform 210/220 paused"
+    ],
+    "indicator": {
+      "x": "152",
+      "width": "47.9844px",
+      "transform": "matrix(1, 0, 0, 1, 151.98, 0)",
+      "transitionDuration": "0.22s, 0.22s, 0.12s"
+    },
+    "tabs": [
+      {
+        "id": "tab-a59qi",
+        "title": "新建标签页",
+        "cls": "tab",
+        "active": false,
+        "x": 8,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "background, color, box-shadow, transform 0.16s, 0.16s, 0.16s, 0.14s"
+      },
+      {
+        "id": "tab-bcb5v",
+        "title": "Infinity 云",
+        "cls": "tab",
+        "active": false,
+        "x": 79,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "background, color, box-shadow, transform 0.16s, 0.16s, 0.16s, 0.14s"
+      },
+      {
+        "id": "tab-cms9g",
+        "title": "Infinity 工具箱",
+        "cls": "tab active",
+        "active": true,
+        "x": 150,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "background, color, box-shadow, transform 0.22s, 0.22s, 0.16s, 0.14s"
+      },
+      {
+        "id": "tab-dkb1b",
+        "title": "Infinity 文件管理器",
+        "cls": "tab",
+        "active": false,
+        "x": 221,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "background, color, box-shadow, transform 0.16s, 0.16s, 0.16s, 0.14s"
+      }
+    ],
+    "bootError": null,
+    "jsError": null
+  },
+  "drag@200": {
+    "phase": "drag",
+    "cycle": "0",
+    "frozenAt": "200",
+    "pausedAnimations": "6",
+    "animations": [
+      "transform 200/220 paused",
+      "width 200/220 paused",
+      "transform 200/240 paused",
+      "transform 200/240 paused"
+    ],
+    "indicator": {
+      "x": "248",
+      "width": "50px",
+      "transform": "matrix(1, 0, 0, 1, 247.827, 0)",
+      "transitionDuration": "0.22s, 0.22s, 0.12s"
+    },
+    "tabs": [
+      {
+        "id": "tab-abj25",
+        "title": "新建标签页",
+        "cls": "tab",
+        "active": false,
+        "x": 8,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "transform 0.24s"
+      },
+      {
+        "id": "tab-c7ai5",
+        "title": "Infinity 工具箱",
+        "cls": "tab flip",
+        "active": false,
+        "x": 79,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "matrix(1, 0, 0, 1, 0.186347, 0)",
+        "animation": "none 0s ease",
+        "transition": "transform 0.24s"
+      },
+      {
+        "id": "tab-dnpd0",
+        "title": "Infinity 文件管理器",
+        "cls": "tab flip",
+        "active": false,
+        "x": 150,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "matrix(1, 0, 0, 1, 0.186347, 0)",
+        "animation": "none 0s ease",
+        "transition": "transform 0.24s"
+      },
+      {
+        "id": "tab-bvtq7",
+        "title": "Infinity 云",
+        "cls": "tab active dragging",
+        "active": true,
+        "x": 246,
+        "w": 70,
+        "h": 35,
+        "opacity": "0.96",
+        "transform": "matrix(1.03, 0, 0, 1.03, 26, -5)",
+        "animation": "none 0s ease",
+        "transition": "none 0s"
+      }
+    ],
+    "bootError": null,
+    "jsError": null
+  },
+  "drag@380": {
+    "phase": "drag",
+    "cycle": "0",
+    "frozenAt": "380",
+    "pausedAnimations": "6",
+    "animations": [],
+    "indicator": {
+      "x": "248",
+      "width": "50.0312px",
+      "transform": "matrix(1, 0, 0, 1, 247.98, 0)",
+      "transitionDuration": "0.22s, 0.22s, 0.12s"
+    },
+    "tabs": [
+      {
+        "id": "tab-a26ix",
+        "title": "新建标签页",
+        "cls": "tab",
+        "active": false,
+        "x": 8,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "transform 0.24s"
+      },
+      {
+        "id": "tab-cjtdw",
+        "title": "Infinity 工具箱",
+        "cls": "tab flip",
+        "active": false,
+        "x": 79,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "transform 0.24s"
+      },
+      {
+        "id": "tab-dfq76",
+        "title": "Infinity 文件管理器",
+        "cls": "tab flip",
+        "active": false,
+        "x": 150,
+        "w": 68,
+        "h": 34,
+        "opacity": "1",
+        "transform": "none",
+        "animation": "none 0s ease",
+        "transition": "transform 0.24s"
+      },
+      {
+        "id": "tab-bxrvs",
+        "title": "Infinity 云",
+        "cls": "tab active dragging",
+        "active": true,
+        "x": 246,
+        "w": 70,
+        "h": 35,
+        "opacity": "0.96",
+        "transform": "matrix(1.03, 0, 0, 1.03, 26, -5)",
+        "animation": "none 0s ease",
+        "transition": "none 0s"
+      }
+    ],
+    "bootError": null,
+    "jsError": null
+  }
+}

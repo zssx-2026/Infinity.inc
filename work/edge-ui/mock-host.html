@@ -42,7 +42,9 @@
     switch (f.type) {
       case "shell.ready":
         reply("host.info", { host: "mock-host", engine: "Chromium (embedded)", runtime: "postMessage", protocol: "infinity-shell/1" });
-        reply("host.config", { themeMode: "dark", sidebar: true, home: "inc://cloud" });
+        /* render:"iframe" tells the shell to draw app pages inline; a native host
+           would omit it and composite its own WebView over the content rect. */
+        reply("host.config", { themeMode: "dark", sidebar: true, home: "inc://cloud", render: "iframe" });
         break;
       case "shell.open":
       case "shell.navigate":

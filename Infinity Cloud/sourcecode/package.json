@@ -1,7 +1,7 @@
 {
   "author": "Infinity.Inc",
   "name": "infinity-cloud",
-  "version": "1.0.0-pre2",
+  "version": "1.0.0-pre5",
   "description": "Infinity Cloud - a GitHub-backed cloud drive",
   "type": "module",
   "main": "src/main.js",

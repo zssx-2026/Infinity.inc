@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-19T08:35:51.920Z",
+  "updatedAt": "2026-10-06T01:34:24.624Z",
   "source": {
     "owner": "zssx-2026",
     "repo": "applications",
@@ -8,6 +8,106 @@
     "releases": "https://github.com/zssx-2026/applications/releases"
   },
   "releases": [
+    {
+      "id": 402971815,
+      "tag": "application-piik",
+      "name": "application-piik",
+      "repo": "zssx-2026/applications",
+      "prerelease": false,
+      "draft": false,
+      "publishedAt": "2026-10-04T10:47:54Z",
+      "createdAt": "2026-09-28T10:09:07Z",
+      "htmlUrl": "https://github.com/zssx-2026/applications/releases/tag/application-piik",
+      "assets": [
+        {
+          "id": 609657104,
+          "name": "name.txt",
+          "size": 53,
+          "contentType": "application/octet-stream",
+          "downloadCount": 0,
+          "createdAt": "2026-10-04T10:52:08Z",
+          "updatedAt": "2026-10-04T10:52:08Z",
+          "type": "unknown",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application-piik/name.txt",
+          "digest": "sha256:25935b0f48a2bfddd7927d033d2718280f7aa000776c3f8b3a1fd98d46ae8e79"
+        },
+        {
+          "id": 609650642,
+          "name": "Piik_1.0.0_win64_port.zip",
+          "size": 37994813,
+          "contentType": "application/octet-stream",
+          "downloadCount": 0,
+          "createdAt": "2026-10-04T10:47:55Z",
+          "updatedAt": "2026-10-04T10:48:01Z",
+          "type": "archive",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application-piik/Piik_1.0.0_win64_port.zip",
+          "digest": "sha256:f1449e59290d7d2f68a16efcb5c6c499f5b2afcfba7ca12750126761db121df6"
+        }
+      ],
+      "kind": "app",
+      "nameTxt": {
+        "raw": "Piik_1.0.0_win64_port.zip 1.0.0 Piik port null win64\n",
+        "entries": [
+          {
+            "fileName": "Piik_1.0.0_win64_port.zip",
+            "version": "1.0.0",
+            "name": "Piik",
+            "type": "port",
+            "company": "null"
+          }
+        ]
+      }
+    },
+    {
+      "id": 402971764,
+      "tag": "application-once-power",
+      "name": "application-once-power",
+      "repo": "zssx-2026/applications",
+      "prerelease": false,
+      "draft": false,
+      "publishedAt": "2026-10-04T10:47:45Z",
+      "createdAt": "2026-09-28T10:09:07Z",
+      "htmlUrl": "https://github.com/zssx-2026/applications/releases/tag/application-once-power",
+      "assets": [
+        {
+          "id": 609657035,
+          "name": "name.txt",
+          "size": 72,
+          "contentType": "application/octet-stream",
+          "downloadCount": 0,
+          "createdAt": "2026-10-04T10:52:05Z",
+          "updatedAt": "2026-10-04T10:52:06Z",
+          "type": "unknown",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application-once-power/name.txt",
+          "digest": "sha256:1efd7b28a0e993cbed0869e7a7df9a9b042277b76ff68184156ee09562fb782a"
+        },
+        {
+          "id": 609650413,
+          "name": "once_power_3.1.3_win64_port.zip",
+          "size": 31454111,
+          "contentType": "application/octet-stream",
+          "downloadCount": 0,
+          "createdAt": "2026-10-04T10:47:47Z",
+          "updatedAt": "2026-10-04T10:47:52Z",
+          "type": "archive",
+          "url": "https://github.com/zssx-2026/applications/releases/download/application-once-power/once_power_3.1.3_win64_port.zip",
+          "digest": "sha256:a656ec035a31cebbbd08ae7cc5fd994e292f1eed8dac5e8c3d7d67ff8a2a332b"
+        }
+      ],
+      "kind": "app",
+      "nameTxt": {
+        "raw": "once_power_3.1.3_win64_port.zip 3.1.3 once_power port com.ilgnefz win64\n",
+        "entries": [
+          {
+            "fileName": "once_power_3.1.3_win64_port.zip",
+            "version": "3.1.3",
+            "name": "once_power",
+            "type": "port",
+            "company": "com.ilgnefz"
+          }
+        ]
+      }
+    },
     {
       "id": 387565520,
       "tag": "application2",
@@ -28,7 +128,8 @@
           "createdAt": "2026-09-19T03:19:31Z",
           "updatedAt": "2026-09-19T03:19:37Z",
           "type": "installer",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application2/ente-auth-v4.4.25-installer.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/ente-auth-v4.4.25-installer.exe",
+          "digest": "sha256:22cc8809692310c45257af7ccfdb5c798a2f681f90daae165f53e5a2073fbbe6"
         },
         {
           "id": 573971762,
@@ -39,7 +140,8 @@
           "createdAt": "2026-09-19T03:19:37Z",
           "updatedAt": "2026-09-19T03:19:45Z",
           "type": "installer",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application2/mcaselector-2.8-setup.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/mcaselector-2.8-setup.exe",
+          "digest": "sha256:fbf96d170cc7243ba5d19311b6adf05c609c2a7ec25ca7e6991ad6fdddcd71e3"
         },
         {
           "id": 573971921,
@@ -50,29 +152,32 @@
           "createdAt": "2026-09-19T03:19:45Z",
           "updatedAt": "2026-09-19T03:20:43Z",
           "type": "exe",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application2/MCreator.2026.2.Windows.64bit.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/MCreator.2026.2.Windows.64bit.exe",
+          "digest": "sha256:b1a86ab877f3354c778778039bdaec5c49d29595935036b73ca5ef64d6ea8002"
         },
         {
           "id": 573973071,
           "name": "MCTier.exe",
           "size": 53694464,
           "contentType": "application/x-msdownload",
-          "downloadCount": 0,
+          "downloadCount": 2,
           "createdAt": "2026-09-19T03:20:43Z",
           "updatedAt": "2026-09-19T03:20:51Z",
           "type": "exe",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application2/MCTier.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/MCTier.exe",
+          "digest": "sha256:6cf8b872b34d43a456a8ccc934dc8dbe7d09092dbf809bb4f0d59d872ea0910c"
         },
         {
           "id": 574140056,
           "name": "name.txt",
           "size": 536,
           "contentType": "text/plain",
-          "downloadCount": 3,
+          "downloadCount": 9,
           "createdAt": "2026-09-19T05:21:24Z",
           "updatedAt": "2026-09-19T05:21:30Z",
           "type": "unknown",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application2/name.txt"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/name.txt",
+          "digest": "sha256:c5ed29b39d01df9c880c2e3d42059a12b9f44e589e25c16845a38b50cd41cda2"
         },
         {
           "id": 573998838,
@@ -83,7 +188,8 @@
           "createdAt": "2026-09-19T03:40:31Z",
           "updatedAt": "2026-09-19T03:40:46Z",
           "type": "exe",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application2/Steam._v3.1.0_win_x64.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/Steam._v3.1.0_win_x64.exe",
+          "digest": "sha256:edac49338697ea4f3ebc0b5badc7ddaa91eb1bf0c97ed16f4cba37f8d543b911"
         },
         {
           "id": 573973329,
@@ -94,7 +200,8 @@
           "createdAt": "2026-09-19T03:20:54Z",
           "updatedAt": "2026-09-19T03:21:00Z",
           "type": "exe",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application2/vlc-3.0.23-win64.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/vlc-3.0.23-win64.exe",
+          "digest": "sha256:20ad191348684b470ddc4e05204316f3d8e39655f412b3e392a0eef97639daaf"
         },
         {
           "id": 574043403,
@@ -105,18 +212,20 @@
           "createdAt": "2026-09-19T04:12:54Z",
           "updatedAt": "2026-09-19T04:13:36Z",
           "type": "exe",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application2/VMware-Workstation-Full-25H2u1-25219725.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/VMware-Workstation-Full-25H2u1-25219725.exe",
+          "digest": "sha256:b592c47756d47c932a3ce2c2b83ad3af1fa23ccc1dd1d3166a51bcc1d2bd58e0"
         },
         {
           "id": 574044430,
           "name": "VMware-Workstation-Full-26H1u1-25688693.exe",
           "size": 280609368,
           "contentType": "application/x-msdownload",
-          "downloadCount": 2,
+          "downloadCount": 4,
           "createdAt": "2026-09-19T04:13:36Z",
           "updatedAt": "2026-09-19T04:14:29Z",
           "type": "exe",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application2/VMware-Workstation-Full-26H1u1-25688693.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/VMware-Workstation-Full-26H1u1-25688693.exe",
+          "digest": "sha256:3d775c3c2153600eef4642f95d519a514ba7e861400bda2598352bff792db473"
         },
         {
           "id": 559237836,
@@ -127,7 +236,8 @@
           "createdAt": "2026-09-12T12:32:37Z",
           "updatedAt": "2026-09-12T12:33:37Z",
           "type": "installer",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application2/VMware.Workstation.Pro.26H1_Setup.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application2/VMware.Workstation.Pro.26H1_Setup.exe",
+          "digest": "sha256:c117099e87c85488ce78d3d25f7e8f2275916fa8cbfdff16ecd5ec7a0db3c649"
         }
       ],
       "kind": "app",
@@ -220,29 +330,32 @@
           "createdAt": "2026-09-11T23:11:32Z",
           "updatedAt": "2026-09-12T02:22:04Z",
           "type": "installer",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application1/archprv4.54_x64_setup.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/archprv4.54_x64_setup.exe",
+          "digest": "sha256:5e1814817aa4c0ffdd84f13f4872ed09e7521ee2c307f77a671d16bb4109f2f7"
         },
         {
           "id": 558178510,
           "name": "BlurAutoClicker.exe",
           "size": 19166720,
           "contentType": "application/x-msdownload",
-          "downloadCount": 3,
+          "downloadCount": 9,
           "createdAt": "2026-09-11T23:11:29Z",
           "updatedAt": "2026-09-11T23:11:32Z",
           "type": "exe",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application1/BlurAutoClicker.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/BlurAutoClicker.exe",
+          "digest": "sha256:458ebb3d0e5ee1fd99fe9d4f05e9509137b7bb0cf6037e164762348301701894"
         },
         {
           "id": 558175907,
           "name": "DiskGeniusPro_x64_Setup.exe",
           "size": 32787578,
           "contentType": "application/x-msdownload",
-          "downloadCount": 3,
+          "downloadCount": 5,
           "createdAt": "2026-09-11T23:09:22Z",
           "updatedAt": "2026-09-12T02:22:04Z",
           "type": "installer",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application1/DiskGeniusPro_x64_Setup.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/DiskGeniusPro_x64_Setup.exe",
+          "digest": "sha256:b531e92e1f362d8fdfd43832387ec335dc157754dedbc9d846e6485c774b097e"
         },
         {
           "id": 558171645,
@@ -253,40 +366,44 @@
           "createdAt": "2026-09-11T23:06:32Z",
           "updatedAt": "2026-09-12T02:22:04Z",
           "type": "installer",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application1/DSH-Desktop-2.0.3-windows_x64_setup.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/DSH-Desktop-2.0.3-windows_x64_setup.exe",
+          "digest": "sha256:09544950161b85c7c25a961cbb31eb3b607d58966a85a28d152f1f9673daacdd"
         },
         {
           "id": 558178632,
           "name": "FastCopy.Pro.5.11.3.exe",
           "size": 1160512,
           "contentType": "application/x-msdownload",
-          "downloadCount": 2,
+          "downloadCount": 4,
           "createdAt": "2026-09-11T23:11:34Z",
           "updatedAt": "2026-09-11T23:11:35Z",
           "type": "exe",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application1/FastCopy.Pro.5.11.3.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/FastCopy.Pro.5.11.3.exe",
+          "digest": "sha256:31edaec917567fc8e1a76684b9f122c067033fee9a391ecaaee7d8802c86478f"
         },
         {
           "id": 558176024,
           "name": "Fastgithub_x64_Setup.exe",
           "size": 22760609,
           "contentType": "application/x-msdownload",
-          "downloadCount": 3,
+          "downloadCount": 4,
           "createdAt": "2026-09-11T23:09:27Z",
           "updatedAt": "2026-09-12T02:22:04Z",
           "type": "installer",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application1/Fastgithub_x64_Setup.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/Fastgithub_x64_Setup.exe",
+          "digest": "sha256:04dc938fe14e510a04024c0dcb2ef293910f166192d15294b1781a725ca3a2be"
         },
         {
           "id": 558176115,
           "name": "FreeArc_x64_Setup.exe",
           "size": 13665731,
           "contentType": "application/x-msdownload",
-          "downloadCount": 6,
+          "downloadCount": 8,
           "createdAt": "2026-09-11T23:09:31Z",
           "updatedAt": "2026-09-12T02:22:04Z",
           "type": "installer",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application1/FreeArc_x64_Setup.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/FreeArc_x64_Setup.exe",
+          "digest": "sha256:5e7c3beefde4565c526a1801854fea65434a0fe56d34b0d84ddbdd4fa21af31c"
         },
         {
           "id": 558173330,
@@ -297,7 +414,8 @@
           "createdAt": "2026-09-11T23:07:48Z",
           "updatedAt": "2026-09-12T02:22:04Z",
           "type": "installer",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application1/GitHubDesktop-Windows-x64_setup.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/GitHubDesktop-Windows-x64_setup.exe",
+          "digest": "sha256:63407a3d58a625f716c5932650f7a9e68c7050a6ebe5265443d85eba1f80dccc"
         },
         {
           "id": 559118001,
@@ -308,7 +426,8 @@
           "createdAt": "2026-09-12T11:03:12Z",
           "updatedAt": "2026-09-12T11:05:56Z",
           "type": "exe",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application1/idea-2026.2.2.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/idea-2026.2.2.exe",
+          "digest": "sha256:692855b1b85f6d9291cf2fa78c95f3dc331316e150506c300d6860bd7f6f3907"
         },
         {
           "id": 558175623,
@@ -319,18 +438,20 @@
           "createdAt": "2026-09-11T23:09:09Z",
           "updatedAt": "2026-09-12T02:22:04Z",
           "type": "installer",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application1/IDM.6.42_x64_setup.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/IDM.6.42_x64_setup.exe",
+          "digest": "sha256:bbd1f1accc556d67f68f1ce72d958f256368667800275102801420615ed239cb"
         },
         {
           "id": 558176177,
           "name": "LanzouDesktop_x64_Setup.exe",
           "size": 129636163,
           "contentType": "application/x-msdownload",
-          "downloadCount": 1,
+          "downloadCount": 3,
           "createdAt": "2026-09-11T23:09:34Z",
           "updatedAt": "2026-09-12T02:22:04Z",
           "type": "installer",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application1/LanzouDesktop_x64_Setup.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/LanzouDesktop_x64_Setup.exe",
+          "digest": "sha256:73b526705a914ccccd30f2149cfda308582e320babc92e9b7d73941100ded6ee"
         },
         {
           "id": 558172099,
@@ -341,29 +462,32 @@
           "createdAt": "2026-09-11T23:06:56Z",
           "updatedAt": "2026-09-12T02:22:04Z",
           "type": "installer",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application1/lmms-1.2.2-winx64_setup.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/lmms-1.2.2-winx64_setup.exe",
+          "digest": "sha256:5f20af1d782468507417d0785826b1f064fadba88ed1691e2def269922ace56b"
         },
         {
           "id": 574139511,
           "name": "name.txt",
           "size": 807,
           "contentType": "text/plain",
-          "downloadCount": 3,
+          "downloadCount": 9,
           "createdAt": "2026-09-19T05:20:58Z",
           "updatedAt": "2026-09-19T05:21:03Z",
           "type": "unknown",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application1/name.txt"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/name.txt",
+          "digest": "sha256:187879af4b41c5fee45765cc217d164c546f4a3e4bbab7b5ba741fc390a202fd"
         },
         {
           "id": 558178604,
           "name": "ResourceHacker.exe",
           "size": 5436416,
           "contentType": "application/x-msdownload",
-          "downloadCount": 3,
+          "downloadCount": 9,
           "createdAt": "2026-09-11T23:11:33Z",
           "updatedAt": "2026-09-11T23:11:34Z",
           "type": "exe",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application1/ResourceHacker.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/ResourceHacker.exe",
+          "digest": "sha256:22eb1db9e49aa1fb23e19c600d173e328bea4ed74e3cbd6327d4a99fdab131bd"
         },
         {
           "id": 558172019,
@@ -374,7 +498,8 @@
           "createdAt": "2026-09-11T23:06:53Z",
           "updatedAt": "2026-09-11T23:06:56Z",
           "type": "installer",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application1/TieZ_0.3.3_x64-setup.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/TieZ_0.3.3_x64-setup.exe",
+          "digest": "sha256:fd804a88de981a44c45ed25d5bbaae3f80c1ff175d72d59998d3d508aa7db25b"
         },
         {
           "id": 558177748,
@@ -385,7 +510,8 @@
           "createdAt": "2026-09-11T23:10:55Z",
           "updatedAt": "2026-09-12T02:22:04Z",
           "type": "installer",
-          "url": "https://github.com/zssx-2026/applications/releases/download/application1/VMWare.Workstation.Pro.25H2_x64_Setup.exe"
+          "url": "https://github.com/zssx-2026/applications/releases/download/application1/VMWare.Workstation.Pro.25H2_x64_Setup.exe",
+          "digest": "sha256:4482c5e453c1c90065f3aa1b977ebb15d19db2cc341e372db8eefd8988c8e07d"
         }
       ],
       "kind": "app",
@@ -489,6 +615,61 @@
             "name": "IDEA",
             "type": "setup",
             "company": "JetBrains"
+          }
+        ]
+      }
+    },
+    {
+      "tag": "application-inc",
+      "name": "application-inc",
+      "repo": "zssx-2026/applications",
+      "prerelease": true,
+      "draft": false,
+      "publishedAt": "2026-10-06T01:34:24.624Z",
+      "createdAt": "2026-10-06T01:34:24.624Z",
+      "htmlUrl": "https://github.com/zssx-2026/applications/releases/tag/application-piik",
+      "assets": [
+        {
+          "name": "InfinityCloud_1.0.0-pre5_win64_setup.exe",
+          "size": 514535,
+          "url": "https://github.com/zssx-2026/applications/releases/download/application-inc/InfinityCloud_1.0.0-pre5_win64_setup.exe"
+        },
+        {
+          "name": "InfinityFileManager_1.0.0-pre5_win64_setup.exe",
+          "size": 238305,
+          "url": "https://github.com/zssx-2026/applications/releases/download/application-inc/InfinityFileManager_1.0.0-pre5_win64_setup.exe"
+        },
+        {
+          "name": "InfinityGames_1.0.0-pre5_win64_setup.exe",
+          "size": 268383,
+          "url": "https://github.com/zssx-2026/applications/releases/download/application-inc/InfinityGames_1.0.0-pre5_win64_setup.exe"
+        },
+        {
+          "name": "InfinityPackageManager_1.0.0-pre5_win64_setup.exe",
+          "size": 288313,
+          "url": "https://github.com/zssx-2026/applications/releases/download/application-inc/InfinityPackageManager_1.0.0-pre5_win64_setup.exe"
+        },
+        {
+          "name": "InfinityToolbox_1.0.0-pre5_win64_setup.exe",
+          "size": 296537,
+          "url": "https://github.com/zssx-2026/applications/releases/download/application-inc/InfinityToolbox_1.0.0-pre5_win64_setup.exe"
+        },
+        {
+          "name": "name.txt",
+          "size": 499,
+          "url": "https://github.com/zssx-2026/applications/releases/download/application-inc/name.txt"
+        }
+      ],
+      "kind": "release",
+      "nameTxt": {
+        "raw": "Piik_1.0.0_win64_port.zip 1.0.0 Piik port null win64\n",
+        "entries": [
+          {
+            "fileName": "Piik_1.0.0_win64_port.zip",
+            "version": "1.0.0",
+            "name": "Piik",
+            "type": "port",
+            "company": "null"
           }
         ]
       }

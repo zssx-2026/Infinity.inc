@@ -1,0 +1,65 @@
+{
+ "ok": true,
+ "at": "2026-10-18T11:39:21.469Z",
+ "facts": {
+  "previewHpp": {
+   "cpp/apps/inc/preview.hpp": {
+    "bytes": 29658,
+    "sha256": "b5004e1e93dc4965c99ed94f0c1290eb721b0df93a2865f7b48a538d3cb0817a"
+   },
+   "Infinity Cloud/preview/preview.hpp": {
+    "bytes": 29658,
+    "sha256": "b5004e1e93dc4965c99ed94f0c1290eb721b0df93a2865f7b48a538d3cb0817a"
+   },
+   "Infinity Cloud/preview/generated/preview.hpp": {
+    "bytes": 29658,
+    "sha256": "b5004e1e93dc4965c99ed94f0c1290eb721b0df93a2865f7b48a538d3cb0817a"
+   }
+  },
+  "previewHppInSync": true,
+  "incRoutes": 5,
+  "incUiCalls": 6,
+  "incPreviewSymbols": 84,
+  "ifmCore": {
+   "bytes": 12588,
+   "sha256": "4ffc402dd47104b066b8cfae7f2d48dfc6a7bf84abf1e322ec62d4fde65424b9"
+  },
+  "ifmServer": 43,
+  "tests": {
+   "Infinity Cloud/preview/tests/run-tests.ps1": 10501,
+   "Infinity File Manager/bench/preview-http-check.mjs": 11831,
+   "Infinity File Manager/bench/preview-bench.mjs": 21759
+  },
+  "otherLines": {
+   "Infinity Cloud/sourcecode (Electron/JS-SEA 线)": 0
+  },
+  "docsHub": {
+   "web/infinity/docs/index.html": {
+    "entries": 4,
+    "refs": [
+     "cpp/README.md",
+     "README.md",
+     "docs/catalogue-format.md",
+     "docs/FEATURE-streaming-preview.md"
+    ],
+    "missing": []
+   },
+   "web/infinity/cn/docs/index.html": {
+    "entries": 4,
+    "refs": [
+     "cpp/README.md",
+     "README.md",
+     "docs/catalogue-format.md",
+     "docs/FEATURE-streaming-preview.md"
+    ],
+    "missing": []
+   }
+  },
+  "danglingDocRefs": 0,
+  "i18nPreviewKeys": 4,
+  "siteVisibility": {
+   "releaseDocMentions": 0
+  }
+ },
+ "problems": []
+}

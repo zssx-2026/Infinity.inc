@@ -1,4 +1,4 @@
-﻿; =====================================================
+; =====================================================
 ;  Infinity Package Manager 安装脚本
 ;  支持 install / repair / uninstall
 ;  记录每个文件的 SHA256 到 hash.ini / hash.txt / 注册表
@@ -18,15 +18,23 @@ ${UnStrStr}
 ${UnStrRep}
 
 !define PRODUCT_NAME    "Infinity Package Manager"
-!define PRODUCT_VERSION "v1.0pre2"
+!define PRODUCT_VERSION "@@VERSION@@"
 !define UNINST_KEY      "Software\Microsoft\Windows\CurrentVersion\Uninstall\Infinity Package Manager"
 !define HASH_KEY        "Software\Infinity Package Manager\Hashes"
 
-OutFile "InfinityPackageManager_v1.0pre2_Setup.exe"
+OutFile "@@OUTFILE@@"
 Name "${PRODUCT_NAME}"
 
 CRCCheck off
 RequestExecutionLevel admin
+
+; =====================================================
+;  压缩方式。这一行原本缺失，NSIS 于是退回默认的 zlib：同样的载荷
+;  Infinity Cloud 的 setup 是 40,881,185 B，而这里的 win64.exe 是
+;  148,603,675 B —— 差的不是内容，是压缩器。载荷里两份 Electron 壳
+;  高度相似，用 /SOLID lzma 可以把重复内容折叠掉，与另两个产品对齐。
+; =====================================================
+SetCompressor /SOLID lzma
 
 InstallDir "$PROGRAMFILES\Infinity Package Manager"
 InstallDirRegKey HKLM "${UNINST_KEY}" "InstallLocation"
@@ -210,7 +218,7 @@ FunctionEnd
 Section "主程序" SEC_MAIN
   SectionIn RO
   SetOutPath $INSTDIR
-  File /r "D:\丁陈子豪\InfinityPackageManager\*.*"
+  File /r "@@APP_DIR@@\\*.*"
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 
@@ -221,7 +229,7 @@ Section "主程序" SEC_MAIN
   WriteRegStr HKLM "${UNINST_KEY}" "DisplayVersion"  "${PRODUCT_VERSION}"
   WriteRegStr HKLM "${UNINST_KEY}" "UninstallString" '"$INSTDIR\Uninstall.exe"'
   WriteRegStr HKLM "${UNINST_KEY}" "InstallLocation" "$INSTDIR"
-  WriteRegStr HKLM "${UNINST_KEY}" "DisplayIcon"     "$INSTDIR\ipm_launcher.exe"
+  WriteRegStr HKLM "${UNINST_KEY}" "DisplayIcon"     "$INSTDIR\ipm.ico"
   WriteRegDWORD HKLM "${UNINST_KEY}" "NoModify" 1
   WriteRegDWORD HKLM "${UNINST_KEY}" "NoRepair" 1
 SectionEnd
@@ -231,12 +239,12 @@ SectionEnd
 ; =====================================================
 Section "开始菜单快捷方式" SEC_STARTMENU
   CreateDirectory "$SMPROGRAMS\${PRODUCT_NAME}"
-  CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\ipm_launcher.exe"
-  CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\卸载.lnk" "$INSTDIR\Uninstall.exe"
+  CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\ipm_launcher.exe" "" "$INSTDIR\ipm.ico" 0
+  CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\卸载.lnk" "$INSTDIR\Uninstall.exe" "" "$INSTDIR\ipm.ico" 0
 SectionEnd
 
 Section "桌面快捷方式" SEC_DESKTOP
-  CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\ipm_launcher.exe"
+  CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\ipm_launcher.exe" "" "$INSTDIR\ipm.ico" 0
 SectionEnd
 
 Section /o "开机自启动" SEC_AUTOSTART
@@ -262,10 +270,12 @@ Section "注册环境变量" SEC_ENVVARS
   WriteRegStr HKCU "Environment" "ipmxtui"      "$INSTDIR\ipmx_tui.exe"
   WriteRegStr HKCU "Environment" "ipmxgui"      "$INSTDIR\ipmx_gui.exe"
   WriteRegStr HKCU "Environment" "ipmxlauncher" "$INSTDIR\ipmx_launcher.exe"
-  WriteRegStr HKCU "Environment" "ipmfgit"      "$INSTDIR\plugins\fastgithub\FastGithub.UI.exe"
-  WriteRegStr HKCU "Environment" "ipmaria"      "$INSTDIR\plugins\aria2\aria2c.exe"
-  WriteRegStr HKCU "Environment" "ipmfreearc"   "$INSTDIR\plugins\freearc\Arc.exe"
-  WriteRegStr HKCU "Environment" "ipm7z"        "$INSTDIR\plugins\7zip\7za.exe"
+  ; aria2c.exe 是 make-setup.mjs 的 PAYLOAD_FILES 之一，暂存在载荷根目录，
+  ; 所以管理员地址指向 $INSTDIR\aria2c.exe 而不是 plugins\aria2\aria2c.exe。
+  WriteRegStr HKCU "Environment" "ipmaria"      "$INSTDIR\aria2c.exe"
+  ; 其余三个插件环境变量已移除：仓库里没有 FastGithub.UI.exe / Arc.exe /
+  ; 7za.exe，make-setup.mjs 也不暂存 plugins 目录，写进去只会指向不存在的
+  ; 文件。等插件二进制进入载荷后再恢复（见 installer-fix-report.md）。
   ; 代理地址占位符，程序运行后自行填充
   WriteRegStr HKCU "Environment" "proxy_ip"     ""
   SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
@@ -314,10 +324,8 @@ Section "Uninstall"
   DeleteRegValue HKCU "Environment" "ipmxtui"
   DeleteRegValue HKCU "Environment" "ipmxgui"
   DeleteRegValue HKCU "Environment" "ipmxlauncher"
-  DeleteRegValue HKCU "Environment" "ipmfgit"
   DeleteRegValue HKCU "Environment" "ipmaria"
-  DeleteRegValue HKCU "Environment" "ipmfreearc"
-  DeleteRegValue HKCU "Environment" "ipm7z"
+  ; ipmfgit / ipmfreearc / ipm7z 在安装段已不再写入，卸载段也不再删除。
   DeleteRegValue HKCU "Environment" "proxy_ip"
   SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
 

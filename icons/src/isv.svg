@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Infinity Server - the family's rack console.
+
+  Same tile, same Infinity loop, same construction as the other icons. The
+  figure is a rack: three stacked units, each with a status light on the left
+  and a vent slot on the right. Rectangles only - a rack is the one product
+  where the honest drawing is already made of rectangles.
+
+  InfinityServer is released on its own and ships as an Electron shell, so no
+  .ico is produced for it today; this file keeps the set complete for the day
+  one is needed, and for the website card, which uses the SVG directly.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <rect x="8" y="8" width="240" height="240" rx="54" fill="#0E2B23"/>
+  <rect x="8" y="8" width="240" height="120" rx="54" fill="#175243"/>
+
+  <!-- the rack: three units, top to bottom -->
+  <rect x="62" y="52" width="132" height="34" rx="7" fill="#3FB950"/>
+  <rect x="62" y="94" width="132" height="34" rx="7" fill="#2EA043"/>
+  <rect x="62" y="136" width="132" height="34" rx="7" fill="#238636"/>
+
+  <!-- status lights -->
+  <circle cx="80" cy="69" r="6" fill="#E6EDF3"/>
+  <circle cx="80" cy="111" r="6" fill="#E6EDF3"/>
+  <circle cx="80" cy="153" r="6" fill="#E6EDF3"/>
+
+  <!-- vent slots -->
+  <rect x="112" y="65" width="68" height="8" rx="4" fill="#0E2B23"/>
+  <rect x="112" y="107" width="68" height="8" rx="4" fill="#0E2B23"/>
+  <rect x="112" y="149" width="68" height="8" rx="4" fill="#0E2B23"/>
+
+  <!-- the Infinity loop: two rings sharing one band -->
+  <circle cx="104" cy="190" r="26" fill="none" stroke="#E6EDF3" stroke-width="13"/>
+  <circle cx="152" cy="190" r="26" fill="none" stroke="#E6EDF3" stroke-width="13"/>
+  <rect x="104" y="178" width="48" height="24" fill="#E6EDF3"/>
+</svg>

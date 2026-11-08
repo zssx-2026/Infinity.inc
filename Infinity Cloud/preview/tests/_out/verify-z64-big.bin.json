@@ -1,0 +1,16 @@
+{
+  "entry": "z64-big.bin",
+  "method": 8,
+  "compressedBytes": 717020,
+  "expectedCompressed": 717020,
+  "inflatedBytes": 716800,
+  "expectedUncompressed": 716800,
+  "crc": 2480873654,
+  "expectedCrc": 2480873654,
+  "sha256": "88e483951ddb0dc50eec93a8d849fc4371f895c5fc64dd38732e04ad15df006f",
+  "sizeOk": true,
+  "bytesOk": true,
+  "crcOk": true,
+  "error": "",
+  "pass": true
+}

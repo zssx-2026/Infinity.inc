@@ -1,0 +1,288 @@
+{
+ "at": "2026-10-11T08:34:51.935Z",
+ "temp": true,
+ "totalBytes": 17756576658,
+ "byClass": {
+  "A: 第三方安装包（winget 清单用，可从网络重下）": 16128292848,
+  "C: 散点小稿/杂项": 1452843278,
+  "B: 一次性测试产物": 175440532
+ },
+ "rows": [
+  {
+   "name": "apps",
+   "dir": true,
+   "bytes": 16128292848,
+   "class": "A: 第三方安装包（winget 清单用，可从网络重下）"
+  },
+  {
+   "name": "tools",
+   "dir": true,
+   "bytes": 1398415568,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "ifm-bench",
+   "dir": true,
+   "bytes": 90838902,
+   "class": "B: 一次性测试产物"
+  },
+  {
+   "name": "ifm-buildtest",
+   "dir": true,
+   "bytes": 81130930,
+   "class": "B: 一次性测试产物"
+  },
+  {
+   "name": "winget-tree.json",
+   "dir": false,
+   "bytes": 19451601,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "t7",
+   "dir": true,
+   "bytes": 18876028,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "rust",
+   "dir": true,
+   "bytes": 12724432,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "heads",
+   "dir": true,
+   "bytes": 3464238,
+   "class": "B: 一次性测试产物"
+  },
+  {
+   "name": "dl-7Zip.bin",
+   "dir": false,
+   "bytes": 1348869,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "manifests",
+   "dir": true,
+   "bytes": 1219663,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "plan.json",
+   "dir": false,
+   "bytes": 458639,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "ifm-bundle-check.cjs",
+   "dir": false,
+   "bytes": 144919,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "apps-progress.json",
+   "dir": false,
+   "bytes": 82798,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "verify_result.json",
+   "dir": false,
+   "bytes": 17864,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "ifm-head-server.js",
+   "dir": false,
+   "bytes": 16109,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "ifm-page.js",
+   "dir": false,
+   "bytes": 15829,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "trash-test",
+   "dir": true,
+   "bytes": 14336,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "nsi_full.txt",
+   "dir": false,
+   "bytes": 9647,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "ifm-head-localfs.js",
+   "dir": false,
+   "bytes": 8645,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "inc-icon-audit.json",
+   "dir": false,
+   "bytes": 8193,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "verify_installers.py",
+   "dir": false,
+   "bytes": 5501,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "ifm-icon-audit",
+   "dir": true,
+   "bytes": 5015,
+   "class": "B: 一次性测试产物"
+  },
+  {
+   "name": "stage-local.mjs",
+   "dir": false,
+   "bytes": 4596,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "pack.mjs",
+   "dir": false,
+   "bytes": 4593,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "rebuild-all.mjs",
+   "dir": false,
+   "bytes": 2271,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "nsi-check.exe",
+   "dir": false,
+   "bytes": 2187,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "cc.cfg",
+   "dir": false,
+   "bytes": 2074,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "harvest2.mjs",
+   "dir": false,
+   "bytes": 1813,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "nsi.txt",
+   "dir": false,
+   "bytes": 1620,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "harvest.mjs",
+   "dir": false,
+   "bytes": 1370,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "build-msi.mjs",
+   "dir": false,
+   "bytes": 1024,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "desc-inc.txt",
+   "dir": false,
+   "bytes": 861,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "desc-ifm.txt",
+   "dir": false,
+   "bytes": 849,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "inc-verify",
+   "dir": true,
+   "bytes": 799,
+   "class": "B: 一次性测试产物"
+  },
+  {
+   "name": "archive",
+   "dir": true,
+   "bytes": 648,
+   "class": "B: 一次性测试产物"
+  },
+  {
+   "name": "epm-launchers.txt",
+   "dir": false,
+   "bytes": 600,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "inc-name.txt",
+   "dir": false,
+   "bytes": 250,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "nsi-run.ps1",
+   "dir": false,
+   "bytes": 234,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "nsi.bat",
+   "dir": false,
+   "bytes": 218,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "epm-shell-line.txt",
+   "dir": false,
+   "bytes": 48,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "node-options-backup.txt",
+   "dir": false,
+   "bytes": 20,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "r1.bin",
+   "dir": false,
+   "bytes": 9,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "backup",
+   "dir": true,
+   "bytes": 0,
+   "class": "B: 一次性测试产物"
+  },
+  {
+   "name": "freearc",
+   "dir": true,
+   "bytes": 0,
+   "class": "B: 一次性测试产物"
+  },
+  {
+   "name": "Infinity Cloud",
+   "dir": true,
+   "bytes": 0,
+   "class": "C: 散点小稿/杂项"
+  },
+  {
+   "name": "recyle.bin",
+   "dir": true,
+   "bytes": 0,
+   "class": "C: 散点小稿/杂项"
+  }
+ ]
+}

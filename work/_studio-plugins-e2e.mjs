@@ -1,0 +1,42 @@
+
+import fs from 'node:fs'; import path from 'node:path'; import os from 'node:os'; import http from 'node:http';
+import { start as startServer } from '../InfinityServer/src/server.js';
+import { start as startStudio } from '../InfinityStudio/src/server.js';
+function req(port, method, p, body){ return new Promise((resolve,reject)=>{ const text=body==null?null:JSON.stringify(body);
+  const r=http.request({host:'127.0.0.1',port,path:p,method,headers:text?{'content-type':'application/json','content-length':Buffer.byteLength(text)}:{}},(res)=>{const c=[];res.on('data',x=>c.push(x));res.on('end',()=>{const raw=Buffer.concat(c).toString('utf8');let j=null;try{j=JSON.parse(raw)}catch{};resolve({status:res.statusCode,json:j,raw});});});
+  r.on('error',reject); if(text) r.write(text); r.end(); }); }
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(),'isve2e-'));
+const srcDir = path.join(tmp,'demo'); fs.mkdirSync(srcDir);
+fs.writeFileSync(path.join(srcDir,'main.js'),
+  "export function register(){ return { routes: [ { method:'GET', path:'ping', handler: () => ({ pong: 1 }) } ] }; }\n");
+fs.writeFileSync(path.join(srcDir,'plugin.json'), JSON.stringify({id:'demo',name:'Demo',version:'2.0.0',entry:'main.js',api:1},null,2));
+const srv = await startServer({ port: 0, pluginDir: path.join(tmp,'plugins') });
+const base = 'http://127.0.0.1:' + srv.port;
+const studio = await startStudio({ root: process.cwd(), port: 0 });
+const sp = studio.port;
+const list0 = await req(sp,'GET','/v1/server/plugins?base=' + encodeURIComponent(base));
+console.log('list empty:', list0.status, JSON.stringify(list0.json));
+const inst = await req(sp,'POST','/v1/server/plugins/install',{base,from:srcDir});
+console.log('install:', inst.status, 'id=', inst.json.installed && inst.json.installed.id, 'loaded=', (inst.json.loaded||[]).length);
+const list1 = await req(sp,'GET','/v1/server/plugins?base=' + encodeURIComponent(base));
+console.log('plugins:', JSON.stringify((list1.json.plugins||[]).map(p=>p.id+':'+p.version+':'+p.enabled)));
+const ping = await req(srv.port,'GET','/v1/plugins/demo/ping');
+console.log('plugin route:', ping.status, JSON.stringify(ping.json));
+const bad = await req(sp,'POST','/v1/server/plugins/install',{base,from:'/nope'});
+console.log('bad install -> server 400:', bad.status, JSON.stringify(bad.json).slice(0,80));
+const dis = await req(sp,'POST','/v1/server/plugins/enable',{base,id:'demo',enabled:false});
+console.log('disable:', dis.status, 'enabled=', dis.json.plugin && dis.json.plugin.enabled);
+const ping2 = await req(srv.port,'GET','/v1/plugins/demo/ping');
+console.log('route after disable:', ping2.status);
+const ver = await req(sp,'POST','/v1/server/plugins/verify',{base});
+console.log('verify:', ver.status, JSON.stringify(ver.json.plugins));
+const rm = await req(sp,'POST','/v1/server/plugins/remove',{base,id:'demo'});
+console.log('remove:', rm.status, 'gone=', rm.json.gone);
+const dead = await req(sp,'GET','/v1/server/plugins?base=' + encodeURIComponent('http://127.0.0.1:1'));
+console.log('unreachable -> 502:', dead.status, JSON.stringify(dead.json).slice(0,90));
+const h = await req(sp,'GET','/v1/health');
+console.log('studio health:', h.status, h.json.ok === true);
+const page = await req(sp,'GET','/');
+console.log('page has plugin UI:', page.raw.includes('id="plug"') && page.raw.includes('plugInstall'));
+await srv.close(); await studio.close();
+fs.rmSync(tmp,{recursive:true,force:true});

@@ -1,0 +1,224 @@
+{
+ "at": "2026-10-18T11:39:39.928Z",
+ "total": 27,
+ "pass": 27,
+ "fail": 0,
+ "rows": [
+  {
+   "name": "archive-selfcheck",
+   "exit": 0,
+   "ok": true,
+   "needle": "ARCHIVE-SELFCHECK-PASS",
+   "secs": 7.2,
+   "tail": " \"bad\": [] | } | ARCHIVE-SELFCHECK-PASS"
+  },
+  {
+   "name": "nsi-strict",
+   "exit": 0,
+   "ok": true,
+   "needle": "0 error",
+   "secs": 1,
+   "tail": "INFO  D:\\dev\\DeepSeekHarnessWorkspace\\Infinity.inc\\Infinity Cloud\\installer.nsi: 编码契约：make-setup.mjs 写 UTF-8 BOM，检查器也用 BOM 编译 | INFO  D:\\dev\\DeepSeekHarnessWorkspace\\Infinity.inc\\Infinity Cloud\\installer.nsi: makensis 编译通过（903 ms，合成载荷产物 185"
+  },
+  {
+   "name": "nsi-selftest",
+   "exit": 0,
+   "ok": true,
+   "needle": "pass",
+   "secs": 5.5,
+   "tail": "PASS  cli no-file-directive -> exit != 0 | PASS  cli missing template -> exit 2 | 结果: 25 pass, 0 fail"
+  },
+  {
+   "name": "contract",
+   "exit": 0,
+   "ok": true,
+   "needle": "SELFTEST PASS",
+   "secs": 0.1,
+   "tail": "  ok   shell/build holds all 24 expected shell dirs |   ok   shell/build has no unexpected shell dirs | SELFTEST PASS  pass=45 fail=0"
+  },
+  {
+   "name": "account-static",
+   "exit": 0,
+   "ok": true,
+   "needle": "ALL 24",
+   "secs": 0.1,
+   "tail": "PASS TOTP is SHA-1, 30 s, 6 digits with a +/-1 step window | PASS recovery codes are hashed with SHA-256 | ALL 24 STATIC CHECKS PASS"
+  },
+  {
+   "name": "gate-test",
+   "exit": 0,
+   "ok": true,
+   "needle": "12/12",
+   "secs": 9.5,
+   "tail": "PASS worker failure redirects to /404  -> https://zssx-2026.github.io/404 | PASS worker failure keeps the gate class  -> initialClass=\"infinity-gate\" | 12/12 passed"
+  },
+  {
+   "name": "ipm-data",
+   "exit": 0,
+   "ok": true,
+   "needle": "31/31",
+   "secs": 0.1,
+   "tail": "PASS settings.json has sane network limits | PASS lang/ ships at least one .lang file | RESULT: PASS 31/31 checks"
+  },
+  {
+   "name": "int-offline",
+   "exit": 0,
+   "ok": true,
+   "needle": "9/9",
+   "secs": 0.2,
+   "tail": "PASS plugin record carries name/version/filename | PASS the record and the container agree on the name | RESULT: PASS 9/9 checks"
+  },
+  {
+   "name": "cn-lead-verify",
+   "exit": 0,
+   "ok": true,
+   "needle": "PASS",
+   "secs": 0.3,
+   "tail": "assets/token.js  zh 三元=2 中文字符=534 | assets/product.js  zh 三元=0 中文字符=0 | PASS 中文站完全汉化"
+  },
+  {
+   "name": "cn-gitee-verify",
+   "exit": 0,
+   "ok": true,
+   "needle": "failed: 0",
+   "secs": 0.9,
+   "tail": "content URL hosts produced - zh: {\"gitee.com\":181} | content URL hosts produced - en: {\"github.com\":92} | checks: 76, failed: 0"
+  },
+  {
+   "name": "site-seo-verify",
+   "exit": 0,
+   "ok": true,
+   "needle": "PASS",
+   "secs": 1.2,
+   "tail": "200  (root) root /  canonical=https://zssx-2026.github.io/ | 200  (root) root /404.html  canonical=https://zssx-2026.github.io/404.html | PASS 36/36 页面 200、root 2/2 元数据齐备、sitemap 34 条可索引 URL（404 已排除）、hreflang/og/twitter/robots/404 全部通过"
+  },
+  {
+   "name": "md-render-test",
+   "exit": 0,
+   "ok": true,
+   "needle": "MD-RENDER-TEST pass=41 fail=0",
+   "secs": 0.1,
+   "tail": "note docs/catalogue-format.md: no Chinese summary yet (160 chars) — cn/docs/ falls back to the English body | MD-RENDER-TEST pass=41 fail=0"
+  },
+  {
+   "name": "site-release-consistency",
+   "exit": 0,
+   "ok": true,
+   "needle": "failed: 0",
+   "secs": 0.1,
+   "tail": "  Infinity-Toolbox  297534  af90acb311306acf…  ok |   InfinityPackageManager  289595  c475055ca4803482…  ok | checks: 32, failed: 0"
+  },
+  {
+   "name": "gen-releases-check",
+   "exit": 0,
+   "ok": true,
+   "needle": "RELEASES-CHECK-PASS",
+   "secs": 0.1,
+   "tail": "  InfinityPackageManager: v1.0.0-pre3/win64 | BUNDLES-CHECK-PASS (offline; releases.json not written) | RELEASES-CHECK-PASS 5/5 frozen assets match the manifest; rebuild is a no-op"
+  },
+  {
+   "name": "inc-preview",
+   "exit": 0,
+   "ok": true,
+   "needle": "failures=0",
+   "secs": 92.5,
+   "tail": "[19:39:17.518]   add92a1ce7bffdb4556c1e7d20ac240a113a6d3f371c1b119d8af1e46c3d1bd2  3414598  .\\Infinity Cloud\\preview\\build\\inc-preview.exe | [19:39:17.519]   f0ac851c022b9d8ce57debabc1a30a243a372f3dcf5af13cdb17a3d3993d3390  3253341  .\\Infin"
+  },
+  {
+   "name": "ghsync-dry-local",
+   "exit": 0,
+   "ok": true,
+   "needle": "0 errors",
+   "secs": 0.5,
+   "tail": "[2026-10-18T11:39:18.049Z] network: skipped (pass --remote for the read-only release and catalogue GETs) | [2026-10-18T11:39:18.049Z] errors: 0 | [2026-10-18T11:39:18.049Z] DRY RUN complete: 0 errors"
+  },
+  {
+   "name": "release-set-parity",
+   "exit": 0,
+   "ok": true,
+   "needle": "RELEASE-SET-PARITY-PASS",
+   "secs": 0.2,
+   "tail": " \"problems\": [] | } | RELEASE-SET-PARITY-PASS 5/5 assets byte-identical; sums reproducible; 5 icons covered"
+  },
+  {
+   "name": "publish-preflight",
+   "exit": 0,
+   "ok": true,
+   "needle": "PUBLISH-PREFLIGHT PASS",
+   "secs": 0.9,
+   "tail": "GATE  written-approval          work/_publish-approval.txt 内的书面批准 | --- | PUBLISH-PREFLIGHT PASS  technical=7/7  ready=false  tag=v1.0.0-pre5"
+  },
+  {
+   "name": "sync-e2e",
+   "exit": 0,
+   "ok": true,
+   "needle": "SYNC-E2E-PASS",
+   "secs": 2.2,
+   "tail": " \"keptTemp\": null | } | SYNC-E2E-PASS"
+  },
+  {
+   "name": "preview-integration",
+   "exit": 0,
+   "ok": true,
+   "needle": "PREVIEW-AUDIT-PASS",
+   "secs": 0.1,
+   "tail": " \"problems\": [] | } | PREVIEW-AUDIT-PASS 三份 preview.hpp 同源同哈希; INC 路由/UI 接线在; IFM 核心+服务器接线在"
+  },
+  {
+   "name": "ghsync-validator",
+   "exit": 0,
+   "ok": true,
+   "needle": "GHSYNC-VALIDATOR-PASS",
+   "secs": 2.3,
+   "tail": " ] | } | GHSYNC-VALIDATOR-PASS 5/5"
+  },
+  {
+   "name": "archive-health",
+   "exit": 0,
+   "ok": true,
+   "needle": "ARCHIVE-HEALTH-PASS",
+   "secs": 2,
+   "tail": " } | } | ARCHIVE-HEALTH-PASS"
+  },
+  {
+   "name": "server-plugins",
+   "exit": 0,
+   "ok": true,
+   "needle": "INFINITYSERVER-PLUGINS-PASS",
+   "secs": 0.4,
+   "tail": " \"failures\": [] | } | INFINITYSERVER-PLUGINS-PASS 36/36"
+  },
+  {
+   "name": "js-layout",
+   "exit": 0,
+   "ok": true,
+   "needle": "LAYOUT-VERIFY 35/35  PASS",
+   "secs": 2.5,
+   "tail": "ok   a layout with no runtime fails instead of guessing  exit=2 | layout under test: 8 files / 80807354 B | LAYOUT-VERIFY 35/35  PASS"
+  },
+  {
+   "name": "infinityserver",
+   "exit": 0,
+   "ok": true,
+   "needle": "INFINITYSERVER-TEST-PASS",
+   "secs": 0.4,
+   "tail": "  ok   hit rate is reported |   ok   every tier is within capacity | INFINITYSERVER-TEST-PASS 36/36"
+  },
+  {
+   "name": "infinitystudio",
+   "exit": 0,
+   "ok": true,
+   "needle": "INFINITYSTUDIO-TEST-PASS",
+   "secs": 10.7,
+   "tail": "  ok   every workload has a name to render |   ok   unknown route is 404 | INFINITYSTUDIO-TEST-PASS 48/48"
+  },
+  {
+   "name": "ipm-nsi-check",
+   "exit": 0,
+   "ok": true,
+   "needle": "IPM-NSI-CHECK PASS",
+   "secs": 0.2,
+   "tail": "INFO  D:\\dev\\DeepSeekHarnessWorkspace\\Infinity.inc\\work\\_ipm-nsi\\setup-win64.nsi: 实例模式：本例的 make-setup.mjs 不在 sourcecode/tools 下（IPM 在 tools/），实例自身 BOM 已单独核对 | OK: 0 error, 0 warning | IPM-NSI-CHECK PASS"
+  }
+ ]
+}

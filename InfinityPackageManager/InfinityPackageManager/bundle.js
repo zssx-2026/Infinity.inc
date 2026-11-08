@@ -296,7 +296,16 @@ var require_config = __commonJS({
         } catch (_) {
         }
       }
-      const exec = process.execPath || "";
+      /*
+       * Layout mode: app.cjs runs under a shared node.exe, so process.execPath
+       * is always ...\node.exe and says nothing about which face launched us.
+       * The launcher exports the real name through INFINITY_EXE_NAME; folding
+       * it into the path keeps the isNodeExe test below honest, and every
+       * normal launch (where the name is absent) behaves exactly as before.
+       */
+      const exec = process.env.INFINITY_EXE_NAME
+        ? path2.resolve(path2.dirname(process.execPath || "."), process.env.INFINITY_EXE_NAME)
+        : process.execPath || "";
       const isNodeExe = /(^|[\\/])node(\.exe)?$/i.test(exec);
       if (isNodeExe) return path2.resolve(__dirname, "..");
       return path2.dirname(exec);
@@ -9762,7 +9771,9 @@ if (process.env.IPM_DEBUG) {
 var MODE_PREFIX = { ipm: false, ipmx: true };
 var MODE_LIST = ["cli", "tui", "gui", "launcher"];
 function detectMode() {
-  const base = path.basename(process.execPath).replace(/\.exe$/i, "").toLowerCase();
+  /* Same reason as detectRoot(): in layout mode execPath is node.exe. */
+  const base = (process.env.INFINITY_EXE_NAME || path.basename(process.execPath))
+    .replace(/\.exe$/i, "").toLowerCase();
   const i = base.indexOf("_");
   if (i < 0) return { mode: null, admin: false, prefix: null };
   const pre = base.slice(0, i);
@@ -9784,7 +9795,12 @@ function runLauncher() {
   const readline = require("readline");
   const cp = require("child_process");
   const dir = path.dirname(process.execPath);
-  const base = path.basename(process.execPath).replace(/\.exe$/i, "");
+  /* Layout mode: execPath is the shared node.exe, so it cannot name the
+   * face that was launched. The launcher exports the real name; the
+   * directory is still the right one either way, because every launcher
+   * sits next to the runtime. Without this the admin twin (ipmx_launcher)
+   * would advertise itself as the plain user launcher. */
+  const base = (process.env.INFINITY_EXE_NAME || path.basename(process.execPath)).replace(/\.exe$/i, "");
   const cut = base.indexOf("_");
   const pre = cut < 0 ? "ipm" : base.slice(0, cut);
   const ext = process.platform === "win32" ? ".exe" : "";

@@ -14,10 +14,7 @@
  * executable's own name, exactly as the command-line faces do it:
  *
  *   inc_gui.exe   inx_gui.exe   ->  Infinity Cloud             inc_cli.exe   7621
- *   ifm_gui.exe   ifmx_gui.exe  ->  Infinity File Manager      ifm_cli.exe   7623
  *   ipm_gui.exe   ipmx_gui.exe  ->  InfinityPackageManager     ipm_cli.exe   7632
- *   iim_gui.exe   iimx_gui.exe  ->  Infinity Installer Manager iim_cli.exe   7643
- *   int_gui.exe   intx_gui.exe  ->  Infinity Toolbox           int_cli.exe   7653
  *
  * The server executable is expected beside the shell, which is how the
  * installer lays the directory out.
@@ -30,26 +27,20 @@ const { spawn } = require('node:child_process');
 
 const APPS = {
   inc: { name: 'Infinity Cloud', port: 7621 },
-  ifm: { name: 'Infinity File Manager', port: 7623 },
-  ipm: { name: 'InfinityPackageManager', port: 7632 },
-  iim: { name: 'Infinity Installer Manager', port: 7643 },
-  int: { name: 'Infinity Toolbox', port: 7653 }
+  ipm: { name: 'InfinityPackageManager', port: 7632 }
 };
 
-/* The ten window names, each mapped to the application it opens. The
+/* The eight window names, each mapped to the application it opens. The
  * administrator's copy has its own prefix, so the name on disk is not the
  * application name and must be translated before the port or the title is
  * looked up. */
 const ADMIN_TO_BASE = {
   inc: 'inc', inx: 'inc',
-  ifm: 'ifm', ifmx: 'ifm',
-  ipm: 'ipm', ipmx: 'ipm',
-  iim: 'iim', iimx: 'iim',
-  int: 'int', intx: 'int'
+  ipm: 'ipm', ipmx: 'ipm'
 };
 
 /* The shell's own file name decides the application, so one binary can be
- * renamed into any of the ten names without a rebuild. */
+ * renamed into any of the eight names without a rebuild. */
 function prefixFromName() {
   const base = path.basename(process.execPath).replace(/\.exe$/i, '').toLowerCase();
   /* inc's administrator twin is inx, not incx (cpp/tools/build.mjs owns the
@@ -57,7 +48,7 @@ function prefixFromName() {
    * on disk, which for an administrator copy is not the application name: it
    * is translated through the table, or the window would take the wrong title
    * and the wrong port. */
-  const named = /^(inc|inx|ifm|ifmx|ipm|ipmx|iim|iimx|int|intx)_gui$/.exec(base);
+  const named = /^(inc|inx|ipm|ipmx)_gui$/.exec(base);
   if (named && ADMIN_TO_BASE[named[1]]) return ADMIN_TO_BASE[named[1]];
   for (const a of Object.keys(APPS)) if (base.indexOf(a) === 0) return a;
   return 'inc';

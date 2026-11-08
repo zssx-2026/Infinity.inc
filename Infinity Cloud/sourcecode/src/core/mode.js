@@ -25,7 +25,11 @@ const PREFIX = {
 const MODES = ['cli', 'tui', 'gui', 'launcher'];
 
 export function detect() {
-  const base = path.basename(process.execPath).replace(/\.exe$/i, '').toLowerCase();
+  /* A multi file layout runs the shared runtime, whose own name is always
+   * node.exe, so the real name arrives through the environment instead.
+   * A single file executable still answers for itself. */
+  const named = process.env.INFINITY_EXE_NAME || path.basename(process.execPath);
+  const base = named.replace(/\.exe$/i, '').toLowerCase();
   const cut = base.indexOf('_');
   if (cut < 0) return { mode: null, admin: false, app: null, prefix: null };
   const prefix = base.slice(0, cut);
