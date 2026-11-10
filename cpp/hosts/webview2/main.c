@@ -14,6 +14,8 @@
  * Build: see build.ps1 (MinGW-w64 gcc, C mode; WebView2.h is MIDL C bindings).
  */
 #define WIN32_LEAN_AND_MEAN
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <windows.h>
 #include <objbase.h>
 #include <stdio.h>
@@ -43,6 +45,16 @@ typedef struct {
   wchar_t runtimeVersion[128];
   wchar_t theme[16];
   wchar_t error[1024];
+  /* Shell mode: the host owns the product window, so it can start the app's UI
+   * server itself (--spawn/--port), stay on screen until the user closes it
+   * (--show) and carry the product name in the title (--title). */
+  wchar_t title[MAXP];
+  wchar_t spawnExe[MAXP];
+  wchar_t spawnArgs[1024];
+  wchar_t appName[64];
+  HANDLE job;
+  int port, waitMs;
+  int show, interactive;
   int width, height, holdMs, timeoutMs;
   int ok;
 
@@ -568,7 +580,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
   return DefWindowProcW(hwnd, msg, wp, lp);
 }
 
-static HWND createWindow(int w, int h) {
+static HWND createWindow(int w, int h, const wchar_t *title) {
   WNDCLASSEXW wc;
   memset(&wc, 0, sizeof(wc));
   wc.cbSize = sizeof(wc);
@@ -582,7 +594,7 @@ static HWND createWindow(int w, int h) {
   AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
   int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
   int ww = rc.right - rc.left, wh = rc.bottom - rc.top;
-  return CreateWindowExW(0, wc.lpszClassName, L"Infinity WebView2 Host", WS_OVERLAPPEDWINDOW,
+  return CreateWindowExW(0, wc.lpszClassName, title && title[0] ? title : L"Infinity WebView2 Host", WS_OVERLAPPEDWINDOW,
                          (sw - ww) / 2, (sh - wh) / 2, ww, wh, NULL, NULL, wc.hInstance, NULL);
 }
 
@@ -596,6 +608,62 @@ static void runtimeRegistry(wchar_t *version, size_t vcap, wchar_t *location, si
   if (RegGetValueW(HKEY_LOCAL_MACHINE, key, L"pv", RRF_RT_REG_SZ, &type, version, &sz) != ERROR_SUCCESS) version[0] = 0;
   sz = (DWORD)(lcap * sizeof(wchar_t));
   if (RegGetValueW(HKEY_LOCAL_MACHINE, key, L"location", RRF_RT_REG_SZ, &type, location, &sz) != ERROR_SUCCESS) location[0] = 0;
+}
+
+/* ---------- app UI server (shell mode) ---------- */
+
+/* Is something already listening on 127.0.0.1:<port>? */
+static int portOpen(int port) {
+  SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if (s == INVALID_SOCKET) return 0;
+  struct sockaddr_in a;
+  memset(&a, 0, sizeof(a));
+  a.sin_family = AF_INET;
+  a.sin_port = htons((unsigned short)port);
+  a.sin_addr.s_addr = inet_addr("127.0.0.1");
+  int up = connect(s, (struct sockaddr *)&a, sizeof(a)) == 0;
+  closesocket(s);
+  return up;
+}
+
+static int waitPort(int port, int timeoutMs) {
+  double t0 = nowMs();
+  for (;;) {
+    if (portOpen(port)) return 1;
+    if (nowMs() - t0 > (double)timeoutMs) return 0;
+    Sleep(120);
+  }
+}
+
+/* Start the app's UI server as a child of this process. The child joins a job
+ * object with KILL_ON_JOB_CLOSE, so closing the window (or the host dying for
+ * any reason) takes the server down with it - no orphan processes. */
+static int spawnChild(const wchar_t *exe, const wchar_t *args) {
+  wchar_t cmd[MAXP * 2];
+  _snwprintf(cmd, MAXP * 2, L"\"%ls\" %ls", exe, (args && args[0]) ? args : L"--serve-ui");
+  STARTUPINFOW si;
+  PROCESS_INFORMATION pi;
+  memset(&si, 0, sizeof(si));
+  si.cb = sizeof(si);
+  memset(&pi, 0, sizeof(pi));
+  if (!CreateProcessW(NULL, cmd, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+    _snwprintf(g.error, 1024, L"cannot start the UI server (error %lu)", (unsigned long)GetLastError());
+    logLine(L"[host] %ls", g.error);
+    return 0;
+  }
+  HANDLE job = CreateJobObjectW(NULL, NULL);
+  if (job) {
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION li;
+    memset(&li, 0, sizeof(li));
+    li.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    SetInformationJobObject(job, JobObjectExtendedLimitInformation, &li, sizeof(li));
+    AssignProcessToJobObject(job, pi.hProcess);
+    g.job = job;
+  }
+  CloseHandle(pi.hThread);
+  CloseHandle(pi.hProcess);
+  logLine(L"[host] ui server started: %ls", cmd);
+  return 1;
 }
 
 /* ---------- main ---------- */
@@ -612,14 +680,21 @@ static void usage(void) {
           L"  --probe=<json>        write the DOM probe result here\n"
           L"  --result=<json>       write the run report here\n"
           L"  --hold-ms=N           settle time after NavigationCompleted (default 900)\n"
-          L"  --timeout-ms=N        abort if no first frame (default 30000)\n");
+          L"  --timeout-ms=N        abort if no first frame (default 30000)\n"
+          L"  --show                show the window and keep it open (shell mode)\n"
+          L"  --title=<s>           window title (shell mode)\n"
+          L"  --spawn=<exe>         start the app's UI server before navigating\n"
+          L"  --app=<name>          spawn <name>_gui.exe from the host's own folder\n"
+          L"  --spawn-args=<s>      arguments for --spawn (default --serve-ui)\n"
+          L"  --port=N              UI server port: waits for it and navigates to it\n"
+          L"  --wait-ms=N           how long to wait for the port (default 20000)\n");
 }
 
 int wmain(int argc, wchar_t **argv) {
   memset(&g, 0, sizeof(g));
   QueryPerformanceFrequency(&g.freq);
   QueryPerformanceCounter(&g.qpc0);
-  g.width = 1280; g.height = 800; g.holdMs = 900; g.timeoutMs = 30000;
+  g.width = 1280; g.height = 800; g.holdMs = 900; g.timeoutMs = 30000; g.waitMs = 20000;
   g_opt.iface.lpVtbl = &optVtbl;
   g_opt.ref = 1;
 
@@ -645,15 +720,56 @@ int wmain(int argc, wchar_t **argv) {
     else if (!wcsncmp(a, L"--result=", 9)) copyW(g.resultOut, a + 9, MAXP);
     else if (!wcsncmp(a, L"--hold-ms=", 10)) g.holdMs = _wtoi(a + 10);
     else if (!wcsncmp(a, L"--timeout-ms=", 13)) g.timeoutMs = _wtoi(a + 13);
+    else if (!wcsncmp(a, L"--title=", 8)) {
+      /* A shortcut's argument string cannot carry quotes reliably, so '+' is
+       * the space separator on the command line. */
+      copyW(g.title, a + 8, MAXP);
+      for (wchar_t *t = g.title; *t; ++t) if (*t == L'+') *t = L' ';
+    }
+    else if (!wcsncmp(a, L"--spawn=", 8)) copyW(g.spawnExe, a + 8, MAXP);
+    else if (!wcsncmp(a, L"--app=", 6)) copyW(g.appName, a + 6, 64);
+    else if (!wcsncmp(a, L"--spawn-args=", 13)) copyW(g.spawnArgs, a + 13, 1024);
+    else if (!wcsncmp(a, L"--port=", 7)) g.port = _wtoi(a + 7);
+    else if (!wcsncmp(a, L"--wait-ms=", 10)) g.waitMs = _wtoi(a + 10);
+    else if (!wcscmp(a, L"--show")) g.show = 1;
     else if (!wcscmp(a, L"--help") || !wcscmp(a, L"-h")) wantHelp = 1;
   }
-  if (wantHelp || (!g.uiDir[0] && !urlArg[0])) { usage(); return 2; }
+  if (wantHelp || (!g.uiDir[0] && !urlArg[0] && !g.port)) { usage(); return 2; }
 
   systemTheme(g.theme, 16);
   if (!queryArg[0]) _snwprintf(queryArg, 512, L"host=1&theme=%ls", g.theme);
 
+  /* --app=<name> resolves the server from the host's own folder, so a shortcut
+   * only has to say which product it belongs to. */
+  if (!g.spawnExe[0] && g.appName[0]) {
+    joinW(g.spawnExe, MAXP, exeDir, g.appName);
+    wcsncat(g.spawnExe, L"_gui.exe", MAXP - wcslen(g.spawnExe) - 1);
+  }
+
+  /* Shell mode: bring up the app's own UI server and point the window at it. */
+  if (g.spawnExe[0] || g.port) {
+    WSADATA wsa;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+      copyW(g.error, L"WSAStartup failed", 1024);
+      logLine(L"[host] FATAL %ls", g.error);
+      writeResult();
+      return 9;
+    }
+  }
+  if (g.spawnExe[0]) {
+    if (!spawnChild(g.spawnExe, g.spawnArgs)) { writeResult(); return 10; }
+  }
+  if (g.port && !waitPort(g.port, g.waitMs)) {
+    _snwprintf(g.error, 1024, L"UI server did not open port %d within %d ms", g.port, g.waitMs);
+    logLine(L"[host] FATAL %ls", g.error);
+    writeResult();
+    return 11;
+  }
+
   if (urlArg[0]) {
     copyW(g.url, urlArg, MAXP);
+  } else if (g.port) {
+    _snwprintf(g.url, MAXP, L"http://127.0.0.1:%d/", g.port);
   } else {
     wchar_t index[MAXP], base[MAXP];
     joinW(index, MAXP, g.uiDir, L"index.html");
@@ -718,14 +834,15 @@ int wmain(int argc, wchar_t **argv) {
   HRESULT hrInit = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
   (void)hrInit;
 
-  g.hwnd = createWindow(g.width, g.height);
+  g.hwnd = createWindow(g.width, g.height, g.title);
   if (!g.hwnd) { copyW(g.error, L"CreateWindow failed", 1024); writeResult(); return 7; }
   /* Headless policy: the host must never put a window on the desktop. The
    * controller still paints because the browser args below disable Chromium's
    * occlusion / backgrounding throttling. */
-  ShowWindow(g.hwnd, SW_HIDE);
+  g.interactive = g.show && !g.screenshot[0] && !g.probeOut[0];
+  ShowWindow(g.hwnd, g.show ? SW_SHOW : SW_HIDE);
   UpdateWindow(g.hwnd);
-  SetTimer(g.hwnd, 2, (UINT)g.timeoutMs, NULL);
+  if (!g.interactive) SetTimer(g.hwnd, 2, (UINT)g.timeoutMs, NULL);
 
   HRESULT hr = pCreateEnv(g.fixedRuntime[0] ? g.fixedRuntime : NULL,
                           g.userData, &g_opt.iface, &g_envCompleted.iface);
@@ -751,6 +868,12 @@ int wmain(int argc, wchar_t **argv) {
     DispatchMessageW(&msg);
   }
 
+  if (g.interactive && g.navDone) g.ok = 1;
+  if (g.job) {
+    /* Closing the job takes the UI server down with the window. */
+    CloseHandle(g.job);
+    g.job = NULL;
+  }
   if (g.controller) g.controller->lpVtbl->Close(g.controller);
   if (g.controller) g.controller->lpVtbl->Release(g.controller);
   if (g.webview) g.webview->lpVtbl->Release(g.webview);

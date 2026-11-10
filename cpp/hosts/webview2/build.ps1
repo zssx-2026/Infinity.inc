@@ -18,7 +18,7 @@ Write-Host ('gcc: ' + $gcc)
 $exe = Join-Path $out 'webview2-host.exe'
 $gccArgs = @('-m64','-O2','-w','-s','-municode','-static','-static-libgcc','-static-libstdc++','-std=c99',
   ('-I' + $inc), ('-I' + $here), (Join-Path $here 'main.c'), '-o', $exe,
-  '-lole32','-loleaut32','-luuid','-lshell32','-ladvapi32','-luser32','-lkernel32')
+  '-lole32','-loleaut32','-luuid','-lshell32','-ladvapi32','-luser32','-lkernel32','-lws2_32')
 & $gcc @gccArgs
 if ($LASTEXITCODE -ne 0) { throw ('compile failed ' + $LASTEXITCODE) }
 

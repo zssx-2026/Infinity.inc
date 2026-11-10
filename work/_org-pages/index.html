@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infinity.Studio — 一套自己的工具链</title>
+<meta name="description" content="Infinity.Studio 是 Infinity.Inc 出品的桌面工具集合：云盘、文件管理、包管理、安装器管理、工具箱与游戏。">
+<style>
+:root{--bg:#0b0d10;--panel:#14181d;--line:#242b33;--fg:#e8edf2;--dim:#9aa7b4;--accent:#4f8cff;--accent2:#31d0aa}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 "Segoe UI","Microsoft YaHei",system-ui,sans-serif}
+a{color:var(--accent);text-decoration:none}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+header{padding:72px 0 40px;border-bottom:1px solid var(--line);background:radial-gradient(900px 320px at 20% -10%,rgba(79,140,255,.22),transparent 70%)}
+h1{font-size:44px;line-height:1.15;margin:0 0 14px;letter-spacing:-.5px}
+h1 span{color:var(--accent2)}
+.lead{color:var(--dim);font-size:18px;max-width:640px;margin:0 0 26px}
+.tag{display:inline-block;font-size:13px;color:var(--accent2);border:1px solid rgba(49,208,170,.35);border-radius:999px;padding:3px 12px;margin-bottom:18px}
+.cta{display:flex;gap:12px;flex-wrap:wrap}
+.btn{display:inline-block;padding:11px 20px;border-radius:10px;border:1px solid var(--line);color:var(--fg);background:var(--panel)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+section{padding:56px 0}
+h2{font-size:22px;margin:0 0 22px;letter-spacing:.2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:10px}
+.card h3{margin:0;font-size:18px}
+.card p{margin:0;color:var(--dim);font-size:14px;flex:1}
+.card .meta{font-size:12px;color:#6f7d8b;letter-spacing:.3px;text-transform:uppercase}
+.card .go{font-size:14px}
+footer{border-top:1px solid var(--line);padding:32px 0 56px;color:var(--dim);font-size:14px}
+code{background:#0f1317;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px}
+@media(max-width:560px){h1{font-size:32px}header{padding-top:48px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="tag">Infinity.Studio · 组织主页</div>
+    <h1>一套<span>自己的</span>工具链</h1>
+    <p class="lead">Infinity.Inc 出品的桌面工具集合：云盘、文件管理、包管理、安装器管理、工具箱与游戏。全部为单文件 Windows 应用，装上就能用。</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/zssx-2026/Infinity-Cloud/releases/tag/v1.0.0-pre5">下载 Infinity Cloud</a>
+      <a class="btn" href="https://github.com/zssx-2026">全部仓库</a>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>产品</h2>
+    <div class="grid">
+      <article class="card">
+        <div class="meta">inc</div>
+        <h3>Infinity Cloud</h3>
+        <p>云盘客户端：登录、同步、文件浏览与本地缓存。</p>
+        <a class="go" href="https://github.com/zssx-2026/Infinity-Cloud/releases/tag/v1.0.0-pre5">下载 →</a>
+      </article>
+      <article class="card">
+        <div class="meta">ifm</div>
+        <h3>Infinity File Manager</h3>
+        <p>双栏文件管理器，支持标签页、快速预览与批量操作。</p>
+        <a class="go" href="https://github.com/zssx-2026/Infinity-File-Manager/releases/tag/v1.0.0-pre4">下载 →</a>
+      </article>
+      <article class="card">
+        <div class="meta">ipm</div>
+        <h3>Infinity Package Manager</h3>
+        <p>统一的软件包安装与升级入口，按来源目录组织应用。</p>
+        <a class="go" href="https://github.com/zssx-2026/InfinityPackageManager/releases/tag/v1.0.0-pre5">下载 →</a>
+      </article>
+      <article class="card">
+        <div class="meta">iim</div>
+        <h3>Infinity Installer Manager</h3>
+        <p>安装包仓库与静默安装编排，记录每一次安装的结果。</p>
+        <a class="go" href="https://github.com/zssx-2026/Infinity-Installer-Manager/releases/tag/v1.0.0-pre4">下载 →</a>
+      </article>
+      <article class="card">
+        <div class="meta">int</div>
+        <h3>Infinity Toolbox</h3>
+        <p>常用系统工具集：编码转换、哈希校验、端口与进程查看。</p>
+        <a class="go" href="https://github.com/zssx-2026/Infinity-Toolbox/releases/tag/v1.0.0-pre5">下载 →</a>
+      </article>
+      <article class="card">
+        <div class="meta">ing</div>
+        <h3>Infinity Games</h3>
+        <p>轻量游戏启动器，按目录管理本地游戏与存档。</p>
+        <a class="go" href="https://github.com/zssx-2026/Infinity-Games/releases/tag/v1.0.0-pre4">下载 →</a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>关于</h2>
+    <p class="lead">Infinity.Studio 由 Infinity.Inc 维护。源码仓库为 <a href="https://github.com/zssx-2026/Infinity.inc">zssx-2026/Infinity.inc</a>，发布走 GitHub Releases，版本号形如 <code>v1.0.0-pre5</code>；Cloud、PackageManager、Toolbox 已发布 pre5，其余三个产品仍在 pre4。。</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">© 2026 Infinity.Inc · Infinity.Studio</div>
+</footer>
+</body>
+</html>

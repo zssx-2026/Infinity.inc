@@ -63,12 +63,20 @@
 8. ITB Tools：D:\dev\DeepSeekHarnessWorkspace\Infinity.inc\ITB Tools\ 目前只有 "rename to InfinityProxy/session.v4.jsonl"（6.4 MB，是一份 DSH 会话记录，主题是 fastbrowser/FastGithub 代理工具，不含工具二进制）。需确认工具本体位置（会话里出现 D:\dev\DeepSeekHarnessWorkspace\fastbrowser\fastbrowser.exe、temp/src/fastbrowser.cpp、fastgithub_sourcecode/），再用 C++ 打包成 .itbt 工具二进制。
 
 ## 新增（本轮）
-- [进行中] task-12 精简 Chromium 内核（子智能体 61bc9dfb）
+- [已完成] task-12 外壳换代（2026-11-08）：自建精简内核不成立（CEF 324.87 MiB/应用 > Electron 268.05 MiB），改采 WebView2 宿主（自身 452,114 B，系统 Evergreen 157.0.4341.42）。cpp/hosts/webview2/main.c 增 shell 模式（--show/--title/--spawn/--app/--port/--wait-ms，CreateProcessW + Job Object 关窗即杀）；package.mjs 增 INC_SHELL=webview2（载荷加 _window.exe + WebView2Loader.dll + ui/，快捷方式带 --app/--port/--show/--title）。三产品静默安装实证：665,288 / 436,840 / 452,256 B，快捷方式与载荷正确，宿主 exit 0 无残留，卸载清零。命令：INC_RELEASE=v1.0pre5 INC_SHELL=webview2 node cpp/tools/package.mjs
 - [进行中] task-13 仿 Edge UI（子智能体 471c3210）
 - [进行中] task-15 .itbt 容器 + Toolbox 加载（2026-11-08 更新）：packer cpp/tools/itbt/itbt-pack.cpp 编译零错（MinGW g++ -std=c++17，work/itbt-pack.exe 195,815 B）；round-trip 实证 pack→独立 Node 校验器 work/itbt-verify.mjs 19/19 PASS（魔数/小端/entry 表连续/逐条 sha256/item.json 在位）。本 MinGW 无 zlib.h（仅 zlib1.dll 无导入库）→ deflate 缓行，store 模式为准，packer 对 --deflate 有明确降级警告。Toolbox 加载侧（plugin list/install/verify + itbt_container 共享实现）由子智能体 int-toolbox-dev 进行中。坑：本会话 run_code 的 os.tmpdir() 返回相对路径 undefined\temp，临时文件一律用工作区显式路径。
 - [进行中] task-11 IPM 打包 once_power/Piik（rel-catalog）
-- [进行中] ghsync 修 CPP_ASSETS + 源码仓库同步（rel-publish）
+- [已完成] ghsync 修 CPP_ASSETS + 源码仓库同步（rel-publish）：git HTTPS 到 github.com 被阻断（Connection was reset / 443 超时），改走 Git Data API 推送；仓库瘦身 7900 文件/1739.5 MB → 697 文件/51,772,524 B（.gitignore 新增 never-publish 段排除 Chormium/、Python/、work/chromium-trim/、work/_retired-products/、IPM Applications/ 等）；用 git cat-file blob 取索引内容上传（磁盘字节受 CRLF 归一化影响会不一致）；最终 ref main = 3047bcda1f86，远端 tree 48b5be07… 与本地 HEAD^{tree} 完全一致，697 blobs，仓库公开、size 2435 KB、pushed_at 2026-11-08T10:40:18Z。凭据取自 Windows 凭据管理器（git credential fill），未落盘未回显。
 - [完成] work/PLAN-v1.0pre5.md（下一版本计划：Chromium 外壳、图标、IPM 扩展、ITB 容器）
+- [已完成] 组织主页 404 修复（2026-11-10）：Infinity-Studio-craft 原 0 仓库 → 新建 infinity-studio-craft.github.io，Git Data API 推 index.html（4,673 B），Pages 启用（source main /，build_type legacy）。首轮 build errored 系建仓即触发、内容未落地；补推后 status=built。实测 https://infinity-studio-craft.github.io/ 返回 200、4,673 B、标题「Infinity.Studio — 一套自己的工具链」。
+- [已完成] v1.0pre5 三包带 WebView2 外壳重建（2026-11-10）：InfinityCloud 671,016 B / InfinityPackageManager 436,840 B / InfinityToolbox 452,256 B，三包 signed Valid；release-assets.json 与 SHA256SUMS.txt 按实际文件重算（sha256 502edbae… / ab37f574… / efd3466d…）。
+- [已完成] v1.0.0-pre5 正式发布（2026-11-10）：cpp/tools/publish.mjs 真发三仓库 —— Infinity-Cloud asset 730958201、InfinityPackageManager 730958421、Infinity-Toolbox 730958668，均 prerelease=true、draft=false，远端 digest 与本地 sha256 逐字符一致；独立 QA 用公开 browser_download_url 下载回验 3/3 QA-OK（work/qa-pre5-download.ps1）。
+- [已完成] 发行说明重写：docs/RELEASE-v1.0pre5-body.md 由旧六应用稿改为实际三应用稿（WebView2 外壳、图标、退出码 20、三包字节/哈希、1,560,112 B 合计），随发布上传，三仓库 Release 正文各 4,771 字符。
+- [已完成] IPM 目录页刷新（work/catalog-pre5.mjs）：applications/application-inc 页上传 3 个 pre5 包、替换 name.txt（614 B，3 条 pre5 + 3 条 pre4）、删除 3 个 pre4 旧包，终态 6 包 + name.txt；name.txt 同步为 6 行跨版本清单，SHA256SUMS 重算（name.txt 38803657…）。
+- [已完成] 目录端到端验证：用已发布 cpp/out/ipm/ipm_cli.exe（带 token）实测 search Infinity 列出 6 条 —— inc/ipm/int 为 1.0.0-pre5，ifm/iim/ing 为 1.0.0-pre4；info InfinityCloud / InfinityToolbox 均命中 pre5 下载地址。
+- [已完成] 组织主页下载卡片改为显式 tag（work/_org-pages/index.html）：inc/ipm/int → /releases/tag/v1.0.0-pre5，ifm/iim/ing → /releases/tag/v1.0.0-pre4；重发 commit b40cc0fe02，Pages status=built，实测 200、4,789 字符、含 4 处 pre5 与 3 处 pre4 链接。
+- [待办] dist/url.json 与 dist/applist.json 仍是 2026-10-06 快照（Node IPM 旧产品线的目录镜像），本次未改；C++ IPM 直读 GitHub 目录页，不受影响。
 
 ## 新增（2026-10-25 晚：官网根化 + 下载门禁 + 备份）
 - [已完成] 官网 URL 根化：16 目录退役（.retired- 同盘改名），保留 10 页（/ cn/ download/ download/infinitycloud/ download/infinitypackagemanager/ cloud/ 双语），sitemap 10 URL + robots 重建，404 智能剥 /infinity 前缀。

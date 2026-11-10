@@ -25,6 +25,14 @@ const ICONS = path.resolve(ROOT, '..', 'icons');
  * the version carried by their file names both come from here, so a new
  * pre-release is one edit rather than a search: v1.0pre5 -> 1.0.0-pre5.
  * Either value can be overridden from the environment for a one-off build. */
+/* Shell: an empty value keeps the historical layout (no window host). With
+ * INC_SHELL=webview2 the payload also carries <prefix>_window.exe (the WebView2
+ * host), WebView2Loader.dll and the ui/ assets, and the Start Menu shortcut
+ * opens the product through that window instead of the bare gui face. The
+ * kernel is not shipped: it comes from the machine's WebView2 runtime. */
+const SHELL = String(process.env.INC_SHELL || '').trim();
+const SHELL_DIR = path.resolve(ROOT, '..', 'work', 'webview2');
+const PORTS = { inc: 7621, ifm: 7623, ipm: 7632, iim: 7643, int: 7653, ing: 7664 };
 const RELEASE = process.env.INC_RELEASE || 'v1.0pre5';
 const VERSION = process.env.INC_VERSION || '1.0.0-pre5';
 const OUT = path.join(ROOT, 'release', RELEASE);
@@ -81,7 +89,20 @@ function nsiFor(app, payload, output) {
   const iconPath = path.join(payload, iconName);
   const hasIcon = fs.existsSync(iconPath);
   const iconAbs = iconPath.split('/').join(String.fromCharCode(92));
+  /* CreateShortCut takes shortcut, target, parameters, icon, index. The empty
+   * string below is the parameters slot, so a shortcut that already carries
+   * shell arguments must not repeat it. */
   const iconArgs = hasIcon ? ' "" "$INSTDIR' + String.fromCharCode(92) + iconName + '" 0' : '';
+  /* Shell mode: the shortcut starts the window host, which brings the app's own
+   * UI server up and closes it again when the window closes. */
+  const windowFile = app.prefix + '_window.exe';
+  const shellArgs = SHELL === 'webview2'
+    ? ' "--app=' + app.prefix + ' --port=' + (PORTS[app.dir] || 7621) + ' --show --title=' + app.product.split(' ').join('+') + '"'
+    : '';
+  /* CreateShortCut takes shortcut, target, parameters, icon, index. The empty
+   * string in iconArgs fills the parameters slot, so a shortcut that already
+   * carries shell arguments must drop it. */
+  const openIconArgs = shellArgs ? iconArgs.replace(/^ "" /, ' ') : iconArgs;
   const displayIcon = hasIcon
     ? '  WriteRegStr HKCU "${UNKEY}" "DisplayIcon" "$INSTDIR' + String.fromCharCode(92) + iconName + '"'
     : '';
@@ -105,7 +126,16 @@ function nsiFor(app, payload, output) {
   const regDelete = paths.map(function (x) {
     return '  DeleteRegValue HKCU "Environment" "' + x.env + '"';
   }).join('\r\n');
-  const shortcut = app.prefix + '_' + (app.faces.indexOf('launcher') >= 0 ? 'launcher' : 'gui') + '.exe';
+  const shortcut = SHELL === 'webview2'
+    ? windowFile
+    : app.prefix + '_' + (app.faces.indexOf('launcher') >= 0 ? 'launcher' : 'gui') + '.exe';
+  const shellFiles = SHELL === 'webview2'
+    ? [
+        '  File "' + windowFile + '"',
+        '  File "WebView2Loader.dll"',
+        '  File /r "ui"'
+      ].join('\r\n')
+    : '';
   const unkey = 'Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Infinity.Inc.' + app.package;
   return [
     'Unicode true',
@@ -144,11 +174,12 @@ function nsiFor(app, payload, output) {
     '  SetShellVarContext current',
     '  SetOutPath "$INSTDIR"',
     copies,
+    shellFiles,
     iconFile,
     unblock,
     '  WriteUninstaller "$INSTDIR\\Uninstall.exe"',
     '  CreateDirectory "$SMPROGRAMS\\Infinity.Inc\\${PRODUCT}"',
-    '  CreateShortCut "$SMPROGRAMS\\Infinity.Inc\\${PRODUCT}\\Open.lnk" "$INSTDIR\\' + shortcut + '"' + iconArgs,
+    '  CreateShortCut "$SMPROGRAMS\\Infinity.Inc\\${PRODUCT}\\Open.lnk" "$INSTDIR\\' + shortcut + '"' + shellArgs + openIconArgs,
     '  CreateShortCut "$SMPROGRAMS\\Infinity.Inc\\${PRODUCT}\\Uninstall.lnk" "$INSTDIR\\Uninstall.exe"' + iconArgs,
     regWrite,
     '  ReadRegStr $0 HKCU "Environment" "def_fm"',
@@ -197,6 +228,19 @@ function stage(app) {
       if (!fs.existsSync(file)) throw new Error('missing C++ output: ' + file);
       fs.copyFileSync(file, path.join(dest, name));
     }
+  }
+  /* Shell payload: the window host, its loader and the shared ui assets. The
+   * WebView2 kernel itself is never shipped - it comes from the machine. */
+  if (SHELL === 'webview2') {
+    const host = path.join(SHELL_DIR, 'webview2-host.exe');
+    const loader = path.join(SHELL_DIR, 'WebView2Loader.dll');
+    const ui = path.join(SHELL_DIR, 'ui');
+    for (const p of [host, loader, ui]) {
+      if (!fs.existsSync(p)) throw new Error('missing shell payload: ' + p);
+    }
+    fs.copyFileSync(host, path.join(dest, app.prefix + '_window.exe'));
+    fs.copyFileSync(loader, path.join(dest, 'WebView2Loader.dll'));
+    fs.cpSync(ui, path.join(dest, 'ui'), { recursive: true });
   }
   return dest;
 }
