@@ -65,6 +65,12 @@ typedef struct {
   wchar_t probeJson[8192];
   wchar_t bridge[4096];
   int bridgeCount;
+  /* Window protocol: the shell draws the only chrome the user sees, so its
+   * buttons post shell.window and the host is the side that can move a real
+   * window. Every action is applied here and recorded for the probe report. */
+  wchar_t winLog[1024];
+  int winAcks;
+  int msgTest, msgTestDone;
 } Host;
 
 static Host g;
@@ -135,6 +141,53 @@ static void jsonEscape(wchar_t *dst, size_t cap, const wchar_t *src) {
     else dst[o++] = *p;
   }
   dst[o] = 0;
+}
+
+/* Pull one string field out of a small flat JSON object. The host reads a
+ * single value per message, so a scan beats carrying a parser here. */
+static int jsonStr(const wchar_t *json, const wchar_t *key, wchar_t *out, size_t cap) {
+  wchar_t pat[64];
+  const wchar_t *p;
+  size_t i = 0;
+  if (!out || !cap) return 0;
+  out[0] = 0;
+  if (!json || !key || !key[0]) return 0;
+  _snwprintf(pat, 64, L"\"%ls\":\"", key);
+  p = wcsstr(json, pat);
+  if (!p) return 0;
+  p += wcslen(pat);
+  while (*p && *p != L'\"' && i + 1 < cap) out[i++] = *p++;
+  out[i] = 0;
+  return 1;
+}
+
+/* A second window is a second host process pointed at the same UI server: the
+ * page asks for it from its own tab-strip menu, so the child must not start a
+ * second server (--spawn/--port are deliberately left out). */
+static void newWindow(void) {
+  wchar_t exe[MAXP], cmd[3 * MAXP];
+  STARTUPINFOW si;
+  PROCESS_INFORMATION pi;
+  if (!g.url[0]) return;
+  GetModuleFileNameW(NULL, exe, MAXP);
+  if (g.userData[0]) {
+    _snwprintf(cmd, 3 * MAXP, L"\"%ls\" \"--url=%ls\" --show --width=%d --height=%d \"--user-data=%ls\"",
+               exe, g.url, g.width ? g.width : 1280, g.height ? g.height : 800, g.userData);
+  } else {
+    _snwprintf(cmd, 3 * MAXP, L"\"%ls\" \"--url=%ls\" --show --width=%d --height=%d",
+               exe, g.url, g.width ? g.width : 1280, g.height ? g.height : 800);
+  }
+  cmd[3 * MAXP - 1] = 0;
+  memset(&si, 0, sizeof(si));
+  si.cb = sizeof(si);
+  memset(&pi, 0, sizeof(pi));
+  if (CreateProcessW(NULL, cmd, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+    logLine(L"[host] shell.window new -> pid %lu", (unsigned long)pi.dwProcessId);
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+  } else {
+    logLine(L"[host] shell.window new failed err=%lu", (unsigned long)GetLastError());
+  }
 }
 
 /* ---------- WebView2EnvironmentOptions (own Chromium switches) ---------- */
@@ -270,6 +323,8 @@ static void writeResult(void) {
   jsonEscape(uiEsc, 8300, g.uiDir);
   wchar_t urlEsc[8300];
   jsonEscape(urlEsc, 8300, g.url);
+  wchar_t winEsc[2200];
+  jsonEscape(winEsc, 2200, g.winLog);
 
   wchar_t body[19000];
   _snwprintf(body, 19000,
@@ -285,12 +340,14 @@ static void writeResult(void) {
     L"  \"probe\": %ls,\n"
     L"  \"bridge\": \"%ls\",\n"
     L"  \"bridge_count\": %d,\n"
+    L"  \"window_actions\": \"%ls\",\n"
+    L"  \"window_ack_count\": %d,\n"
     L"  \"screenshot\": \"%ls\",\n"
     L"  \"error\": \"%ls\"\n"
     L"}\n",
     g.ok ? L"true" : L"false", uiEsc, urlEsc, g.runtimeVersion, g.theme,
     g.width, g.height, g.tEnv, g.tController, g.tNav, g.tProbe, g.tShot, g.tTotal,
-    probe, bridge, g.bridgeCount, shotEsc, esc);
+    probe, bridge, g.bridgeCount, winEsc, g.winAcks, shotEsc, esc);
   body[18999] = 0;
 
   FILE *f = _wfopen(g.resultOut, L"wb");
@@ -364,6 +421,25 @@ static HRESULT STDMETHODCALLTYPE Inject_Invoke(ICoreWebView2AddScriptToExecuteOn
 static ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandlerVtbl injectVtbl = { Inject_QI, Inject_AddRef, Inject_Release, Inject_Invoke };
 static Inject_H g_inject = { { &injectVtbl }, 1 };
 
+/* --msg-test: replay the five shell.window actions the titlebar buttons send,
+ * from inside the page itself, so the host round trip is proven end to end
+ * without a human clicking a button. */
+static const wchar_t *MSG_TEST_JS =
+  L"(function(){var seq=[['minimize',150],['restore',700],['maximize',1250],['restore',1800],['new',2300]];"
+  L"function post(a){try{window.chrome.webview.postMessage({channel:'infinity-shell',v:1,dir:'to-host',"
+  L"type:'shell.window',payload:{action:a},ts:Date.now(),id:'msg-test'});}catch(e){}}"
+  L"seq.forEach(function(s){setTimeout(function(){post(s[0]);},s[1]);});return 'scheduled '+seq.length;})()";
+
+typedef struct { ICoreWebView2ExecuteScriptCompletedHandler iface; LONG ref; } Test_H;
+QI_IMPL(ICoreWebView2ExecuteScriptCompletedHandler, ICoreWebView2ExecuteScriptCompletedHandler, TestVtbl, Test)
+static HRESULT STDMETHODCALLTYPE Test_Invoke(ICoreWebView2ExecuteScriptCompletedHandler *This, HRESULT errorCode, LPCWSTR result) {
+  (void)This;
+  logLine(L"[host] msg-test scheduled err=0x%08lx %ls", (unsigned long)errorCode, result ? result : L"");
+  return S_OK;
+}
+static ICoreWebView2ExecuteScriptCompletedHandlerVtbl testVtbl = { Test_QI, Test_AddRef, Test_Release, Test_Invoke };
+static Test_H g_test = { { &testVtbl }, 1 };
+
 static const wchar_t *PROBE_JS =
   L"(function(){try{var d=document.documentElement;var tabs=document.querySelectorAll('.tab');var sh=window.__InfinityShell||null;"
   L"var log=sh&&sh.log?sh.log():[];var tail=log.slice(-14).map(function(e){return e.dir+':'+e.type;});"
@@ -421,6 +497,14 @@ static HRESULT STDMETHODCALLTYPE ShotCompleted_Invoke(ICoreWebView2CapturePrevie
   }
   g.tShot = nowMs();
   if (g.shotStream) { g.shotStream->lpVtbl->Release(g.shotStream); g.shotStream = NULL; }
+  /* The window protocol test runs after the frame is captured, so the shot
+   * still shows a normal window and the four actions get time to arrive. */
+  if (g.msgTest && !g.msgTestDone && g.webview) {
+    g.msgTestDone = 1;
+    g.webview->lpVtbl->ExecuteScript(g.webview, MSG_TEST_JS, &g_test.iface);
+    SetTimer(g.hwnd, 3, 4200, NULL);
+    return S_OK;
+  }
   finish();
   return S_OK;
 }
@@ -450,6 +534,42 @@ static HRESULT STDMETHODCALLTYPE MsgReceived_Invoke(ICoreWebView2WebMessageRecei
         g.runtimeVersion, (unsigned long)GetTickCount64());
       HRESULT hrReply = g.webview->lpVtbl->PostWebMessageAsJson(g.webview, reply);
       logLine(L"[host] host.info reply hr=0x%08lx", (unsigned long)hrReply);
+    } else if (g.webview && wcsstr(json, L"\"shell.window\"")) {
+      /* The page's own titlebar is the only chrome the user sees, so its
+       * buttons have to drive the real window through this message. */
+      wchar_t action[32];
+      if (jsonStr(json, L"action", action, 32) && action[0]) {
+        HWND hwnd = g.hwnd;
+        if (!wcscmp(action, L"minimize")) {
+          ShowWindow(hwnd, SW_MINIMIZE);
+        } else if (!wcscmp(action, L"maximize")) {
+          ShowWindow(hwnd, IsZoomed(hwnd) ? SW_RESTORE : SW_MAXIMIZE);
+        } else if (!wcscmp(action, L"restore")) {
+          ShowWindow(hwnd, SW_RESTORE);
+        } else if (!wcscmp(action, L"close")) {
+          PostMessageW(hwnd, WM_CLOSE, 0, 0);
+        } else if (!wcscmp(action, L"new")) {
+          newWindow();
+        }
+        g.winAcks++;
+        {
+          wchar_t one[64];
+          _snwprintf(one, 64, L"%ls%ls", g.winLog[0] ? L" " : L"", action);
+          wcsncat(g.winLog, one, 1024 - wcslen(g.winLog) - 1);
+        }
+        logLine(L"[host] shell.window action=%ls iconic=%d zoomed=%d", action, IsIconic(hwnd), IsZoomed(hwnd));
+        {
+          /* Say what the window actually became, so a toggle button can draw
+           * the right glyph instead of guessing its own state. */
+          wchar_t reply[320];
+          _snwprintf(reply, 320,
+            L"{\"channel\":\"infinity-shell\",\"v\":1,\"dir\":\"to-shell\",\"type\":\"host.window\","
+            L"\"payload\":{\"action\":\"%ls\",\"minimized\":%ls,\"maximized\":%ls},\"ts\":%lu,\"id\":\"host-window\"}",
+            action, IsIconic(hwnd) ? L"true" : L"false", IsZoomed(hwnd) ? L"true" : L"false",
+            (unsigned long)GetTickCount64());
+          g.webview->lpVtbl->PostWebMessageAsJson(g.webview, reply);
+        }
+      }
     }
     CoTaskMemFree(json);
   }
@@ -558,6 +678,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         KillTimer(hwnd, 1);
         if (!g.probeDone && g.webview) g.webview->lpVtbl->ExecuteScript(g.webview, PROBE_JS, &g_scriptCompleted.iface);
         else finish();
+      } else if (wp == 3) {
+        KillTimer(hwnd, 3);
+        finish();
       } else if (wp == 2) {
         KillTimer(hwnd, 2);
         if (!g.finished) {
@@ -687,7 +810,8 @@ static void usage(void) {
           L"  --app=<name>          spawn <name>_gui.exe from the host's own folder\n"
           L"  --spawn-args=<s>      arguments for --spawn (default --serve-ui)\n"
           L"  --port=N              UI server port: waits for it and navigates to it\n"
-          L"  --wait-ms=N           how long to wait for the port (default 20000)\n");
+          L"  --wait-ms=N           how long to wait for the port (default 20000)\n"
+          L"  --msg-test            replay the shell.window actions after the frame (probe)\n");
 }
 
 int wmain(int argc, wchar_t **argv) {
@@ -732,6 +856,7 @@ int wmain(int argc, wchar_t **argv) {
     else if (!wcsncmp(a, L"--port=", 7)) g.port = _wtoi(a + 7);
     else if (!wcsncmp(a, L"--wait-ms=", 10)) g.waitMs = _wtoi(a + 10);
     else if (!wcscmp(a, L"--show")) g.show = 1;
+    else if (!wcscmp(a, L"--msg-test")) g.msgTest = 1;
     else if (!wcscmp(a, L"--help") || !wcscmp(a, L"-h")) wantHelp = 1;
   }
   if (wantHelp || (!g.uiDir[0] && !urlArg[0] && !g.port)) { usage(); return 2; }

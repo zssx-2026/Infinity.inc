@@ -161,11 +161,11 @@
    * resolves to the Node-era stable v1.0pre1, which is not what the cards
    * should hand anybody. The tag is therefore named explicitly.
    *
-   * Keep in step with cpp/release/v1.0pre5/release-assets.json ("tag") - the
+   * Keep in step with cpp/release/v1.0pre6/release-assets.json ("tag") - the
    * directory name carries the same version. Both language versions read it
    * from here, so there is nothing else to update when it moves.
    */
-  var RELEASE_TAG = 'v1.0.0-pre5';
+  var RELEASE_TAG = 'v1.0.0-pre6';
 
   var TOKEN_KEY = 'infinity.token';
   var SETTINGS_KEY = 'infinity.settings';

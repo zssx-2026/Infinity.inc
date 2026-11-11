@@ -27,6 +27,8 @@
 #include "inc/ansi.hpp"
 #include "inc/str.hpp"
 #include "inc/uiserver.hpp"
+#include "inc/tokenstore.hpp"
+#include "inc/setuppage.hpp"
 #include "unblock.hpp"
 
 #include "ui.hpp"
@@ -49,6 +51,8 @@
 using namespace inc;
 
 static const char* APP = "InfinityPackageManager";
+// Where the stored token lives under %LOCALAPPDATA%\Infinity.
+static const char* APP_ID = "ipm";
 
 namespace {
 
@@ -929,46 +933,93 @@ std::vector<int> allRows(const Catalog& catalog) {
 }
 
 int serveUi(int port) {
-  const std::string token = tokenFromEnv();
+  // The token is asked for in the window, not demanded from the environment:
+  // a program that refuses to open until someone exports a variable is a
+  // program most people never get past. A stored token wins; the environment
+  // is the fallback for scripted use.
+  std::string token = loadToken(APP_ID);
+  std::string source = "本机保存";
   if (token.empty()) {
-    out(color(C_RED, "not signed in") + " - set gittoken_zssx-2026_1 (or EV_GH_TOKEN) first.");
-    return 1;
+    token = tokenFromEnv();
+    source = tokenSource();
   }
+  if (token.empty()) out("no token yet - the window will ask for one.");
+
   Session session(token);
-  session.tokenSourceName = tokenSource();
+  session.tokenSourceName = source;
 
   // Signing in and reading the catalogue are independent and both are waits on
   // the network, so they run together and the interface is ready when the
-  // slower one is instead of when both have been. A failure to sign in still
-  // stops the program exactly as it did, and a catalogue that fails to load is
-  // still reported by the page rather than by the exit code.
+  // slower one is instead of when both have been. Without a token there is
+  // nothing to wait for: the window opens on the sign-in screen instead.
   std::string error;
   Catalog catalog;
   bool signedIn = false;
-  parallelFor(2, 2, [&](size_t index) {
-    if (index == 0) signedIn = session.signIn(&error);
-    else catalog.refresh(token);
-  });
-  if (!signedIn) {
-    out(color(C_RED, "not signed in") + " (" + error + ")");
-    return 1;
+  std::string setupError;
+  if (!token.empty()) {
+    parallelFor(2, 2, [&](size_t index) {
+      if (index == 0) signedIn = session.signIn(&error);
+      else catalog.refresh(session.gh.token());
+    });
+    if (!signedIn) {
+      out(color(C_RED, "not signed in") + " (" + error + ")");
+      setupError = "令牌无法通过验证：" + error;
+      session.gh.setToken(std::string());
+      session.ready = false;
+    }
   }
 
   UiServer server;
-  server.route("GET", "/", [](const UiRequest&) { return UiResponse::html(uiHtml()); });
+  server.route("GET", "/", [&](const UiRequest&) {
+    if (!session.ready) return UiResponse::html(setupPageHtml(APP, setupError));
+    return UiResponse::html(uiHtml());
+  });
   server.route("GET", "/app.css", [](const UiRequest&) { return UiResponse::css(uiCss()); });
   server.route("GET", "/app.js", [](const UiRequest&) { return UiResponse::js(uiJs()); });
 
-  server.route("GET", "/api/state", [&](const UiRequest&) {
+  /*
+   * The first-run screen posts here. The candidate is proved by signing in with
+   * it before it is kept, so a typo is refused in the page instead of being
+   * stored and failing on every later start.
+   */
+  server.route("POST", "/api/token", [&](const UiRequest& request) {
+    bool parsed = false;
+    Json body = Json::parse(request.body, &parsed);
+    const std::string candidate = trim(body.s("token"));
+    if (candidate.empty()) return uiFailure("请填写令牌", 400);
+    Session probe(candidate);
+    std::string why;
+    if (!probe.signIn(&why)) return uiFailure("令牌无法通过验证：" + why, 400);
+    std::string saveError;
+    if (!saveToken(APP_ID, candidate, &saveError)) return uiFailure("令牌无法保存：" + saveError, 500);
+    session.gh.setToken(candidate);
+    session.tokenSourceName = "本机保存";
+    if (!session.signIn(&why)) return uiFailure("令牌无法通过验证：" + why, 400);
+    catalog.refresh(session.gh.token());
+    setupError.clear();
+    out(color(C_GREEN, "token stored") + " for " + session.gh.login());
+    return UiResponse::json(Json::object().dump());
+  });
+
+  // Everything under /api needs a signed-in session; the sign-in screen's own
+  // route is registered above, before this guard exists.
+  auto api = [&](const char* method, const char* path, UiHandler handler) {
+    server.route(method, path, [&, handler](const UiRequest& request) {
+      if (!session.ready) return uiFailure("尚未登录", 401);
+      return handler(request);
+    });
+  };
+
+  api("GET", "/api/state", [&](const UiRequest&) {
     return UiResponse::json(stateJson(catalog, session, allRows(catalog)).dump(2));
   });
 
-  server.route("GET", "/api/search", [&](const UiRequest& request) {
+  api("GET", "/api/search", [&](const UiRequest& request) {
     return UiResponse::json(stateJson(catalog, session, catalog.matching(queryValue(request, "q"))).dump(2));
   });
 
-  server.route("POST", "/api/refresh", [&](const UiRequest&) {
-    const bool ok = catalog.refresh(token);
+  api("POST", "/api/refresh", [&](const UiRequest&) {
+    const bool ok = catalog.refresh(session.gh.token());
     return UiResponse::withStatus(
         UiResponse::json(stateJson(catalog, session, allRows(catalog)).dump(2)), ok ? 200 : 502);
   });
@@ -993,7 +1044,7 @@ int serveUi(int port) {
     return false;
   };
 
-  server.route("POST", "/api/download", [&](const UiRequest& request) {
+  api("POST", "/api/download", [&](const UiRequest& request) {
     const Build* build = nullptr;
     std::string why;
     if (!locate(request, &build, &why)) return uiFailure(why, 404);
@@ -1014,7 +1065,7 @@ int serveUi(int port) {
     return UiResponse::json(j.dump(2));
   });
 
-  server.route("POST", "/api/install", [&](const UiRequest& request) {
+  api("POST", "/api/install", [&](const UiRequest& request) {
     const Build* build = nullptr;
     std::string why;
     if (!locate(request, &build, &why)) return uiFailure(why, 404);
@@ -1045,7 +1096,7 @@ int serveUi(int port) {
     return UiResponse::json(j.dump(2));
   });
 
-  server.route("POST", "/api/open-folder", [&](const UiRequest&) {
+  api("POST", "/api/open-folder", [&](const UiRequest&) {
     std::wstring directory;
     std::string why;
     if (!downloadsDirectory(&directory, &why)) return uiFailure(why, 500);

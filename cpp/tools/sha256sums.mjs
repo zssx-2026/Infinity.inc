@@ -1,6 +1,6 @@
 // sha256sums.mjs — 生成/校验 SHA256SUMS.txt（GNU coreutils 格式 "<sha256>  <relpath>"）
 // 用法: node cpp/tools/sha256sums.mjs [releaseDir] [--check]
-// 顺序（与既有 installers/packaging/v1.0pre5/SHA256SUMS.txt 完全一致）:
+// 顺序（与既有 installers/packaging/v1.0pre6/SHA256SUMS.txt 完全一致）:
 //   1) release-assets.json 中的资产，按文件名字典序
 //   2) 目录内其余顶层文件，字典序
 //   3) 子目录递归，目录名与文件名字典序
@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-const dir = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : 'cpp/release/v1.0pre5';
+const dir = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : 'cpp/release/v1.0pre6';
 const check = process.argv.includes('--check');
 const problems = [];
 const sha256 = (p) => crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');

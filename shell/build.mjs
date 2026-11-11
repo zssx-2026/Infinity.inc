@@ -124,8 +124,11 @@ function copyAs(srcDir, srcExe, newName, arch) {
   return dstDir;
 }
 
-/* Windows on three architectures, the same three the installers target. */
-export const ARCHES = ['x64', 'ia32', 'arm64'];
+/* Windows on three architectures, the same three the installers target.
+ * INC_SHELL_ARCHES narrows a run (for example x64) so a single-architecture
+ * release does not spend 600 MB of I/O staging shells nobody installs. */
+export const ARCHES = String(process.env.INC_SHELL_ARCHES || 'x64,ia32,arm64')
+  .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 
 function main() {
   const version = electronVersion();
@@ -143,7 +146,9 @@ function main() {
     const first = 'inc_gui';
     const base = path.join(OUT, first + '-win32-' + arch);
     fs.mkdirSync(base, { recursive: true });
-    execFileSync('unzip', ['-q', '-o', zip, '-d', base], { stdio: ['ignore', 'pipe', 'pipe'] });
+    /* Windows has no unzip, but it does ship bsdtar, which reads the zip the
+     * Electron runtime comes in. */
+    execFileSync('tar', ['-xf', zip, '-C', base], { stdio: ['ignore', 'pipe', 'pipe'] });
     fs.renameSync(path.join(base, 'electron.exe'), path.join(base, first + '.exe'));
     writeApp(base, TARGETS[0].app);
 

@@ -69,6 +69,15 @@ class GitHub {
 
   static const char* apiBase() { return "https://api.github.com"; }
 
+  // A credential that arrives after the object does: the first-run screen asks
+  // the person for one while the program is already running. Signing in again
+  // is the caller's job - this only replaces the token and forgets the old
+  // identity so a stale login can never be reported next to a new token.
+  void setToken(const std::string& token) {
+    token_ = token;
+    login_.clear();
+  }
+
  private:
   std::string token_;
   std::string login_;

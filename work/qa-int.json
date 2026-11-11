@@ -1,0 +1,21 @@
+{
+  "dpr": 1.5,
+  "cssW": 1166,
+  "cssH": 715,
+  "screenW": 1280,
+  "screenH": 800,
+  "availH": 752,
+  "title": "Infinity Toolbox",
+  "bodyText": "Infinity Toolbox\n1.0.0-pre6\n4 tools\nwindows-x64 · C:\\Users\\REDMI\\AppData\\Local\\I",
+  "scaleFactor": 1.5,
+  "bounds": {
+    "x": 50,
+    "y": 0,
+    "width": 1180,
+    "height": 752
+  },
+  "contentSize": [
+    1166,
+    715
+  ]
+}

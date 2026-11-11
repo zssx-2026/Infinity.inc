@@ -11,10 +11,10 @@
  *
  * Usage:
  *   node tools/publish.mjs [tag] [--dry-run]
- *   INC_RELEASE=v1.0pre5 INC_TAG=v1.0.0-pre5 node tools/publish.mjs --dry-run
+ *   INC_RELEASE=v1.0pre6 INC_TAG=v1.0.0-pre6 node tools/publish.mjs --dry-run
  *
- * The release directory comes from INC_RELEASE (default v1.0pre5) and the git
- * tag from the first non-flag argument or INC_TAG (default v1.0.0-pre5), the
+ * The release directory comes from INC_RELEASE (default v1.0pre6) and the git
+ * tag from the first non-flag argument or INC_TAG (default v1.0.0-pre6), the
  * same pair tools/package.mjs uses. The version inside the file name is TAG
  * without its leading "v" unless INC_VERSION says otherwise.
  *
@@ -36,13 +36,13 @@ import { execFileSync } from 'node:child_process';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
-const RELEASE = process.env.INC_RELEASE || 'v1.0pre5';
+const RELEASE = process.env.INC_RELEASE || 'v1.0pre6';
 const OUT = path.join(ROOT, 'release', RELEASE);
 
 const ARGV = process.argv.slice(2);
 const DRY_RUN = ARGV.indexOf('--dry-run') >= 0;
 const POSITIONAL = ARGV.filter(function (a) { return a.charAt(0) !== '-'; });
-const TAG = POSITIONAL[0] || process.env.INC_TAG || 'v1.0.0-pre5';
+const TAG = POSITIONAL[0] || process.env.INC_TAG || 'v1.0.0-pre6';
 const VERSION = process.env.INC_VERSION || TAG.replace(/^v/, '');
 const OWNER = 'zssx-2026';
 
@@ -121,14 +121,14 @@ function sha256(file) {
  * fallback for a checkout that has no docs/ directory. */
 const BODY_FILE = path.resolve(ROOT, '..', 'docs', 'RELEASE-' + RELEASE + '-body.md');
 const FALLBACK_BODY = [
-  'Infinity.Inc v1.0.0-pre5 —— 五个纯 C++ 应用，不需要 Node、Electron，',
-  '也不需要任何第三方运行库：导入表里只有 Windows 自带的 DLL。',
+  'Infinity.Inc v1.0.0-pre6 —— 三个自包含 Windows 应用：',
+  'Infinity Cloud / InfinityPackageManager / Infinity Toolbox。',
   '',
-  '· 三个应用：Infinity Cloud / InfinityPackageManager / Infinity Toolbox',
+  '· 窗口外壳换成 Electron 33.4.11 套壳（随包，不依赖系统浏览器内核），界面不再发糊',
+  '· 第一次启动自己弹令牌输入界面，凭据用 Windows DPAPI 加密存本机，环境变量只是回退',
+  '· C++ 侧只导入 Windows 自带的 DLL：不需要 Node、不需要 VC++ 运行库',
   '· 每个应用按文件名分派 cli / gui / launcher（int 为 cli / gui），管理员孪生用 x 前缀',
-  '· 文件自行解除锁定：程序启动最早期清除自身与自身目录的 Zone.Identifier，安装包同样处理落地文件',
-  '· 本次包含各产品的性能优化（数字见 work/release-v1.0pre5-report.md）',
-  '· 安装包体积约 0.2-0.5 MB（此前 Node + Electron 版本约 20 MB 起）',
+  '· 安装包 80 MB 级（Electron 运行时随包），安装后每应用约 277 MB / 75 文件',
   '· 安装时注册 HKCU 环境变量并广播 WM_SETTINGCHANGE，卸载时删除'
 ].join('\n');
 

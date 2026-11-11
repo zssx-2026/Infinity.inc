@@ -49,6 +49,15 @@ class Store {
   bool restore(const std::string& cloudPath, std::string* error = nullptr);
   bool purge(const std::string& cloudPath = "", std::string* error = nullptr);
 
+  // The owner is whatever the signed-in token belongs to. A store built
+  // before sign-in has no owner yet, so it takes one once the login is known
+  // and drops what it had cached for the old one.
+  void setOwner(const std::string& owner) {
+    owner_ = owner;
+    manifest_ = Json::object();
+    repos_.clear();
+  }
+
   static std::string normalizePath(const std::string& p);
   static std::string parentPath(const std::string& p);
   static std::string baseName(const std::string& p);

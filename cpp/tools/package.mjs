@@ -23,18 +23,28 @@ const BUILD = path.join(ROOT, 'build');
 const ICONS = path.resolve(ROOT, '..', 'icons');
 /* The release this run belongs to. The directory that holds the installers and
  * the version carried by their file names both come from here, so a new
- * pre-release is one edit rather than a search: v1.0pre5 -> 1.0.0-pre5.
+ * pre-release is one edit rather than a search: v1.0pre6 -> 1.0.0-pre6.
  * Either value can be overridden from the environment for a one-off build. */
 /* Shell: an empty value keeps the historical layout (no window host). With
  * INC_SHELL=webview2 the payload also carries <prefix>_window.exe (the WebView2
  * host), WebView2Loader.dll and the ui/ assets, and the Start Menu shortcut
  * opens the product through that window instead of the bare gui face. The
  * kernel is not shipped: it comes from the machine's WebView2 runtime. */
+/* INC_SHELL=electron stages the Electron shell: shell/build/<prefix>_gui-win32-x64
+ * is the payload, its root executable renamed to <prefix>_window.exe, and the
+ * installer recurses the whole directory. The Chromium runtime is carried
+ * inside the installer, which is why that payload is two orders of magnitude
+ * larger than the WebView2 host's - it is also why the window is sharp at any
+ * display scale without asking the machine for a runtime it may not have. */
 const SHELL = String(process.env.INC_SHELL || '').trim();
-const SHELL_DIR = path.resolve(ROOT, '..', 'work', 'webview2');
+const SHELL_DIR = SHELL === 'electron'
+  ? path.resolve(ROOT, '..', 'shell', 'build')
+  : path.resolve(ROOT, '..', 'work', 'webview2');
+const SHELL_ARCH = String(process.env.INC_SHELL_ARCH || 'win32-x64').trim();
+const SHELL_FOLDER = function (app) { return app.prefix + '_shell'; };
 const PORTS = { inc: 7621, ifm: 7623, ipm: 7632, iim: 7643, int: 7653, ing: 7664 };
-const RELEASE = process.env.INC_RELEASE || 'v1.0pre5';
-const VERSION = process.env.INC_VERSION || '1.0.0-pre5';
+const RELEASE = process.env.INC_RELEASE || 'v1.0pre6';
+const VERSION = process.env.INC_VERSION || '1.0.0-pre6';
 const OUT = path.join(ROOT, 'release', RELEASE);
 const MAKENSIS = 'C:/Program Files (x86)/NSIS/makensis.exe';
 
@@ -67,7 +77,7 @@ function run(exe, args, cwd) {
 }
 function log(s) { process.stdout.write(s + '\n'); }
 
-/* NSIS needs a four-number VIProductVersion. "1.0.0-pre5" is the fifth
+/* NSIS needs a four-number VIProductVersion. "1.0.0-pre6" is the fifth
  * pre-release of 1.0.0, so the fourth number is 5 - the same mapping
  * build.mjs uses for the payload FILEVERSION, so the installer's version
  * resource and the executables it carries agree. */
@@ -126,16 +136,23 @@ function nsiFor(app, payload, output) {
   const regDelete = paths.map(function (x) {
     return '  DeleteRegValue HKCU "Environment" "' + x.env + '"';
   }).join('\r\n');
+  /* The shortcut's target. The Electron shell lives in its own folder so the
+   * Chromium files cannot be mistaken for product files, and so uninstalling
+   * the suite removes them in one step. */
   const shortcut = SHELL === 'webview2'
     ? windowFile
-    : app.prefix + '_' + (app.faces.indexOf('launcher') >= 0 ? 'launcher' : 'gui') + '.exe';
+    : SHELL === 'electron'
+      ? SHELL_FOLDER(app) + '\\' + windowFile
+      : app.prefix + '_' + (app.faces.indexOf('launcher') >= 0 ? 'launcher' : 'gui') + '.exe';
   const shellFiles = SHELL === 'webview2'
     ? [
         '  File "' + windowFile + '"',
         '  File "WebView2Loader.dll"',
         '  File /r "ui"'
       ].join('\r\n')
-    : '';
+    : SHELL === 'electron'
+      ? '  File /r "' + SHELL_FOLDER(app) + '"'
+      : '';
   const unkey = 'Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Infinity.Inc.' + app.package;
   return [
     'Unicode true',
@@ -241,6 +258,17 @@ function stage(app) {
     fs.copyFileSync(host, path.join(dest, app.prefix + '_window.exe'));
     fs.copyFileSync(loader, path.join(dest, 'WebView2Loader.dll'));
     fs.cpSync(ui, path.join(dest, 'ui'), { recursive: true });
+  }
+  /* Electron payload: the whole staged runtime tree, renamed so the folder
+   * says whose it is. Copying rather than linking keeps the installer input
+   * self-contained: shell/build can be rebuilt while an installer is made. */
+  if (SHELL === 'electron') {
+    const from = path.join(SHELL_DIR, app.prefix + '_gui-' + SHELL_ARCH);
+    const exe = path.join(from, app.prefix + '_gui.exe');
+    if (!fs.existsSync(exe)) throw new Error('missing Electron shell: ' + exe + ' (run node shell/build.mjs)');
+    const into = path.join(dest, SHELL_FOLDER(app));
+    fs.cpSync(from, into, { recursive: true });
+    fs.renameSync(path.join(into, app.prefix + '_gui.exe'), path.join(into, app.prefix + '_window.exe'));
   }
   return dest;
 }

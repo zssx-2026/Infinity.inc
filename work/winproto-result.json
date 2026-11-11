@@ -1,0 +1,17 @@
+{
+  "schema": "infinity.webview2.run/1",
+  "ok": true,
+  "ui": "D:\\dev\\DeepSeekHarnessWorkspace\\Infinity.inc\\work\\webview2\\ui",
+  "url": "file:///D:/dev/DeepSeekHarnessWorkspace/Infinity.inc/work/webview2/ui/index.html?host=1&theme=dark",
+  "runtime_version": "157.0.4341.42",
+  "theme": "dark",
+  "window": { "width": 1280, "height": 800 },
+  "times_ms": { "env_ready": 119.0, "controller_ready": 739.4, "nav_completed": 1556.5, "probe_done": 3759.0, "screenshot_done": 3916.8, "total": 8117.1 },
+  "probe": {"bridgeAtDocumentCreated":true,"hasShell":true,"hostForceParam":"1","hostInfoPayload":{"engine":"WebView2 Evergreen","host":"webview2","protocol":"infinity-shell/1","runtime":"157.0.4341.42","shell":"InfinityEdgeShell"},"htmlDataHost":"demo","localStorageOk":true,"readyState":"complete","shellFrames":["to-host:shell.activate-tab","to-host:shell.ready","to-host:shell.content-rect","to-shell:host.info"],"shellScriptLoaded":true,"tabCount":1,"theme":"dark","title":"Infinity Edge Shell","ua":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0","webviewBridge":true},
+  "bridge": "{\"channel\":\"infinity-shell\",\"v\":1,\"dir\":\"to-host\",\"type\":\"shell.activate-tab\",\"payload\":{\"tabId\":\"tab-1j380\",\"url\":\"about:home\"},\"ts\":1794309662473,\"id\":\"sh-2m8q4\"} | {\"channel\":\"infinity-shell\",\"v\":1,\"dir\":\"to-host\",\"type\":\"shell.ready\",\"payload\":{\"version\":\"0.1.0\",\"protocol\":\"infinity-shell/1\",\"locale\":\"zh-CN\",\"theme\":\"dark\",\"host\":\"webview2\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0\"},\"ts\":1794309662476,\"id\":\"sh-3gvoz\"} | {\"channel\":\"infinity-shell\",\"v\":1,\"dir\":\"to-host\",\"type\":\"shell.content-rect\",\"payload\":{\"x\":268,\"y\":88,\"width\":1012,\"height\":712},\"ts\":1794309662476,\"id\":\"sh-49d7q\"} | {\"channel\":\"infinity-shell\",\"v\":1,\"dir\":\"to-host\",\"type\":\"shell.window\",\"payload\":{\"action\":\"maximize\"},\"ts\":1794309664868,\"id\":\"sh-7euz7\"} | {\"channel\":\"infinity-shell\",\"v\":1,\"dir\":\"to-host\",\"type\":\"shell.content-rect\",\"payload\":{\"x\":268,\"y\":88,\"width\":1012,\"height\":641},\"ts\":1794309664887,\"id\":\"sh-8ur5g\"} | {\"channel\":\"infinity-shell\",\"v\":1,\"dir\":\"to-host\",\"type\":\"shell.window\",\"payload\":{\"action\":\"minimize\"},\"ts\":1794309665025,\"id\":\"msg-test\"}",
+  "bridge_count": 12,
+  "window_actions": "maximize minimize restore maximize restore new",
+  "window_ack_count": 6,
+  "screenshot": "D:\\dev\\DeepSeekHarnessWorkspace\\Infinity.inc\\work\\winproto.png",
+  "error": ""
+}

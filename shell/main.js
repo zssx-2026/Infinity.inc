@@ -19,7 +19,7 @@
  * The server executable is expected beside the shell, which is how the
  * installer lays the directory out.
  */
-const { app, BrowserWindow, Menu, shell } = require('electron');
+const { app, BrowserWindow, Menu, shell, screen } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const net = require('node:net');
@@ -27,7 +27,8 @@ const { spawn } = require('node:child_process');
 
 const APPS = {
   inc: { name: 'Infinity Cloud', port: 7621 },
-  ipm: { name: 'InfinityPackageManager', port: 7632 }
+  ipm: { name: 'InfinityPackageManager', port: 7632 },
+  int: { name: 'Infinity Toolbox', port: 7653 }
 };
 
 /* The eight window names, each mapped to the application it opens. The
@@ -36,8 +37,15 @@ const APPS = {
  * looked up. */
 const ADMIN_TO_BASE = {
   inc: 'inc', inx: 'inc',
-  ipm: 'ipm', ipmx: 'ipm'
+  ipm: 'ipm', ipmx: 'ipm',
+  int: 'int', intx: 'int'
 };
+
+/* The administrator's executable is the same program built with elevation in
+ * mind, so the window that opens it is the same window. One shell directory is
+ * shipped per product instead of one per face: --admin picks the twin, which
+ * halves both the payload and the number of windows a shortcut could point at. */
+const ADMIN_OF = { inc: 'inx', ipm: 'ipmx', int: 'intx' };
 
 /* The shell's own file name decides the application, so one binary can be
  * renamed into any of the eight names without a rebuild. */
@@ -48,7 +56,10 @@ function prefixFromName() {
    * on disk, which for an administrator copy is not the application name: it
    * is translated through the table, or the window would take the wrong title
    * and the wrong port. */
-  const named = /^(inc|inx|ipm|ipmx)_gui$/.exec(base);
+  /* The installer ships this shell as <prefix>_window.exe (the name the
+   * Start Menu shortcut has always used), while a development run keeps the
+   * build output's <prefix>_gui.exe, so both spellings are accepted. */
+  const named = /^(inc|inx|ipm|ipmx|int|intx)_(gui|window)$/.exec(base);
   if (named && ADMIN_TO_BASE[named[1]]) return ADMIN_TO_BASE[named[1]];
   for (const a of Object.keys(APPS)) if (base.indexOf(a) === 0) return a;
   return 'inc';
@@ -179,8 +190,10 @@ function escapeHtml(s) {
 }
 
 async function boot() {
-  const prefix = prefixFromName();
-  const meta = APPS[prefix] || APPS.inc;
+  const base = prefixFromName();
+  const wantsAdmin = process.argv.some(function (a) { return a === '--admin'; });
+  const prefix = wantsAdmin ? (ADMIN_OF[base] || base) : base;
+  const meta = APPS[base] || APPS.inc;
 
   const server = findServer(prefix);
   if (!server) {
@@ -214,6 +227,67 @@ async function boot() {
   guardWindow(win, port);
   win.loadURL('http://127.0.0.1:' + port + '/');
   win.on('closed', function () { win = null; shutdown(); });
+  /* INFINITY_SHELL_PROBE=1 prints what the display actually looks like and
+   * exits, so a packaging check can prove the window renders at the monitor's
+   * native scale (a 150% desktop must report devicePixelRatio 1.5) instead of
+   * being bitmap-stretched. */
+  if (process.env.INFINITY_SHELL_PROBE) {
+    win.webContents.once('did-finish-load', function () {
+      win.webContents.executeJavaScript(
+        '({dpr:window.devicePixelRatio,cssW:window.innerWidth,cssH:window.innerHeight,' +
+        'screenW:screen.width,screenH:screen.height,availH:screen.availHeight,' +
+        'title:document.title,bodyText:(document.body.innerText||"").slice(0,80)})'
+      ).then(function (info) {
+        info.scaleFactor = screen.getPrimaryDisplay().scaleFactor;
+        info.bounds = win.getBounds();
+        info.contentSize = win.getContentSize();
+        /* A GUI process on Windows has no console to print to, so the probe
+         * lands in a file; the caller names it, and the default sits in temp. */
+        const probeFile = process.env.INFINITY_SHELL_PROBE_FILE ||
+          path.join(require('node:os').tmpdir(), 'infinity-shell-probe.json');
+        fs.writeFileSync(probeFile, JSON.stringify(info, null, 2), 'utf8');
+        /* A screen grab proves what the window looks like; a rect grab of the
+         * desktop proves only which window happened to be on top. The page is
+         * captured from inside the renderer instead. */
+        const png = process.env.INFINITY_SHELL_PROBE_PNG;
+        if (png) {
+          /* did-finish-load is not the same moment as first paint: capturing
+           * here returns an empty image, so the grab waits for a frame and
+           * retries rather than writing a zero-byte file. */
+          let attempt = 0;
+          const grab = function () {
+            attempt++;
+            win.webContents.capturePage().then(function (image) {
+              const buf = image.toPNG();
+              if (buf.length > 0 || attempt >= 12) {
+                fs.writeFileSync(png, buf);
+                shutdown();
+                app.quit();
+                return;
+              }
+              setTimeout(grab, 400);
+            }).catch(function () {
+              if (attempt >= 12) { shutdown(); app.quit(); return; }
+              setTimeout(grab, 400);
+            });
+          };
+          /* A page that has just brought up its own HTTP server can paint a
+           * little later than the load event; the grab waits and retries. */
+          win.show();
+          setTimeout(grab, 1500);
+          return;
+        }
+        shutdown();
+        app.quit();
+      }).catch(function (e) {
+        const errFile = process.env.INFINITY_SHELL_PROBE_FILE ||
+          path.join(require('node:os').tmpdir(), 'infinity-shell-probe.json');
+        fs.writeFileSync(errFile, JSON.stringify({ error: String(e && e.message) }, null, 2), 'utf8');
+        shutdown();
+        app.quit();
+      });
+    });
+  }
 }
 
 /* Stop the server. Called when the window closes and when the app quits, so

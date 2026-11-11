@@ -9,7 +9,7 @@
  * cannot drift from the file they claim to describe, and it fails rather than
  * write a manifest that names a file which is not there.
  *
- * Usage:  NODE_OPTIONS= node tools/manifest.mjs [v1.0pre5] [1.0.0-pre5]
+ * Usage:  NODE_OPTIONS= node tools/manifest.mjs [v1.0pre6] [1.0.0-pre6]
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -18,8 +18,8 @@ import crypto from 'node:crypto';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
-const RELEASE = process.argv[2] || 'v1.0pre5';
-const VERSION = process.argv[3] || '1.0.0-pre5';
+const RELEASE = process.argv[2] || 'v1.0pre6';
+const VERSION = process.argv[3] || '1.0.0-pre6';
 const TAG = 'v' + VERSION;
 const OWNER = 'zssx-2026';
 const OUT = path.join(ROOT, 'release', RELEASE);

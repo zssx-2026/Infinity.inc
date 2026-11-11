@@ -20,6 +20,8 @@
 #include "inc/json.hpp"
 #include "inc/mode.hpp"
 #include "inc/store.hpp"
+#include "inc/tokenstore.hpp"
+#include "inc/setuppage.hpp"
 #include "inc/ansi.hpp"
 #include "inc/str.hpp"
 #include "inc/uiserver.hpp"
@@ -48,6 +50,9 @@
 using namespace inc;
 
 static const char* APP = "Infinity Cloud";
+// The folder name the stored token lives under. The display name has a space
+// in it, and a path is a poor place to put one.
+static const char* APP_ID = "inc";
 
 // ---------------------------------------------------------------- output
 
@@ -292,31 +297,73 @@ std::string readFileBytes(const std::wstring& path, bool* ok) {
   return body;
 }
 
+/* The first-run screen lives in core/include/inc/setuppage.hpp: both
+ * applications that need a token open on the same question. */
+
 int serveUi(int port) {
-  std::string token = tokenFromEnv();
+  /* The token the program keeps for itself is tried first; the environment is
+   * the fallback for machines that already export one. The order matters - a
+   * person who pasted a token into the window expects that token to be used. */
+  std::string token = loadToken(APP_ID);
+  std::string source = token.empty() ? std::string() : std::string("本机保存");
   if (token.empty()) {
-    out(color(C_RED, "not signed in") + " - set gittoken_zssx-2026_1 (or EV_GH_TOKEN) first.");
-    return 1;
+    token = tokenFromEnv();
+    source = tokenSource();
   }
 
   Session session(token);
-  session.tokenSourceName = tokenSource();
+  session.tokenSourceName = source;
   std::string error;
-  if (!session.signIn(&error)) {
+  std::string setupError;
+  if (token.empty()) {
+    out(color(C_YELLOW, "no token yet") + " - the window will ask for one.");
+  } else if (!session.signIn(&error)) {
     out(color(C_RED, "not signed in") + " (" + error + ")");
-    return 1;
+    setupError = "令牌无法通过验证：" + error;
   }
 
   Store store(session.gh, session.gh.login());
   std::string manifestError;
-  const bool manifestLoaded = store.pull(&manifestError);
+  bool manifestLoaded = session.ready ? store.pull(&manifestError) : false;
 
   UiServer server;
-  server.route("GET", "/", [](const UiRequest&) { return UiResponse::html(uiHtml()); });
+
+  /* Everything under /api/ needs a signed-in session; until there is one the
+   * answer is 401, so the first-run page is all that can be reached. */
+  auto api = [&](const char* method, const char* path, UiHandler handler) {
+    server.route(method, path, [&session, handler](const UiRequest& request) {
+      if (!session.ready) return UiResponse::error(401, "尚未登录");
+      return handler(request);
+    });
+  };
+
+  server.route("GET", "/", [&](const UiRequest&) {
+    if (!session.ready) return UiResponse::html(setupPageHtml(APP, setupError));
+    return UiResponse::html(uiHtml());
+  });
+  server.route("POST", "/api/token", [&](const UiRequest& request) {
+    bool parsed = false;
+    Json body = Json::parse(request.body, &parsed);
+    const std::string candidate = trim(body.s("token"));
+    if (candidate.empty()) return uiFailure("请填写令牌", 400);
+    Session probe(candidate);
+    std::string why;
+    if (!probe.signIn(&why)) return uiFailure("令牌无法通过验证：" + why, 400);
+    std::string saveError;
+    if (!saveToken(APP_ID, candidate, &saveError)) return uiFailure("令牌无法保存：" + saveError, 500);
+    session.gh.setToken(candidate);
+    session.tokenSourceName = "本机保存";
+    if (!session.signIn(&why)) return uiFailure("令牌无法通过验证：" + why, 400);
+    store.setOwner(session.gh.login());
+    manifestLoaded = store.pull(&manifestError);
+    setupError.clear();
+    out(color(C_GREEN, "token stored") + " for " + session.gh.login());
+    return UiResponse::json(Json::object().dump());
+  });
   server.route("GET", "/app.css", [](const UiRequest&) { return UiResponse::css(uiCss()); });
   server.route("GET", "/app.js", [](const UiRequest&) { return UiResponse::js(uiJs()); });
 
-  server.route("GET", "/api/state", [&](const UiRequest&) {
+  api("GET", "/api/state", [&](const UiRequest&) {
     Json j = Json::object();
     j.set("app", APP);
     j.set("version", version());
@@ -333,7 +380,7 @@ int serveUi(int port) {
     return UiResponse::json(j.dump(2));
   });
 
-  server.route("GET", "/api/list", [&](const UiRequest& request) {
+  api("GET", "/api/list", [&](const UiRequest& request) {
     std::string path = queryValue(request, "path");
     if (path.empty()) path = "/";
     std::vector<Json> entries = store.list(Store::normalizePath(path));
@@ -346,7 +393,7 @@ int serveUi(int port) {
     return UiResponse::json(j.dump(2));
   });
 
-  server.route("POST", "/api/mkdir", [&](const UiRequest& request) {
+  api("POST", "/api/mkdir", [&](const UiRequest& request) {
     const std::string path = queryValue(request, "path");
     if (path.empty()) return uiFailure("no path given", 400);
     std::string why;
@@ -354,7 +401,7 @@ int serveUi(int port) {
     return UiResponse::json(Json::object().dump());
   });
 
-  server.route("POST", "/api/remove", [&](const UiRequest& request) {
+  api("POST", "/api/remove", [&](const UiRequest& request) {
     const std::string path = queryValue(request, "path");
     if (path.empty()) return uiFailure("no path given", 400);
     std::string why;
@@ -362,7 +409,7 @@ int serveUi(int port) {
     return UiResponse::json(Json::object().dump());
   });
 
-  server.route("POST", "/api/trash/restore", [&](const UiRequest& request) {
+  api("POST", "/api/trash/restore", [&](const UiRequest& request) {
     const std::string path = queryValue(request, "path");
     if (path.empty()) return uiFailure("no path given", 400);
     std::string why;
@@ -370,14 +417,14 @@ int serveUi(int port) {
     return UiResponse::json(Json::object().dump());
   });
 
-  server.route("POST", "/api/trash/purge", [&](const UiRequest& request) {
+  api("POST", "/api/trash/purge", [&](const UiRequest& request) {
     std::string why;
     const std::string path = queryValue(request, "path");
     if (!store.purge(path, &why) || !store.flush(&why)) return uiFailure(why, 400);
     return UiResponse::json(Json::object().dump());
   });
 
-  server.route("POST", "/api/refresh", [&](const UiRequest&) {
+  api("POST", "/api/refresh", [&](const UiRequest&) {
     std::string why;
     const bool ok = store.pull(&why);
     Json j = Json::object();
@@ -386,7 +433,7 @@ int serveUi(int port) {
     return UiResponse::withStatus(UiResponse::json(j.dump(2)), ok ? 200 : 502);
   });
 
-  server.route("POST", "/api/upload", [&](const UiRequest& request) {
+  api("POST", "/api/upload", [&](const UiRequest& request) {
     const std::string directory = queryValue(request, "path");
     const std::string name = queryValue(request, "name");
     if (name.empty()) return uiFailure("no name given", 400);
@@ -413,7 +460,7 @@ int serveUi(int port) {
     return UiResponse::json(Json::object().dump());
   });
 
-  server.route("GET", "/api/download", [&](const UiRequest& request) {
+  api("GET", "/api/download", [&](const UiRequest& request) {
     const std::string cloud = queryValue(request, "path");
     if (cloud.empty()) return uiFailure("no path given", 400);
     const std::wstring staged = tempPath("download");
@@ -448,7 +495,7 @@ int serveUi(int port) {
   static std::atomic<long long> previewClosed(-1);
   static PreviewUrlCache previewUrls;
 
-  server.route("GET", "/api/preview/meta", [&](const UiRequest& request) {
+  api("GET", "/api/preview/meta", [&](const UiRequest& request) {
     if (!manifestLoaded) return uiFailure("the manifest is not available", 503);
     PreviewSource source;
     std::string why;
@@ -457,7 +504,7 @@ int serveUi(int port) {
     return UiResponse::json(previewSourceJson(source, epoch));
   });
 
-  server.route("GET", "/api/preview/chunk", [&](const UiRequest& request) {
+  api("GET", "/api/preview/chunk", [&](const UiRequest& request) {
     if (!manifestLoaded) return uiFailure("the manifest is not available", 503);
     PreviewSource source;
     std::string why;
@@ -498,7 +545,7 @@ int serveUi(int port) {
     return response;
   });
 
-  server.route("GET", "/api/preview/zip", [&](const UiRequest& request) {
+  api("GET", "/api/preview/zip", [&](const UiRequest& request) {
     if (!manifestLoaded) return uiFailure("the manifest is not available", 503);
     PreviewSource source;
     std::string why;
@@ -541,7 +588,7 @@ int serveUi(int port) {
   // offset of its local header, the header gives the data offset, and only the
   // compressed bytes of that one entry are read in 256 KiB windows. Nothing
   // else in the archive is touched.
-  server.route("GET", "/api/preview/zip/entry", [&](const UiRequest& request) {
+  api("GET", "/api/preview/zip/entry", [&](const UiRequest& request) {
     if (!manifestLoaded) return uiFailure("the manifest is not available", 503);
     PreviewSource source;
     std::string why;
@@ -605,7 +652,7 @@ int serveUi(int port) {
     return response;
   });
 
-  server.route("POST", "/api/preview/cancel", [&](const UiRequest& request) {
+  api("POST", "/api/preview/cancel", [&](const UiRequest& request) {
     long long epoch = atoll(queryValue(request, "epoch").c_str());
     if (epoch <= 0) epoch = previewEpoch.load();
     previewClosed.store(epoch);

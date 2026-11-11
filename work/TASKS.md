@@ -1,5 +1,20 @@
 # Infinity.Inc 任务清单（队列：先到先做，用户新需求排最后）
 
+## 2026-11-11 v1.0pre6 收口（本轮）
+- [x] 发布：三仓库真发，asset id 734976887 / 734977795 / 734978673，84,211,080 / 83,935,056 / 83,923,176 B，远端 digest 与本地 sha256 逐字符一致（e9f6fdad…80db / 721f4dcc…7b20 / b76a8444…d971），`published 3 installer(s) as v1.0.0-pre6, 0 failure(s)`。
+- [x] 发行说明：`docs/RELEASE-v1.0pre6-body.md`（8,292 B，GitHub Release 正文）+ `docs/RELEASE-v1.0pre6.md`（8,355 B，仓库内副本，README 链接到它）。
+- [x] IPM 目录页：`work/catalog-pre6.mjs` → FINAL assets=7 / failed=0（三 pre6 包 + 三 pre4 包 + name.txt 620 B，三 pre5 包已删）；`ipm_cli search Infinity` 6 条、`info InfinityCloud`/`info InfinityToolbox` 均指向 pre6 下载地址。
+- [x] 官网：`work/_org-pages/index.html` 三卡片改 `releases/tag/v1.0.0-pre6`，commit 4756fe45e8（tree 8297fdeae7），Pages 首次 errored 后 75 s 转 built；实测 200 / 5,529 B / pre6×5、pre5×0、pre4×3。`web/infinity/assets/site.js:168` 的 RELEASE_TAG 同步 pre6。
+- [x] 下载回验（公开地址，不靠本地文件）：Cloud / PackageManager / Toolbox 3/3 QA-OK，字节数与 sha256 全部一致（`work/qa-pre6-download5.ps1` + 日志 `work/qa-pre6-download5.log`）。
+- [x] 界面证据：`work/qa-inc.png` 28,469 B、`work/qa-ipm.png` 32,096 B（首启令牌页）、`work/qa-int.png` 56,890 B（真实产品页），三次探针 devicePixelRatio 均 1.5。
+- [x] README 更新到 pre6（289 行，双语）：三应用表补 Infinity Toolbox、pre5→pre6 全量替换、新增「实现选择」小节、发布目录默认值改 v1.0pre6。
+- [x] 新增 `docs/ENGINEERING-RULES.md`（5,026 B）：语言选择（C++/Rust 默认、汇编仅测量过的热点、Python 做无速度要求的部分、Node ESM 只做构建脚本）、「页面不是回答」界面原则、自包含交付、验收标准、「重建即改字节」发布纪律。
+- [x] `cpp/tools` 默认版本统一 pre6：build.mjs / package.mjs / manifest.mjs / publish.mjs / sha256sums.mjs 的默认值由 v1.0pre5/1.0.0-pre5 改 v1.0pre6/1.0.0-pre6，publish.mjs 的内联兜底发行说明改写为 pre6 三应用；五个脚本 `node --check` 全通过，`node cpp/tools/manifest.mjs` 重跑产出与发布版一致（release-assets.json sha c77182fb… 不变）。
+- [x] name.txt 跨版本合并固化为 `work/nametxt-cross.mjs`：按六产品历史顺序合并、CRLF 行尾，重跑得 620 B / sha `7fca9475aa4bda6b9e71d91db41343eac7658f9296ec7fb76774b8776aefdc37`，与目录页在架文件逐字节一致——修掉「manifest.mjs 重跑会把旧版本三条目录行删掉」的隐患（本轮就发生过一次，已用 `work/restore-nametxt.mjs` 从目录页按资产 id 735001151 还原并核对 sha）。
+- [x] SHA256SUMS.txt 重算（493 B，含三安装包 + name.txt + release-assets.json）。
+- [ ] 源码同步：`work/ghsync-source.mjs --push`（本轮改动落定后执行，避免推途中被历史同步任务改写）。
+- [ ] 遗留：`dist/url.json`、`dist/applist.json` 仍是 2026-10-06 快照（Node IPM 旧线镜像；C++ IPM 直读 GitHub 目录页不受影响）。
+
 ## 2026-10-25 登录验证 Cloudflare Worker（本轮）
 - [x] auth-worker/：worker.zh.mjs + worker.en.mjs（双版同逻辑）。人机验证服务端化：挑战 HMAC 签名（prefix|bits|expires|email），register 服务端复核 sha256(prefix+nonce) 前 32 位 < 2^(32-bits)，防重放/防调难度/绑定邮箱，可选 Turnstile；GitHub OAuth：state Cookie + code 换 token + #token fragment 回传；auth-data PR 状态机：建分支→提交 users/<email>.json（含 verifyToken）→开 PR→Actions 双语邮件→/api/verify 比对 token→squash 合并激活+分支清理。
 - [x] e2e.test.mjs：mock GitHub API 端到端 22 断言×2 版全 PASS。

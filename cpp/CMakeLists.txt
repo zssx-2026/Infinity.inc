@@ -45,7 +45,7 @@ file(GLOB CORE_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/core/src/*.cpp)
 
 add_library(inc_core STATIC ${CORE_SRC})
 target_include_directories(inc_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/core/include)
-target_link_libraries(inc_core PUBLIC winhttp bcrypt shell32 comctl32 ws2_32)
+target_link_libraries(inc_core PUBLIC winhttp bcrypt shell32 comctl32 ws2_32 crypt32)
 
 # ---------------------------------------------------------------- common
 
@@ -71,7 +71,7 @@ set(INC_RC_DIR ${CMAKE_CURRENT_BINARY_DIR}/rc)
 # Each application produces ONE executable. Its names are copies of it,
 # made after the build by tools/build.mjs, exactly as the Node build hard
 # linked them - the program reads its own file name to know which face to be.
-set(INC_APPS inc ipm)
+set(INC_APPS inc ipm int)
 
 foreach(app ${INC_APPS})
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/apps/${app}/main.cpp)

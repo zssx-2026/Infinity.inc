@@ -36,7 +36,7 @@ const ICON_DIRS = [
   path.resolve(ROOT, '..', 'icons')
 ];
 const RC_DIR = path.join(BUILD, 'rc');
-const VERSION = process.env.INC_VERSION || '1.0.0-pre5';
+const VERSION = process.env.INC_VERSION || '1.0.0-pre6';
 const COMPANY = process.env.INC_COMPANY || 'Infinity.Inc';
 
 const MINGW = 'C:/Users/REDMI/AppData/Local/Microsoft/WinGet/Packages/' +
@@ -54,7 +54,8 @@ const MINGW = 'C:/Users/REDMI/AppData/Local/Microsoft/WinGet/Packages/' +
  * executable - and is not what these names wrap. */
 export const APPS = [
   { app: 'inc', prefix: 'inc', admin: 'inx', label: 'Infinity Cloud', modes: ['cli', 'gui', 'launcher'] },
-  { app: 'ipm', prefix: 'ipm', admin: 'ipmx', label: 'InfinityPackageManager', modes: ['cli', 'gui', 'launcher'] }
+  { app: 'ipm', prefix: 'ipm', admin: 'ipmx', label: 'InfinityPackageManager', modes: ['cli', 'gui', 'launcher'] },
+  { app: 'int', prefix: 'int', admin: 'intx', label: 'Infinity Toolbox', modes: ['cli', 'gui'] }
 ];
 export const MODES = ['cli', 'gui', 'launcher'];
 
@@ -155,7 +156,7 @@ function findIcon(name) {
   throw new Error('no product icon for ' + name + '; looked for ' + tried.join(', '));
 }
 
-/* FILEVERSION and PRODUCTVERSION are four numbers. "1.0.0-pre5" is the fifth
+/* FILEVERSION and PRODUCTVERSION are four numbers. "1.0.0-pre6" is the fifth
  * pre-release of 1.0.0, so the fourth number is 5; a plain "1.2.3" gets 0. */
 function versionQuad(v) {
   const m = /^(\d+)\.(\d+)\.(\d+)(?:-pre(\d+))?$/.exec(String(v));
