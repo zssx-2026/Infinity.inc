@@ -103,6 +103,11 @@ function writeApp(dir, app) {
   const appDir = path.join(dir, 'resources', 'app');
   fs.mkdirSync(appDir, { recursive: true });
   fs.copyFileSync(path.join(HERE, 'main.js'), path.join(appDir, 'main.js'));
+  /* The chrome page and its bridge travel with the shell: without ui/ the
+   * window would have nothing to draw, and without preload.js it could not
+   * reach the window commands. */
+  fs.copyFileSync(path.join(HERE, 'preload.js'), path.join(appDir, 'preload.js'));
+  fs.cpSync(path.join(HERE, '..', 'work', 'webview2', 'ui'), path.join(appDir, 'ui'), { recursive: true });
   fs.writeFileSync(path.join(appDir, 'package.json'), JSON.stringify({
     name: 'infinity-shell',
     version: '1.0.0',

@@ -19,11 +19,23 @@
  * The server executable is expected beside the shell, which is how the
  * installer lays the directory out.
  */
-const { app, BrowserWindow, Menu, shell, screen } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, shell, screen, protocol } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const net = require('node:net');
 const { spawn } = require('node:child_process');
+
+/* The chrome page is served from a scheme of its own, not from a loopback port.
+ * A port is a fresh origin on every launch, so localStorage - the open tabs, the
+ * theme, the playzone - would be thrown away each time the window started. A
+ * registered scheme keeps one stable origin forever, and marking it standard and
+ * secure lets it frame the application's http://127.0.0.1 page. */
+const CHROME_SCHEME = 'infinity-shell';
+const CHROME_ORIGIN = CHROME_SCHEME + '://ui/';
+protocol.registerSchemesAsPrivileged([{
+  scheme: CHROME_SCHEME,
+  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true }
+}]);
 
 const APPS = {
   inc: { name: 'Infinity Cloud', port: 7621 },
@@ -123,6 +135,8 @@ function waitForPort(port, timeoutMs, alive) {
 
 let serverProc = null;
 let win = null;
+let appPort = 0;
+let shellUrl = null;
 
 function windowOptions(meta) {
   return {
@@ -133,7 +147,14 @@ function windowOptions(meta) {
     title: meta.name,
     backgroundColor: '#0e1116',
     autoHideMenuBar: true,
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
+    /* The chrome page reaches the window through preload.js and nothing else:
+     * context isolation on, Node off, sandbox on. */
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      preload: path.join(__dirname, 'preload.js')
+    }
   };
 }
 
@@ -142,11 +163,14 @@ function windowOptions(meta) {
  * tries to steer the window somewhere else, and the window-open handler keeps
  * a `target=_blank` link from opening a second, unguarded window. Both are
  * attached to every window, the served one and the error one alike. */
-function guardWindow(w, port) {
-  const prefix = 'http://127.0.0.1:' + port + '/';
+function guardWindow(w, ports) {
+  const list = [CHROME_ORIGIN].concat([].concat(ports).filter(Boolean)
+    .map(function (p) { return 'http://127.0.0.1:' + p + '/'; }));
+  const local = function (target) {
+    return list.some(function (prefix) { return target === prefix || target.indexOf(prefix) === 0; });
+  };
   w.webContents.on('will-navigate', function (e, target) {
-    const local = target === prefix || target.indexOf(prefix) === 0;
-    if (!local) e.preventDefault();
+    if (!local(target)) e.preventDefault();
   });
   w.webContents.setWindowOpenHandler(function (d) {
     /* A real link is handed to the system browser; nothing remote is ever
@@ -189,6 +213,148 @@ function escapeHtml(s) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+/* ------------------------------------------------------------------ *
+ * the chrome page (resources/app/ui)
+ * ------------------------------------------------------------------ */
+
+/* The chrome page, served from infinity-shell://ui/ out of resources/app/ui.
+ * Nothing but static files leaves this handler, and every path is kept inside
+ * the ui directory. A file:// document could not frame the application's
+ * http://127.0.0.1 page; a registered scheme can. */
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.woff2': 'font/woff2'
+};
+
+function serveChrome() {
+  const root = path.join(__dirname, 'ui');
+  protocol.handle(CHROME_SCHEME, function (req) {
+    let rel = '/';
+    try { rel = new URL(req.url).pathname || '/'; } catch (e) { rel = '/'; }
+    const name = path.normalize(decodeURIComponent(rel === '/' ? '/index.html' : rel)).replace(/^[\\/]+/, '');
+    const file = path.join(root, name);
+    if (file !== root && file.indexOf(root + path.sep) !== 0) {
+      return new Response('forbidden', { status: 403, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+    }
+    try {
+      const buf = fs.readFileSync(file);
+      return new Response(buf, {
+        status: 200,
+        headers: {
+          'content-type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
+          'cache-control': 'no-store'
+        }
+      });
+    } catch (e) {
+      return new Response('not found', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+    }
+  });
+}
+
+/* Frames from the chrome page. The page owns its tabs and embeds the
+ * application itself, so the host answers the window commands and keeps the
+ * session - page content never crosses this bridge. */
+function shellFrame(frame) {
+  if (!frame || frame.channel !== 'infinity-shell') return;
+  const p = frame.payload || {};
+  switch (frame.type) {
+    case 'shell.ready':
+      replyShell('host.info', {
+        host: 'electron',
+        engine: 'Electron ' + process.versions.electron,
+        runtime: 'iframe',
+        protocol: 'infinity-shell/1',
+        shell: '1.0.0',
+        ua: 'Chrome/' + process.versions.chrome
+      });
+      break;
+    case 'shell.window':
+      windowCommand(p.action);
+      break;
+    case 'shell.session-save':
+      try {
+        fs.mkdirSync(path.dirname(sessionFile()), { recursive: true });
+        fs.writeFileSync(sessionFile(), JSON.stringify(p, null, 2), 'utf8');
+      } catch (e) { }
+      replyShell('host.ack', { of: frame.type });
+      break;
+    case 'shell.content-rect':
+      /* The page renders the application in its own iframe, so no native
+       * content region has to be positioned for it. */
+      break;
+    default:
+      replyShell('host.ack', { of: frame.type });
+      break;
+  }
+}
+
+function replyShell(type, payload) {
+  if (!win || win.isDestroyed()) return;
+  try {
+    win.webContents.send('shell:host-frame', {
+      channel: 'infinity-shell', v: 1, dir: 'to-shell', type: type,
+      payload: payload || {}, ts: Date.now(), id: 'host-' + Date.now()
+    });
+  } catch (e) { }
+}
+
+/* The window buttons the chrome draws, done to the real window. */
+function windowCommand(action) {
+  if (!win || win.isDestroyed()) return;
+  if (action === 'minimize') win.minimize();
+  else if (action === 'maximize') { if (win.isMaximized()) win.unmaximize(); else win.maximize(); }
+  else if (action === 'restore') { if (win.isMinimized()) win.restore(); else win.unmaximize(); }
+  else if (action === 'close') win.close();
+  else if (action === 'new' && shellUrl) {
+    const other = new BrowserWindow(windowOptions({ name: win.getTitle() }));
+    guardWindow(other, appPort);
+    other.loadURL(shellUrl);
+  }
+}
+
+function sessionFile() {
+  return path.join(app.getPath('userData'), 'shell-session.json');
+}
+
+/* Drive the chrome's window buttons through the real bridge and record what
+ * the window did after each one. Only the probe calls this. */
+function probeWindowActions(done) {
+  const steps = [];
+  const fire = function (action) {
+    const js = 'window.__INFINITY_HOST__.postMessage({channel:"infinity-shell",v:1,' +
+      'dir:"to-host",type:"shell.window",payload:{action:"' + action + '"}}); true';
+    return win.webContents.executeJavaScript(js).catch(function () { return null; });
+  };
+  const seq = [
+    ['minimize', function () { return { minimized: win.isMinimized() }; }],
+    ['restore', function () { return { minimized: win.isMinimized() }; }],
+    ['maximize', function () { return { maximized: win.isMaximized() }; }],
+    ['restore', function () { return { maximized: win.isMaximized() }; }],
+    /* A new window must be a second window on the same chrome origin. */
+    ['new', function () { return { windows: BrowserWindow.getAllWindows().length }; }]
+  ];
+  let i = 0;
+  const next = function () {
+    if (i >= seq.length) { done(steps); return; }
+    const step = seq[i++];
+    fire(step[0]).then(function () {
+      setTimeout(function () {
+        const rec = { action: step[0] };
+        const state = step[1]();
+        Object.keys(state).forEach(function (k) { rec[k] = state[k]; });
+        steps.push(rec);
+        next();
+      }, 600);
+    });
+  };
+  next();
+}
+
 async function boot() {
   const base = prefixFromName();
   const wantsAdmin = process.argv.some(function (a) { return a === '--admin'; });
@@ -222,10 +388,18 @@ async function boot() {
     return;
   }
 
+  appPort = port;
+  serveChrome();
+  /* ?render=iframe tells the chrome to embed the application in a frame
+   * instead of asking a native host to position a content region. */
+  shellUrl = CHROME_ORIGIN + 'index.html?render=iframe&url=' +
+    encodeURIComponent('http://127.0.0.1:' + port + '/');
+  ipcMain.on('shell:frame', function (_e, frame) { shellFrame(frame); });
+
   Menu.setApplicationMenu(null);
   win = new BrowserWindow(windowOptions(meta));
   guardWindow(win, port);
-  win.loadURL('http://127.0.0.1:' + port + '/');
+  win.loadURL(shellUrl);
   win.on('closed', function () { win = null; shutdown(); });
   /* INFINITY_SHELL_PROBE=1 prints what the display actually looks like and
    * exits, so a packaging check can prove the window renders at the monitor's
@@ -236,7 +410,12 @@ async function boot() {
       win.webContents.executeJavaScript(
         '({dpr:window.devicePixelRatio,cssW:window.innerWidth,cssH:window.innerHeight,' +
         'screenW:screen.width,screenH:screen.height,availH:screen.availHeight,' +
-        'title:document.title,bodyText:(document.body.innerText||"").slice(0,80)})'
+        'title:document.title,origin:location.origin,' +
+        'lsKeys:Object.keys(localStorage).sort().join(","),' +
+        'hasSession:!!localStorage.getItem("infinity-shell-session"),' +
+        'tabCount:document.querySelectorAll(".tab").length,' +
+        'frameSrc:(document.querySelector("iframe")||{}).src||"",' +
+        'bodyText:(document.body.innerText||"").slice(0,80)})'
       ).then(function (info) {
         info.scaleFactor = screen.getPrimaryDisplay().scaleFactor;
         info.bounds = win.getBounds();
@@ -245,15 +424,20 @@ async function boot() {
          * lands in a file; the caller names it, and the default sits in temp. */
         const probeFile = process.env.INFINITY_SHELL_PROBE_FILE ||
           path.join(require('node:os').tmpdir(), 'infinity-shell-probe.json');
-        fs.writeFileSync(probeFile, JSON.stringify(info, null, 2), 'utf8');
+        const writeProbe = function () {
+          fs.writeFileSync(probeFile, JSON.stringify(info, null, 2), 'utf8');
+        };
+        writeProbe();
+
         /* A screen grab proves what the window looks like; a rect grab of the
-         * desktop proves only which window happened to be on top. The page is
-         * captured from inside the renderer instead. */
-        const png = process.env.INFINITY_SHELL_PROBE_PNG;
-        if (png) {
-          /* did-finish-load is not the same moment as first paint: capturing
-           * here returns an empty image, so the grab waits for a frame and
-           * retries rather than writing a zero-byte file. */
+         * desktop proves only which window happened to be on top, so the page
+         * is captured from inside the renderer. did-finish-load is not the
+         * same moment as first paint: capturing here returns an empty image,
+         * so the grab waits for a frame and retries rather than writing a
+         * zero-byte file. */
+        const finishProbe = function () {
+          const png = process.env.INFINITY_SHELL_PROBE_PNG;
+          if (!png) { shutdown(); app.quit(); return; }
           let attempt = 0;
           const grab = function () {
             attempt++;
@@ -275,10 +459,20 @@ async function boot() {
            * little later than the load event; the grab waits and retries. */
           win.show();
           setTimeout(grab, 1500);
+        };
+
+        /* The title-bar buttons go through the real bridge - page, preload,
+         * ipc, main, window - so this proves the wiring instead of assuming
+         * it. The states are recorded after each command. */
+        if (process.env.INFINITY_SHELL_PROBE_ACTIONS) {
+          probeWindowActions(function (steps) {
+            info.windowActions = steps;
+            writeProbe();
+            finishProbe();
+          });
           return;
         }
-        shutdown();
-        app.quit();
+        finishProbe();
       }).catch(function (e) {
         const errFile = process.env.INFINITY_SHELL_PROBE_FILE ||
           path.join(require('node:os').tmpdir(), 'infinity-shell-probe.json');

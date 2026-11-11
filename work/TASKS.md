@@ -1,5 +1,23 @@
 # Infinity.Inc 任务清单（队列：先到先做，用户新需求排最后）
 
+## 2026-11-11 v1.0pre7 收口（本轮）
+- [x] 外壳接线（本轮核心）：`work/webview2/ui` 的 Edge 风格界面接进 Electron 窗口——`shell/preload.js` 改为唯一桥（`__INFINITY_HOST__.postMessage` → ipc），`shell/main.js` 新增 `serveChrome()`/`shellFrame()`/`windowCommand()`/`sessionFile()`；产品页面以 iframe 跑在外壳里。
+- [x] 稳定 origin 修复：外壳页面原来由随机端口的 HTTP 服务提供，每次启动 origin 都变 → localStorage 全丢、会话恢复名存实亡。改为注册私有 scheme `infinity-shell://ui/index.html?render=iframe&url=…`，`protocol.handle` 从 `resources/app/ui` 读资源（路径穿越 403、`cache-control: no-store`），导航白名单只允许该 origin + `http://127.0.0.1:<port>/`。探针两次连跑：第一次 `hasSession=false`，第二次 `hasSession=true` —— 会话真的跨重启留下。
+- [x] 窗口命令实证：page → preload → ipc → main → window 全链路，探针 `windowActions` = minimize(minimized=true) / restore(false) / maximize(maximized=true) / restore(false) / new(windows=2)。
+- [x] 契约自检：`shell/verify-contract.mjs` 换成现架构的 35 条断言 → `SELFTEST PASS pass=35 fail=0`。
+- [x] 版本串统一 pre7：`cpp/core/src/github.cpp:8`、`cpp/tools/{build,package,manifest,publish,sha256sums}.mjs` 默认值、`cpp/apps/int/int-offline.test.mjs:48` 断言；`publish.mjs` 内联兜底发行说明改写为 pre7。
+- [x] 构建：`work/build-pre7.ps1` → inc 1,584,640 B / ipm 685,056 B / int 693,760 B，六个 x64 Electron 目录各 188,784,128 B（ia32/arm64 误建后已删，磁盘余 117 GB）。
+- [x] 安装包（`work/package-pre7.ps1`，NSIS solid LZMA + Authenticode）：InfinityCloud **84,170,280 B**（sha256 `1c662e19…deee0`）、InfinityPackageManager **83,968,776 B**（`70562392…d59c`）、InfinityToolbox **84,025,408 B**（`52f3b731…45f5`），合计 252,164,464 B，三包签名均 Valid（指纹 `3C626CCE1DFA8833F844BA176DB1922B7B4069C2`）。
+- [x] 安装 QA（`work/qa-pre7-install.ps1`，修掉两处脚本缺陷：PS 5.1 默认 ANSI 读探针 JSON 导致 `ConvertFrom-Json` 抛 ArgumentException → 改 `[System.IO.File]::ReadAllText($json, UTF8)`；上一轮中断残留的安装目录未清 → 开头先删 Programs 目录）→ **PRE7-INSTALL-QA PASS 3/3**：三次静默安装 exit=0、payload 三件齐全、探针 dpr=1.5 / title `Infinity Edge Shell` / origin `infinity-shell://ui` / tabCount=1 / frameSrc 分别 7621·7632·7653、截图 74,572 / 78,901 / 54,558 B、卸载后目录消失。安装后实测 96 文件 / 292,437,898 B（278.9 MB）。
+- [x] OCR 复核（`work/ocr-any.ps1`）：qa7-inc 读到「侧栏 / 搜索标签页 / 应用 / 垂直标签页 / 游玩区 / 设置」外壳 + 框内 inc 首启令牌页；qa7-int 读到外壳 + 7653 地址栏。
+- [x] 发布：三仓库真发，release id 441550619 / 441550969 / 441551558，asset id 735127897 / 735129198 / 735130840，远端 digest 与本地 sha256 逐字符一致，`published 3 installer(s) as v1.0.0-pre7, 0 failure(s)`；`work/patch-release-body-pre7.mjs` 把三份 release 正文 PATCH 成修订后的 2,873 字符版本（match=true）。
+- [x] 发行说明：`docs/RELEASE-v1.0pre7-body.md`（4,777 B）+ `docs/RELEASE-v1.0pre7.md`（6,822 B 仓库副本，含「七、IPM 目录与 name.txt」「八、相关文件」）。已知问题里明确写了「地址栏搜索还是占位」（`shell.search` 宿主只回执、没接搜索引擎）。
+- [x] IPM 目录页：`work/catalog-pre7.mjs` → 上传三 pre7 包（id 735139186 / 735143058 / 735143782）、删三 pre6 包、name.txt 重传（620 B / id 735144531），**FINAL assets=7 / failed=0**；`catalog-verify-pre7.ps1` 跑 `ipm_cli search Infinity` → 6 条，inc/ipm/int 指向 pre7。
+- [x] 官网：`work/_org-pages/index.html` 全量改 `v1.0.0-pre7`，`node work/_org-pages/publish.mjs` 提交 **93a19d604981ea1dc69348755e8c3acc0ba5c8ae**（tree e389c54d1a，parent 6951835412），Pages 首次 errored 后转 built；实测 200 / 5,531 B / pre7×5、pre6×0、pre4×3。`web/infinity/assets/site.js:168` RELEASE_TAG 改 pre7。
+- [x] 事故记录：`tools.read` 读 `web/infinity/assets/site.js` 只返回 51,163 B（真实 64,504 B），整文件回写丢了 451 行、`node --check` 报 `SyntaxError: Unexpected end of input`；已 `git checkout --` 还原，改用 `work/site-tag-pre7.mjs`（Node fs 只替换两处）→ 字节不变、diff 2 行。**教训：整文件改写一律走 Node fs，不要拿 tools.read 的输出回写。**
+- [x] README 更新到 pre7（289 行 / 16,704 B）：版本串全量替换、外壳说明改 pre7、安装包合计改 252,164,464、文件名示例改 pre7。
+- [x] name.txt / 校验：`node work/nametxt-cross.mjs cpp/release/v1.0pre7 1.0.0-pre4` → 六行 620 B / sha256 `5b54247f071145a0436377a72d2953fddffd14dee953d61ec79bf445380bde05`；`sha256sums.mjs` → SHA256SUMS.txt 493 B（含三安装包 + name.txt + release-assets.json）。
+
 ## 2026-11-11 v1.0pre6 收口（本轮）
 - [x] 发布：三仓库真发，asset id 734976887 / 734977795 / 734978673，84,211,080 / 83,935,056 / 83,923,176 B，远端 digest 与本地 sha256 逐字符一致（e9f6fdad…80db / 721f4dcc…7b20 / b76a8444…d971），`published 3 installer(s) as v1.0.0-pre6, 0 failure(s)`。
 - [x] 发行说明：`docs/RELEASE-v1.0pre6-body.md`（8,292 B，GitHub Release 正文）+ `docs/RELEASE-v1.0pre6.md`（8,355 B，仓库内副本，README 链接到它）。
@@ -12,8 +30,8 @@
 - [x] `cpp/tools` 默认版本统一 pre6：build.mjs / package.mjs / manifest.mjs / publish.mjs / sha256sums.mjs 的默认值由 v1.0pre5/1.0.0-pre5 改 v1.0pre6/1.0.0-pre6，publish.mjs 的内联兜底发行说明改写为 pre6 三应用；五个脚本 `node --check` 全通过，`node cpp/tools/manifest.mjs` 重跑产出与发布版一致（release-assets.json sha c77182fb… 不变）。
 - [x] name.txt 跨版本合并固化为 `work/nametxt-cross.mjs`：按六产品历史顺序合并、CRLF 行尾，重跑得 620 B / sha `7fca9475aa4bda6b9e71d91db41343eac7658f9296ec7fb76774b8776aefdc37`，与目录页在架文件逐字节一致——修掉「manifest.mjs 重跑会把旧版本三条目录行删掉」的隐患（本轮就发生过一次，已用 `work/restore-nametxt.mjs` 从目录页按资产 id 735001151 还原并核对 sha）。
 - [x] SHA256SUMS.txt 重算（493 B，含三安装包 + name.txt + release-assets.json）。
-- [ ] 源码同步：`work/ghsync-source.mjs --push`（本轮改动落定后执行，避免推途中被历史同步任务改写）。
-- [x] `dist/url.json` 与 `dist/applist.json` 刷新到实况（新增 `work/dist-refresh.mjs`，只读 GitHub 目录页、不上传）：8 个 release / 33 个包 / 35 个文件，url.json 141,600 B、applist.json 29,934 B。顺带修掉旧镜像的解析错误——Infinity 目录行第二列是公司名（`Infinity.Inc`），旧解析器把它当成版本号，所以六个产品全显示 `@Infinity.Inc`；新解析器对非数字版本回退到文件名里的版本，现为 Cloud/PackageManager/Toolbox `1.0.0-pre6`、FileManager/InstallerManager/Games `1.0.0-pre4`。
+- [x] 源码同步：`work/ghsync-source.mjs --push` 两次推送，远端 HEAD `f1172a82` → `56fb7db0`（227 文件）→ `57232ddc`（3 文件：dist 镜像脚本 + 两份 JSON 之外的文档改动）→ `ed34e231`（ghsync 自身）；快照 828 文件 / 38,270,085 B，verify_blobs=930，key_check 全 match（`cpp/apps/ifm|iim|ing/main.cpp` 两边都不存在，属已退役产品）。用 blob sha 复核：README / docs/ENGINEERING-RULES.md / docs/RELEASE-v1.0pre6.md / work/TASKS.md / work/dist-refresh.mjs 远端与本地逐字节一致。`dist/` 整个目录在 `.gitignore:37` 里，所以那两份镜像 JSON 只存在于本机，不会被快照带走（本轮试过给 ghsync 加白名单，确认无效后已回退）。
+- [x] `dist/url.json` 与 `dist/applist.json` 刷新到实况（新增 `work/dist-refresh.mjs`，只读 GitHub 目录页、不上传）：8 个 release / 33 个包 / 35 个文件，url.json 141,600 B、applist.json 29,934 B。顺带修掉旧镜像的解析错误——Infinity 目录行第二列是公司名（`Infinity.Inc`），旧解析器把它当成版本号，所以六个产品全显示 `@Infinity.Inc`；新解析器对非数字版本回退到文件名里的版本，现为 Cloud/PackageManager/Toolbox `1.0.0-pre6`、FileManager/InstallerManager/Games `1.0.0-pre4`。注意 `dist/` 被 `.gitignore:37` 忽略，这两份 JSON 只是本机镜像，不进源码仓库。
 
 ## 2026-10-25 登录验证 Cloudflare Worker（本轮）
 - [x] auth-worker/：worker.zh.mjs + worker.en.mjs（双版同逻辑）。人机验证服务端化：挑战 HMAC 签名（prefix|bits|expires|email），register 服务端复核 sha256(prefix+nonce) 前 32 位 < 2^(32-bits)，防重放/防调难度/绑定邮箱，可选 Turnstile；GitHub OAuth：state Cookie + code 换 token + #token fragment 回传；auth-data PR 状态机：建分支→提交 users/<email>.json（含 verifyToken）→开 PR→Actions 双语邮件→/api/verify 比对 token→squash 合并激活+分支清理。

@@ -1,37 +1,25 @@
 /*
- * preload.js - the only bridge between the window and the machine.
+ * preload.js - the only bridge between the chrome page and the window.
  *
- * The renderer is sandboxed and has no Node. It gets exactly three things:
- * a way to ask the engine a question, the application identity, and nothing
- * else. There is no general-purpose invoke, no module loader and no path
- * access, so a mistake in the interface cannot become a mistake in the
- * program.
+ * The page in resources/app/ui is the Edge-like shell: tabs, address bar,
+ * animations, session restore, the play zone. It speaks exactly one
+ * protocol - infinity-shell frames - and this file is the only thing it can
+ * reach. No Node, no ipcRenderer handle, no file system: a mistake in the
+ * interface cannot become a mistake in the program.
+ *
+ * The renderer is sandboxed, so the page cannot frame the application's
+ * http:// page from a file:// document; the chrome is served over loopback
+ * by main.js for that reason, and both origins stay on 127.0.0.1.
  */
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('infinity', {
-  /*
-   * Ask the engine something. The method names are the ones the command
-   * line uses, so the window and the terminal are the same program and
-   * neither can drift from the other.
-   */
-  call: function (method, params) {
-    return ipcRenderer.invoke('infinity:call', { method: String(method), params: params || {} });
-  },
+contextBridge.exposeInMainWorld('__INFINITY_HOST__', {
+  /* One function, one direction: the page posts a frame, main.js answers. */
+  postMessage: function (frame) { ipcRenderer.send('shell:frame', frame); }
+});
 
-  /* Who this window is: the product, the version, where the engine sits. */
-  info: function () { return ipcRenderer.invoke('infinity:info'); },
-
-  /*
-   * Subscribe to a stream. Only three channels exist, and the whitelist is
-   * deliberate: a renderer that can name any channel can listen to traffic
-   * meant for another window.
-   */
-  on: function (channel, handler) {
-    const allowed = ['progress', 'log', 'task'];
-    if (allowed.indexOf(channel) < 0) return function () { };
-    const wrap = function (ev, payload) { handler(payload); };
-    ipcRenderer.on('infinity:' + channel, wrap);
-    return function () { ipcRenderer.removeListener('infinity:' + channel, wrap); };
-  }
+/* Host frames come back the way the page's built-in demo host delivers them:
+ * a window message, which shell.js already listens for. */
+ipcRenderer.on('shell:host-frame', function (_event, frame) {
+  try { window.postMessage(frame, '*'); } catch (e) { }
 });

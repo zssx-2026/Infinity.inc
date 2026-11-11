@@ -36,7 +36,7 @@ const ICON_DIRS = [
   path.resolve(ROOT, '..', 'icons')
 ];
 const RC_DIR = path.join(BUILD, 'rc');
-const VERSION = process.env.INC_VERSION || '1.0.0-pre6';
+const VERSION = process.env.INC_VERSION || '1.0.0-pre7';
 const COMPANY = process.env.INC_COMPANY || 'Infinity.Inc';
 
 const MINGW = 'C:/Users/REDMI/AppData/Local/Microsoft/WinGet/Packages/' +

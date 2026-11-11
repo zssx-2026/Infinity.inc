@@ -36,13 +36,13 @@ import { execFileSync } from 'node:child_process';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
-const RELEASE = process.env.INC_RELEASE || 'v1.0pre6';
+const RELEASE = process.env.INC_RELEASE || 'v1.0pre7';
 const OUT = path.join(ROOT, 'release', RELEASE);
 
 const ARGV = process.argv.slice(2);
 const DRY_RUN = ARGV.indexOf('--dry-run') >= 0;
 const POSITIONAL = ARGV.filter(function (a) { return a.charAt(0) !== '-'; });
-const TAG = POSITIONAL[0] || process.env.INC_TAG || 'v1.0.0-pre6';
+const TAG = POSITIONAL[0] || process.env.INC_TAG || 'v1.0.0-pre7';
 const VERSION = process.env.INC_VERSION || TAG.replace(/^v/, '');
 const OWNER = 'zssx-2026';
 
@@ -121,14 +121,17 @@ function sha256(file) {
  * fallback for a checkout that has no docs/ directory. */
 const BODY_FILE = path.resolve(ROOT, '..', 'docs', 'RELEASE-' + RELEASE + '-body.md');
 const FALLBACK_BODY = [
-  'Infinity.Inc v1.0.0-pre6 —— 三个自包含 Windows 应用：',
+  'Infinity.Inc v1.0.0-pre7 —— 三个自包含 Windows 应用：',
   'Infinity Cloud / InfinityPackageManager / Infinity Toolbox。',
   '',
-  '· 窗口外壳换成 Electron 33.4.11 套壳（随包，不依赖系统浏览器内核），界面不再发糊',
+  '· 窗口外壳是随包的 Edge 风格界面：标签页条、地址栏、应用侧栏、游玩区、设置面板',
+  '· 产品页面跑在 iframe 里，外壳通过 preload 桥接发窗口命令（最小化/最大化/关闭/新窗口）',
+  '· 标签页可拖拽排序、可垂直显示；会话（打开的标签与当前页）随外壳持久化并恢复',
+  '· Electron 33.4.11 套壳，1.5 倍缩放下按原生像素渲染，界面不再发糊',
   '· 第一次启动自己弹令牌输入界面，凭据用 Windows DPAPI 加密存本机，环境变量只是回退',
   '· C++ 侧只导入 Windows 自带的 DLL：不需要 Node、不需要 VC++ 运行库',
   '· 每个应用按文件名分派 cli / gui / launcher（int 为 cli / gui），管理员孪生用 x 前缀',
-  '· 安装包 80 MB 级（Electron 运行时随包），安装后每应用约 277 MB / 75 文件',
+  '· 安装包 80 MB 级（Electron 运行时随包），安装后每应用约 279 MB / 96 文件',
   '· 安装时注册 HKCU 环境变量并广播 WM_SETTINGCHANGE，卸载时删除'
 ].join('\n');
 

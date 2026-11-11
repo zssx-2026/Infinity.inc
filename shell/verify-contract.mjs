@@ -28,24 +28,35 @@ const main = read('shell/main.js');
 ok(main.indexOf('--serve-ui') >= 0, 'main.js spawns --serve-ui');
 ok(main.indexOf('--ipc') < 0, 'main.js has no --ipc');
 ok(main.indexOf("path.join(__dirname, 'app'") < 0, 'main.js loads no local app/ page');
-ok(main.indexOf('preload') < 0, 'main.js needs no preload');
+/* The chrome page needs one bridge and no more: preload.js exposes the
+ * infinity-shell frame channel and nothing else. */
+ok(main.indexOf("preload: path.join(__dirname, 'preload.js')") >= 0, 'main.js loads the shell bridge through preload.js');
+ok(main.indexOf("'shell:frame'") >= 0, 'main.js listens for shell frames');
+/* The chrome page is served from a registered scheme rather than a loopback
+ * port: a fresh port is a fresh origin every launch, and localStorage - the
+ * open tabs, the theme, the playzone - would not survive a restart. */
+ok(main.indexOf("const CHROME_SCHEME = 'infinity-shell'") >= 0, 'main.js serves the chrome page from a stable scheme');
+ok(main.indexOf('protocol.registerSchemesAsPrivileged') >= 0, 'the chrome scheme is registered as standard and secure');
+ok(main.indexOf('protocol.handle(CHROME_SCHEME') >= 0, 'the chrome scheme serves resources/app/ui');
+ok(main.indexOf("path.join(__dirname, 'ui')") >= 0, 'the chrome files come from resources/app/ui');
 
 const ap = {};
-for (const m of main.matchAll(/^\s*(inc|ipm):\s*\{ name: '([^']+)', port: (\d+) \}/gm)) ap[m[1]] = Number(m[3]);
+for (const m of main.matchAll(/^\s*(inc|ipm|int):\s*\{ name: '([^']+)', port: (\d+) \}/gm)) ap[m[1]] = Number(m[3]);
 const cppPorts = {};
-for (const app of ['inc', 'ipm']) {
-  const m = /int uiPort = (\d+);/.exec(read('cpp/apps/' + app + '/main.cpp'));
+for (const app of ['inc', 'ipm', 'int']) {
+  const src = read('cpp/apps/' + app + '/main.cpp');
+  const m = /int uiPort = (\d+);/.exec(src) || /const int kDefaultUiPort = (\d+);/.exec(src);
   cppPorts[app] = m ? Number(m[1]) : null;
 }
-ok(Object.keys(ap).length === 2, 'shell knows ' + Object.keys(ap).length + ' applications: ' + Object.keys(ap).join(','));
+ok(Object.keys(ap).length === 3, 'shell knows ' + Object.keys(ap).length + ' applications: ' + Object.keys(ap).join(','));
 for (const k of Object.keys(cppPorts)) ok(ap[k] === cppPorts[k], 'port ' + k + ' shell=' + ap[k] + ' cpp=' + cppPorts[k]);
 
-const expected = { inc_gui: 'inc', inx_gui: 'inc', ipm_gui: 'ipm', ipmx_gui: 'ipm' };
+const expected = { inc_gui: 'inc', inx_gui: 'inc', ipm_gui: 'ipm', ipmx_gui: 'ipm', int_gui: 'int', intx_gui: 'int' };
 const tbl = {};
 const blk = /const ADMIN_TO_BASE = \{([\s\S]*?)\};/.exec(main);
 if (blk) for (const m of blk[1].matchAll(/(\w+):\s*'(\w+)'/g)) tbl[m[1]] = m[2];
-ok(Object.keys(tbl).length === 4, 'ADMIN_TO_BASE has 6 entries');
-const line = main.split('\n').find((s) => s.indexOf('_gui$') >= 0) || '';
+ok(Object.keys(tbl).length === 6, 'ADMIN_TO_BASE has ' + Object.keys(tbl).length + ' entries');
+const line = main.split('\n').find((s) => s.indexOf('const named = ') >= 0) || '';
 const lit = /(\/[^/]+\/)/.exec(line);
 let rx = null;
 try { rx = lit ? new RegExp(lit[1].slice(1, -1)) : null; } catch (e) { rx = null; }
@@ -84,21 +95,27 @@ const buildSrc = read('shell/build.mjs');
 ok(pl.adminGuiName('inc') === 'inx_gui.exe', 'adminGuiName(inc) is inx_gui.exe, not incx_gui.exe');
 ok(buildSrc.indexOf('adminGuiName(') >= 0, 'build.mjs derives the admin gui name from payload.adminGuiName');
 ok(buildSrc.indexOf("t.prefix + 'x_gui'") < 0, 'build.mjs no longer derives <prefix>x_gui locally');
+ok(buildSrc.indexOf("'preload.js'") >= 0, 'build.mjs ships preload.js with the shell');
+ok(buildSrc.indexOf("'ui'") >= 0, 'build.mjs ships the chrome ui/ with the shell');
 const shellOut = path.join(ROOT, 'shell', 'build');
 if (fs.existsSync(shellOut)) {
   const dirs = fs.readdirSync(shellOut, { withFileTypes: true })
     .filter((d) => d.isDirectory()).map((d) => d.name)
     .filter((n) => /-win32-(x64|ia32|arm64)$/.test(n));
+  /* Three products, each with an administrator twin: six names per
+   * architecture. Only the architectures actually staged are required, so an
+   * INC_SHELL_ARCHES=x64 run is not reported as missing ia32/arm64. */
+  const arches = ['x64', 'ia32', 'arm64'].filter((a) => dirs.some((n) => n.endsWith('-win32-' + a)));
   const want = [];
-  for (const arch of ['x64', 'ia32', 'arm64']) {
-    for (const p of ['inc', 'ipm']) {
+  for (const arch of arches) {
+    for (const p of ['inc', 'ipm', 'int']) {
       want.push(p + '_gui-win32-' + arch);
       want.push(pl.adminGuiName(p).replace(/\.exe$/, '') + '-win32-' + arch);
     }
   }
   const missing = want.filter((n) => dirs.indexOf(n) < 0);
   const extra = dirs.filter((n) => want.indexOf(n) < 0 && !n.startsWith('.retired-'));
-  ok(missing.length === 0, 'shell/build holds all 12 expected shell dirs' + (missing.length ? ' missing=' + missing.join(',') : ''));
+  ok(missing.length === 0, 'shell/build holds all ' + want.length + ' expected shell dirs for ' + arches.join(',') + (missing.length ? ' missing=' + missing.join(',') : ''));
   ok(extra.length === 0, 'shell/build has no unexpected shell dirs' + (extra.length ? ' extra=' + extra.join(',') : ''));
 } else {
   console.log('  note shell/build is absent; on-disk shell-name check skipped');

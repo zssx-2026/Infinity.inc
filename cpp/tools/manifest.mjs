@@ -18,8 +18,8 @@ import crypto from 'node:crypto';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
-const RELEASE = process.argv[2] || 'v1.0pre6';
-const VERSION = process.argv[3] || '1.0.0-pre6';
+const RELEASE = process.argv[2] || 'v1.0pre7';
+const VERSION = process.argv[3] || '1.0.0-pre7';
 const TAG = 'v' + VERSION;
 const OWNER = 'zssx-2026';
 const OUT = path.join(ROOT, 'release', RELEASE);
