@@ -61,8 +61,14 @@ const FILE_SKIP = [
   'work/history-sync.log'
 ];
 
+/* The two mirror files under dist/ are data, not the Node-era binaries the
+ * `dist` segment skip exists for: they describe the live catalogue and the
+ * README points at them, so they stay in the snapshot. */
+const DIST_KEEP = ['dist/url.json', 'dist/applist.json'];
+
 function skipReason(rel) {
   const p = rel.split('\\').join('/');
+  if (DIST_KEEP.includes(p)) return null;
   for (const s of p.split('/')) if (SEG_SKIP.includes(s)) return 'artifact:' + s;
   for (const pre of PREFIX_SKIP) if (p.startsWith(pre)) return 'scratch:' + pre;
   if (FILE_SKIP.includes(p)) return 'ghsync-skip:' + p;
