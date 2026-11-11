@@ -13,7 +13,7 @@
 - [x] name.txt 跨版本合并固化为 `work/nametxt-cross.mjs`：按六产品历史顺序合并、CRLF 行尾，重跑得 620 B / sha `7fca9475aa4bda6b9e71d91db41343eac7658f9296ec7fb76774b8776aefdc37`，与目录页在架文件逐字节一致——修掉「manifest.mjs 重跑会把旧版本三条目录行删掉」的隐患（本轮就发生过一次，已用 `work/restore-nametxt.mjs` 从目录页按资产 id 735001151 还原并核对 sha）。
 - [x] SHA256SUMS.txt 重算（493 B，含三安装包 + name.txt + release-assets.json）。
 - [ ] 源码同步：`work/ghsync-source.mjs --push`（本轮改动落定后执行，避免推途中被历史同步任务改写）。
-- [ ] 遗留：`dist/url.json`、`dist/applist.json` 仍是 2026-10-06 快照（Node IPM 旧线镜像；C++ IPM 直读 GitHub 目录页不受影响）。
+- [x] `dist/url.json` 与 `dist/applist.json` 刷新到实况（新增 `work/dist-refresh.mjs`，只读 GitHub 目录页、不上传）：8 个 release / 33 个包 / 35 个文件，url.json 141,600 B、applist.json 29,934 B。顺带修掉旧镜像的解析错误——Infinity 目录行第二列是公司名（`Infinity.Inc`），旧解析器把它当成版本号，所以六个产品全显示 `@Infinity.Inc`；新解析器对非数字版本回退到文件名里的版本，现为 Cloud/PackageManager/Toolbox `1.0.0-pre6`、FileManager/InstallerManager/Games `1.0.0-pre4`。
 
 ## 2026-10-25 登录验证 Cloudflare Worker（本轮）
 - [x] auth-worker/：worker.zh.mjs + worker.en.mjs（双版同逻辑）。人机验证服务端化：挑战 HMAC 签名（prefix|bits|expires|email），register 服务端复核 sha256(prefix+nonce) 前 32 位 < 2^(32-bits)，防重放/防调难度/绑定邮箱，可选 Turnstile；GitHub OAuth：state Cookie + code 换 token + #token fragment 回传；auth-data PR 状态机：建分支→提交 users/<email>.json（含 verifyToken）→开 PR→Actions 双语邮件→/api/verify 比对 token→squash 合并激活+分支清理。
