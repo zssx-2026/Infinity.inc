@@ -107,6 +107,9 @@ function writeApp(dir, app) {
    * window would have nothing to draw, and without preload.js it could not
    * reach the window commands. */
   fs.copyFileSync(path.join(HERE, 'preload.js'), path.join(appDir, 'preload.js'));
+  /* The download manager is required by main.js, so it must be staged too or
+   * the window dies on startup with MODULE_NOT_FOUND. */
+  fs.copyFileSync(path.join(HERE, 'downloads.js'), path.join(appDir, 'downloads.js'));
   fs.cpSync(path.join(HERE, '..', 'work', 'webview2', 'ui'), path.join(appDir, 'ui'), { recursive: true });
   fs.writeFileSync(path.join(appDir, 'package.json'), JSON.stringify({
     name: 'infinity-shell',

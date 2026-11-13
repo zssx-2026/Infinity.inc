@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>下载入口 · Infinity.Inc</title>
+<meta name="description" content="Infinity Studio 与 Infinity Server 的下载入口：先完成一次人机验证，再由 Cloudflare 302 跳转到安装包。">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 50% -10%, #1b2a3d 0%, #0e1116 60%);
+    color: #e6edf3; font: 15px/1.6 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  main { width: 100%; max-width: 460px; text-align: center; }
+  .brand { font-size: 13px; letter-spacing: .18em; color: #7d8b9a; text-transform: uppercase; }
+  h1 { font-size: 22px; font-weight: 600; margin: 10px 0 6px; }
+  p.sub { color: #9aa7b4; margin: 0 0 22px; font-size: 14px; }
+  a.card {
+    display: block; text-align: left; background: #141a21; border: 1px solid #232c37;
+    border-radius: 12px; padding: 16px 18px; margin-bottom: 12px; color: inherit; text-decoration: none;
+  }
+  a.card:hover { border-color: #2f4a6b; background: #161d26; }
+  .name { font-size: 16px; font-weight: 600; }
+  .note { color: #7d8b9a; font-size: 13px; margin-top: 2px; }
+  footer { margin-top: 22px; color: #4f5a67; font-size: 12px; }
+  footer a { color: #5b9bff; text-decoration: none; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">Infinity.Inc</div>
+  <h1>下载入口</h1>
+  <p class="sub">先完成一次人机验证，通过后由 Cloudflare 302 跳转到安装包。</p>
+  <a class="card" href="https://infinity-verify.pages.dev/?asset=InfinityStudio-setup">
+    <div class="name">Infinity Studio</div>
+    <div class="note">安装一切的入口 · Windows x64 安装包</div>
+  </a>
+  <a class="card" href="https://infinity-verify.pages.dev/?asset=InfinityServer-setup">
+    <div class="name">Infinity Server</div>
+    <div class="note">机架级计算控制台 · Windows x64 安装包</div>
+  </a>
+  <footer>下载门由 Cloudflare Pages 提供 · <a href="https://infinity-studio-craft.github.io/">返回首页</a></footer>
+</main>
+</body>
+</html>

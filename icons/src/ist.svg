@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Infinity Studio - the family's workbench, and the one door into the suite.
+
+  Same tile, same Infinity loop, same construction as the other icons: a
+  rounded tile, a figure drawn in the accent colour, the loop along the
+  bottom. The figure here is a studio window - a top bar, a tool rail on the
+  left, and two artboards on the canvas - so the icon says "workbench" rather
+  than repeating another product's silhouette.
+
+  Rectangles only, as everywhere else: the rasteriser in icons/tools handles
+  rounded rectangles, circles and straight-edged polygons, and nothing here
+  needs more than that.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <rect x="8" y="8" width="240" height="240" rx="54" fill="#221A38"/>
+  <rect x="8" y="8" width="240" height="120" rx="54" fill="#37285C"/>
+
+  <!-- the studio window: frame, top bar, tool rail, two artboards -->
+  <rect x="56" y="48" width="144" height="104" rx="12" fill="#A371F7"/>
+  <rect x="64" y="56" width="128" height="88" rx="6" fill="#1A1330"/>
+  <rect x="64" y="56" width="128" height="14" fill="#7C4DD8"/>
+  <rect x="64" y="70" width="20" height="74" fill="#7C4DD8"/>
+  <rect x="92" y="78" width="46" height="54" rx="4" fill="#C9A9FF"/>
+  <rect x="146" y="78" width="38" height="26" rx="4" fill="#A371F7"/>
+  <rect x="146" y="112" width="38" height="20" rx="4" fill="#8B5CF6"/>
+
+  <!-- the Infinity loop: two rings sharing one band -->
+  <circle cx="104" cy="190" r="26" fill="none" stroke="#E6EDF3" stroke-width="13"/>
+  <circle cx="152" cy="190" r="26" fill="none" stroke="#E6EDF3" stroke-width="13"/>
+  <rect x="104" y="178" width="48" height="24" fill="#E6EDF3"/>
+</svg>

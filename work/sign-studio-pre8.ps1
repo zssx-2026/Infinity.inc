@@ -1,0 +1,12 @@
+[Console]::OutputEncoding=[Text.Encoding]::UTF8
+$ErrorActionPreference='Stop'
+$f = Join-Path (Get-Location) 'cpp\release\v1.0pre8\InfinityStudio_1.0.0-pre8_win64_setup.exe'
+$cert = Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Thumbprint -eq '3C626CCE1DFA8833F844BA176DB1922B7B4069C2' }
+Write-Output ('cert=' + $cert.Subject)
+$sig = Set-AuthenticodeSignature -FilePath $f -Certificate $cert -TimestampServer 'http://timestamp.digicert.com' -HashAlgorithm SHA256
+Write-Output ('sig=' + $sig.Status + ' ' + $sig.StatusMessage)
+$item = Get-Item $f
+Write-Output ('size=' + $item.Length)
+Write-Output ('sha256=' + (Get-FileHash $f -Algorithm SHA256).Hash.ToLower())
+$v = Get-AuthenticodeSignature $f
+Write-Output ('verify=' + $v.Status)

@@ -95,6 +95,7 @@ export function renderPage(input) {
   <button class="tab" data-view="workspace" data-i18n="workspace">工作区</button>
   <button class="tab" data-view="project" data-i18n="projects">项目</button>
   <button class="tab" data-view="apps" data-i18n="apps">子产品</button>
+  <button class="tab" data-view="install">在线安装</button>
   <button class="tab" data-view="settings" data-i18n="settings">设置</button>
 </nav>
 <main>
@@ -220,6 +221,21 @@ export function renderPage(input) {
       <pre id="appResult"></pre>
     </div>
   </div>
+  <div data-pane="install" hidden>
+    <div class="card">
+      <div class="row">
+        <span class="hint" id="remoteBase"></span>
+        <button class="ghost" id="remoteRefresh">刷新目录</button>
+        <button id="remoteInstall">安装全部</button>
+      </div>
+      <p class="hint">安装包从发布服务器下载，先校验 sha256 再静默安装；不需要源码工作区，也不需要先装别的产品。</p>
+    </div>
+    <div id="remoteList"></div>
+    <div class="card">
+      <div class="row"><span class="hint" id="remotePhase">空闲</span><span class="hint" id="remoteProgress"></span></div>
+      <pre id="remoteLog"></pre>
+    </div>
+  </div>
 </main>
 <script>
 var LOCALES = ${localeData};
@@ -265,6 +281,7 @@ function setView(view) {
   }
   if (view === "suite") loadSuite();
   if (view === "apps") loadApps();
+  if (view === "install") loadRemote();
   if (view === "settings") { loadHosts(); loadWorkloads(); }
 }
 
@@ -453,6 +470,90 @@ function loadWorkloads() {
   });
 }
 
+function humanBytes(bytes) {
+  var units = ["B", "KiB", "MiB", "GiB"];
+  var n = Number(bytes) || 0;
+  var i = 0;
+  while (n >= 1024 && i < units.length - 1) { n = n / 1024; i += 1; }
+  return (i === 0 ? String(n) : n.toFixed(1)) + " " + units[i];
+}
+
+/* 在线安装：目录来自发布服务器，装的是已签名的安装包，不是工作区里的构建产物。 */
+function renderRemote(data) {
+  var list = el("remoteList");
+  var base = el("remoteBase");
+  if (!list) return;
+  var catalog = data && data.catalog;
+  var products = (catalog && catalog.products) || [];
+  if (base) base.textContent = (data && data.base ? data.base : "") + (catalog && catalog.version ? " · " + catalog.version : "");
+  if (!products.length) {
+    list.innerHTML = "<div class='card'><p class='hint'>" + esc((data && data.error) || "目录为空：发布服务器还没有上架安装包。") + "</p></div>";
+    return;
+  }
+  var html = "<table><thead><tr><th>产品</th><th>安装包</th><th>大小</th><th>SHA256</th><th>操作</th></tr></thead><tbody>";
+  for (var i = 0; i < products.length; i++) {
+    var p = products[i];
+    html += "<tr><td>" + esc(p.name || p.id) + "</td><td><code class='chip'>" + esc(p.asset) + "</code></td>";
+    html += "<td>" + esc(humanBytes(p.size)) + "</td><td><code class='chip'>" + esc(String(p.sha256 || "").slice(0, 12)) + "</code></td>";
+    html += "<td><button class='ghost' data-rid='" + esc(p.id || p.asset) + "'>安装</button></td></tr>";
+  }
+  html += "</tbody></table>";
+  if (data && data.error) html += "<p class='hint'>目录错误：" + esc(data.error) + "</p>";
+  list.innerHTML = html;
+  var buttons = list.querySelectorAll("[data-rid]");
+  Array.prototype.forEach.call(buttons, function (btn) {
+    btn.addEventListener("click", function () { installRemote([btn.getAttribute("data-rid")]); });
+  });
+}
+
+function renderRemoteState(st) {
+  if (!st) return;
+  var phase = el("remotePhase");
+  var bar = el("remoteProgress");
+  var names = { idle: "空闲", start: "准备", download: "下载中", install: "安装中", done: "完成", failed: "失败" };
+  if (phase) {
+    var text = names[st.phase] || st.phase;
+    if (st.total) text += " · " + (st.index || 0) + "/" + st.total;
+    if (st.current) text += " · " + st.current;
+    phase.textContent = text;
+  }
+  if (bar) {
+    var pct = st.expected ? Math.min(100, Math.round((st.received / st.expected) * 100)) : 0;
+    bar.textContent = st.expected ? humanBytes(st.received) + " / " + humanBytes(st.expected) + " · " + pct + "%" : "";
+  }
+  var log = el("remoteLog");
+  if (log) {
+    var lines = (st.log || []).map(function (row) { return row.text; });
+    log.textContent = lines.join("\n");
+  }
+}
+
+function pollRemote() {
+  api("GET", "/v1/remote/state").then(function (st) {
+    renderRemoteState(st);
+    if (st && st.running) setTimeout(pollRemote, 700);
+    else if (st && st.phase === "done") loadRemote();
+  }).catch(function () { setTimeout(pollRemote, 1500); });
+}
+
+function installRemote(ids) {
+  api("POST", "/v1/remote/install", { ids: ids || [] }).then(function (data) {
+    if (data && data.error && !data.started) { show("remoteLog", data.error); return; }
+    renderRemoteState({ running: true, phase: "start", total: data.total || 0, index: 0, log: [{ text: "已排队 " + (data.total || 0) + " 个安装包" }] });
+    pollRemote();
+  });
+}
+
+function loadRemote() {
+  api("GET", "/v1/remote").then(function (data) {
+    renderRemote(data);
+    renderRemoteState(data.state);
+    if (data.state && data.state.running) pollRemote();
+  }).catch(function (error) {
+    show("remoteLog", String(error));
+  });
+}
+
 function boot() {
   var saved = null;
   try { saved = localStorage.getItem("infinitystudio.language"); } catch (error) { saved = null; }
@@ -526,6 +627,10 @@ function boot() {
   if (el("srvCheck")) el("srvCheck").addEventListener("click", function () {
     api("POST", "/v1/server/status", { base: el("srvBase").value }).then(function (data) { show("srvResult", data); });
   });
+  if (el("remoteRefresh")) el("remoteRefresh").addEventListener("click", function () {
+    api("POST", "/v1/remote/refresh", {}).then(function (data) { renderRemote(data); });
+  });
+  if (el("remoteInstall")) el("remoteInstall").addEventListener("click", function () { installRemote([]); });
   applyLabels();
   setView("suite");
 }

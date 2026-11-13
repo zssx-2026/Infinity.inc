@@ -14,7 +14,12 @@ AUTH_DATA_REPO = "zssx-2026/auth-data"
 FRONTEND_URL = "https://zssx-2026.github.io/infinity/login/"
 MIN_POW_BITS = "20"
 CHALLENGE_TTL_SECONDS = "600"
-# TURNSTILE_SITE_KEY = "0x4AAAAAAA..."   # optional, only if TURNSTILE_SECRET is set
+TURNSTILE_SITEKEY = "0x4AAAAAAF8t6z1cwYgU47BZ"
+# Public download face: one object is both the 302 table and the catalog the
+# studio reads. Keys are asset names; values are { id, name, url, size, sha256 }.
+DL_PUBLIC = '{"InfinityStudio-setup":{"id":"studio","name":"Infinity Studio","url":"https://github.com/zssx-2026/Infinity-Studio/releases/download/v1.0.0-pre8/InfinityStudio_1.0.0-pre8_win64_setup.exe","size":83773072,"sha256":"869fbb7051309595cae319132bde97441ab11f856007e8bb5a39c3c0c5be330f"},"InfinityServer-setup":{"id":"server","name":"Infinity Server","url":"https://github.com/zssx-2026/Infinity-Server/releases/download/v1.0.0-pre8/InfinityServer_1.0.0-pre8_win64_setup.exe","size":83745744,"sha256":"129e4ec138aa760ebad1df0ca149faf84eb52ba2b53b1c365fbc067cdbc654a4"}}'
+CATALOG_VERSION = "1.0.0-pre8"
+CATALOG_UPDATED = "2026-11-11T12:10:00Z"
 
 # Optional: makes challenge single-use global and counters cross-isolate
 # [[kv_namespaces]]

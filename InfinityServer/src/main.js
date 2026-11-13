@@ -12,6 +12,7 @@
  */
 
 import { app, BrowserWindow } from 'electron';
+import net from 'node:net';
 import { start } from './server.js';
 
 const PORT_BASE = 7711;
@@ -20,7 +21,6 @@ let win = null;
 
 function isAlive(port) {
   return new Promise((resolve) => {
-    const net = require('node:net');
     const sock = net.connect({ host: '127.0.0.1', port: port });
     sock.setTimeout(600);
     sock.once('connect', () => { sock.destroy(); resolve(true); });
@@ -31,7 +31,6 @@ function isAlive(port) {
 
 function portFree(port) {
   return new Promise((resolve) => {
-    const net = require('node:net');
     const srv = net.createServer();
     srv.once('error', () => resolve(false));
     srv.listen(port, '127.0.0.1', () => srv.close(() => resolve(true)));

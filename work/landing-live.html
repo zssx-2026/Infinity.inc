@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infinity.Studio — 两个入口</title>
+<meta name="description" content="Infinity.Studio：Infinity Studio 是安装一切的入口，Infinity Server 是机架控制台。下载前会先进入一次人机验证页。">
+<style>
+:root{--bg:#0b0d10;--panel:#14181d;--line:#242b33;--fg:#e8edf2;--dim:#9aa7b4;--accent:#4f8cff;--accent2:#31d0aa}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 "Segoe UI","Microsoft YaHei",system-ui,sans-serif}
+a{color:var(--accent);text-decoration:none}
+.wrap{max-width:980px;margin:0 auto;padding:0 24px}
+header{padding:72px 0 40px;border-bottom:1px solid var(--line);background:radial-gradient(900px 320px at 20% -10%,rgba(79,140,255,.22),transparent 70%)}
+h1{font-size:44px;line-height:1.15;margin:0 0 14px;letter-spacing:-.5px}
+h1 span{color:var(--accent2)}
+.lead{color:var(--dim);font-size:18px;max-width:640px;margin:0 0 26px}
+.tag{display:inline-block;font-size:13px;color:var(--accent2);border:1px solid rgba(49,208,170,.35);border-radius:999px;padding:3px 12px;margin-bottom:18px}
+section{padding:48px 0}
+h2{font-size:22px;margin:0 0 22px;letter-spacing:.2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:12px}
+.card h3{margin:0;font-size:20px}
+.card p{margin:0;color:var(--dim);font-size:14px}
+.meta{font-size:12px;color:#6f7d8b;letter-spacing:.3px;text-transform:uppercase}
+.facts{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#8b98a5}
+.facts code{background:#0f1317;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:12px;color:#c9d3dd}
+.btn{display:inline-block;text-align:center;padding:11px 20px;border-radius:10px;border:1px solid var(--line);color:var(--fg);background:#1b2027;font:inherit;font-weight:600;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+footer{border-top:1px solid var(--line);padding:32px 0 56px;color:var(--dim);font-size:14px}
+.note{color:var(--dim);font-size:13px;margin:10px 0 0}
+@media(max-width:560px){h1{font-size:32px}header{padding-top:48px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="tag">Infinity.Studio · 组织主页</div>
+    <h1>两个入口，<span>一套系统</span></h1>
+    <p class="lead">Infinity Studio 是安装一切的入口：它自己会去取已发布的安装包，校验后静默装上。Infinity Server 是机架控制台，用来跑与看这条流水线。两个都是自包含的 Windows 安装包。</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>下载</h2>
+    <div class="grid">
+      <article class="card">
+        <div class="meta">Infinity Studio</div>
+        <h3>Infinity Studio</h3>
+        <p>一个安装器管整条产品线：列出已发布的产品、下载、校验 sha256、静默安装。装上它之后，其余产品都从它的「在线安装」里来。</p>
+        <div class="facts">
+          <span>Windows 10/11 x64</span>
+          <span>版本 <code id="ver">1.0.0-pre8</code></span>
+          <span id="size-studio">安装包大小读取中…</span>
+        </div>
+        <div class="facts"><span>SHA256 <code id="sha-studio">—</code></span></div>
+        <a class="btn primary" href="https://infinity-verify.pages.dev/?asset=InfinityStudio-setup">下载 Infinity Studio</a>
+      </article>
+      <article class="card">
+        <div class="meta">Infinity Server</div>
+        <h3>Infinity Server</h3>
+        <p>机架级控制台：进程、缓存、计费、插件与调度。安装后本地 127.0.0.1:7711 起服务，界面在同一个窗口里。</p>
+        <div class="facts">
+          <span>Windows 10/11 x64</span>
+          <span>版本 <code id="ver2">1.0.0-pre8</code></span>
+          <span id="size-server">安装包大小读取中…</span>
+        </div>
+        <div class="facts"><span>SHA256 <code id="sha-server">—</code></span></div>
+        <a class="btn primary" href="https://infinity-verify.pages.dev/?asset=InfinityServer-setup">下载 Infinity Server</a>
+      </article>
+    </div>
+    <p class="note">下载前会先进入一次人机验证页，验证通过后由 Cloudflare 302 跳转到安装包。地址可以换、文件可以重发，页面不用跟着改。</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>怎么用</h2>
+    <p class="lead">先装 Infinity Studio。打开后在「在线安装」里刷新目录，选要装的产品点安装：它会下载安装包、核对 sha256、再以 /S 静默安装到当前用户目录，不需要管理员权限，也不会弹第二个安装向导。</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">© 2026 Infinity.Inc · Infinity.Studio</div>
+</footer>
+
+<script>
+var CFG = {
+  base: 'https://infinity-downloads.pages.dev',
+  catalog: null
+};
+
+function fmt(bytes) {
+  var n = Number(bytes) || 0;
+  var units = ['B', 'KiB', 'MiB', 'GiB'];
+  var i = 0;
+  while (n >= 1024 && i < units.length - 1) { n = n / 1024; i += 1; }
+  return (i === 0 ? String(n) : n.toFixed(1)) + ' ' + units[i];
+}
+
+function paintCatalog() {
+  var products = (CFG.catalog && CFG.catalog.products) || [];
+  for (var i = 0; i < products.length; i++) {
+    var p = products[i];
+    var asset = String(p.asset || '');
+    var key = asset.indexOf('Studio') >= 0 ? 'studio' : (asset.indexOf('Server') >= 0 ? 'server' : '');
+    if (!key) continue;
+    var size = document.getElementById('size-' + key);
+    var sha = document.getElementById('sha-' + key);
+    if (size && p.size) size.textContent = '安装包 ' + fmt(p.size);
+    if (sha && p.sha256) sha.textContent = String(p.sha256).slice(0, 16) + '…';
+  }
+  if (CFG.catalog && CFG.catalog.version) {
+    var v1 = document.getElementById('ver');
+    var v2 = document.getElementById('ver2');
+    if (v1) v1.textContent = CFG.catalog.version;
+    if (v2) v2.textContent = CFG.catalog.version;
+  }
+}
+
+function loadCatalog() {
+  fetch(CFG.base + '/api/catalog', { headers: { accept: 'application/json' } })
+    .then(function (r) { return r.json(); })
+    .then(function (data) { CFG.catalog = data; paintCatalog(); })
+    .catch(function () { });
+}
+
+loadCatalog();
+</script>
+</body>
+</html>

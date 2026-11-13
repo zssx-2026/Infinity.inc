@@ -23,6 +23,7 @@ import { createWorkspace, loadWorkspace } from './workspace.js';
 import { planAssociations, applyAssociations } from './associate.js';
 import { renderPage } from './page.js';
 import { list as listApps, call as callApp, load as loadApp } from './apps/index.js';
+import { fetchCatalog, createRemoteInstaller, downloadDir, dlBase } from './remote.js';
 import os from 'node:os';
 
 export function studioHome() {
@@ -35,6 +36,13 @@ export function studioHome() {
 export function createStudio(root, target) {
   const planner = new Planner(root, target);
   planner.root = root;
+
+  /* The online installer. The catalog is fetched once per process and cached;
+   * the runner is a single serial job whose state the page polls, so a second
+   * click cannot start a second install over the first one's registry keys. */
+  const remote = createRemoteInstaller();
+  let catalog = null;
+  let catalogError = null;
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url || '/', 'http://127.0.0.1');
@@ -210,6 +218,35 @@ export function createStudio(root, target) {
         const action = String(json.action || 'capabilities').trim();
         const answered = await callApp(id, action, json.input || {});
         return send(res, 200, answered);
+      }
+
+      /* ---- the released setups: what exists, and install it ---- */
+      if (p === '/v1/remote' && method === 'GET') {
+        if (!catalog) {
+          try { catalog = await fetchCatalog(); catalogError = null; }
+          catch (error) { catalogError = String((error && error.message) || error); }
+        }
+        return send(res, 200, { base: dlBase(), dir: downloadDir(), catalog: catalog, error: catalogError, state: remote.snapshot() });
+      }
+      if (p === '/v1/remote/refresh' && method === 'POST') {
+        try { catalog = await fetchCatalog(json.base || undefined); catalogError = null; }
+        catch (error) { catalogError = String((error && error.message) || error); }
+        return send(res, 200, { base: dlBase(), catalog: catalog, error: catalogError, state: remote.snapshot() });
+      }
+      if (p === '/v1/remote/install' && method === 'POST') {
+        const ids = Array.isArray(json.ids) ? json.ids.map(String) : [];
+        if (!catalog) {
+          try { catalog = await fetchCatalog(); catalogError = null; }
+          catch (error) { catalogError = String((error && error.message) || error); }
+        }
+        const known = (catalog && catalog.products) || [];
+        const chosen = ids.length ? known.filter((x) => ids.indexOf(x.id) >= 0 || ids.indexOf(x.asset) >= 0) : known;
+        if (!chosen.length) return send(res, 409, { error: 'no matching product in catalog', ids: ids, catalogError: catalogError });
+        const started = remote.start(chosen);
+        return send(res, started.ok ? 202 : 409, Object.assign({ chosen: chosen.map((x) => x.asset) }, started));
+      }
+      if (p === '/v1/remote/state' && method === 'GET') {
+        return send(res, 200, remote.snapshot());
       }
 
       if (p === '/v1/health' && method === 'GET') {

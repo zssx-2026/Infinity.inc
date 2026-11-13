@@ -1,5 +1,49 @@
 # Infinity.Inc 任务清单（队列：先到先做，用户新需求排最后）
 
+## 2026-11-13 下载面收口：本地验证回退 + Studio 在线安装真跑通（本轮）
+- [x] 网络定性（决定架构）：Turnstile 的挑战 iframe 主机 `hagen.challenges.cloudflare.com` 本机不可达（直连与 `--resolve` 104.18.8.208/104.18.9.208 均 15 s 超时；浏览器 `net::ERR_ABORTED`），而 `challenges.cloudflare.com/turnstile/v0/api.js` 是 302 可达 → 只挂 Turnstile 会让受限网络**所有下载不可用**。
+- [x] 本地验证回退（Pages Functions，`work/pages-gate/functions/`）：`_lib/ticket.js`（b64url + HMAC-SHA256 + 定时安全比较 + `makeCode(5)`）、`_lib/captcha.js`（5x7 点阵 32 字形 + 手写 PNG 编码器 CRC32/IHDR/IDAT/IEND + CompressionStream）、`api/verify.js`（GET 发 `{challenge,image,expiresIn:180}`，challenge 只带 HMAC 不含明文；POST 比对后发绑定 asset 的 120 s 票据）、`dl/[asset].js`（先验 `?lt=` 再验 `?token=`，通过才 302；未知资产 404 `unknown_asset`）。
+- [x] 验证页 `work/verify-gate/index.html`（7,817 B，部署 https://infinity-verify.pages.dev）：Turnstile 为主路径，6 s 看门狗 + onerror + error-callback 自动切本地验证面板（`?local=1` 直接进），面板含验证码图、输入框、确认并下载、换一张。
+- [x] 端到端验收 `work/qa-local-gate.mjs`：自解码 PNG + 点阵模板匹配（jitter -3..3，满分 35）→ `recovered=CRP8V scores=35,35,35,35,35` → 换票 200 → 下载门 302 到 GitHub 资产 → 跨资产 403 `local_ticket_invalid` → 伪造票据 403 → **LOCAL-GATE PASS**（多次运行验证码随机：CRP8V / 8C6DT / EUEP4）。
+- [x] 落地页：子智能体 landing-page 完成并发布，commit `bc14406ccb`，线上 200 / 6,436 B / 两张卡 / 两条 `infinity-verify.pages.dev` 链接 / 零 Turnstile / 零 github.com 链接（`LANDING PASS`）。
+- [x] 下载门根页重写（`work/pages-gate/index.html`）：旧的页内遮罩版整页替换为「下载入口」两张卡（链到验证页），无 Turnstile、无直链；随 Functions 一起部署（deployment 88a19c64 / 2b69d2be）。
+- [x] **真 bug 1**：`InfinityStudio/src/remote.js` 的 `DEFAULT_DL_BASE` 还是被 SNI 阻断的 `*.workers.dev` → 改为 `DL_BASES` 双主机按序尝试（`infinity-downloads.pages.dev` 优先，worker 兜底），`fetchCatalog` 逐个试并带 12 s 超时。
+- [x] **真 bug 2**：下载文件按 catalog 的 asset 键命名（`InfinityServer-setup`，无扩展名）→ `spawn()` 报 `ENOENT` 装不上；新增 `fileNameOf(product)` 取资产 URL 的文件名（无则补 `.exe`），下载落 `InfinityServer_1.0.0-pre8_win64_setup.exe`。
+- [x] Studio 在线安装端到端（`work/qa-studio-remote.{ps1,mjs}`）：`GET /v1/remote` base=pages.dev、两条产品；`POST /v1/remote/install {ids:['InfinityServer-setup']}` → 21 s 后 `results[0].ok=true code=0`，日志「下载（已缓存）→ 运行安装程序 /S → 安装完成」，**Infinity Server 真装上 91 文件 / 281,229,558 B**。
+- [x] Studio 重打包与重发：`node InfinityStudio/build.mjs` + `tools/pack-electron.mjs studio`（含修复后的 src/remote.js，staged 校验 `fileNameOf=2`、`pages_base=1`）→ 未签名 83,735,229 B；签名（证书 `3C626CCE…4069C2`）后 **83,742,472 B / sha256 `7283a3f6a409ae4495a9de2e84eb006d35a8f4f9c6204006e308ebc49c5f5312`**，sig=Valid；`tools/publish-electron.mjs studio` 删旧资产 738942420、上传新资产 **id 742890015**（digest 与本地一致）。
+- [x] 目录同步：`work/pages-gate/functions/api/catalog.js` 的 Studio size/sha256 改为新值并重部署 → `/api/catalog` 实测返回 83,742,472 / `7283a3f6…5312`；`/dl/InfinityStudio-setup` HTML 200、JSON 403 `turnstile_required`、根页 200 / 2,281 B。
+- [x] 装好的 Studio 自证：`/S` 安装后 101 文件 / 281,535,099 B，起自身服务 `GET /v1/remote` → base=pages.dev、Studio 83,742,472 / Server 83,745,744 —— **发布的包里就是修好的代码**。
+- [x] 窗口取证：Studio 的 Electron 主进程（`InfinityStudio/src/main.js`）自带窗口、不认 `INFINITY_SHELL_PROBE`（那是 InfinityViewer 外壳的开关）；改用 `PrintWindow`（PW_RENDERFULLCONTENT）抓 1080x720 窗口（`work/studio-window2.png` 15,760 B，不用前台抢焦点），OCR 读到「InfinityStudio / InfinityStudio Installer / 组件 套件 工作区 刷新 项目 子产品 在线安装 设置」。
+- [x] 卸载清理：两个 Uninstall.exe /S 均 exit=0，安装根目录清空，下载缓存 `%LOCALAPPDATA%\Infinity\Studio\downloads` 已删。
+- [x] 文档：新增 `docs/DOWNLOADS-v1.0pre8.md`（三域名分工、下载链路、Turnstile 受限网络实测、本地验证契约、Studio 在线安装规则、已知问题）。
+- [ ] 遗留：GitHub 资产在本机被限速（10 s 0 字节 / Node 约 16 KiB/s），80 MB 包下载很慢，没有镜像；本地验证码可被点阵模板匹配破解；pre8 三应用（C++ 线 inc/ipm/int）发布链路仍未做。
+- 工具坑：`dsh-browser` 在审批禁用下只有只读动作可用（`target.open`/`observe.*`/`inspect.*`），`act.fill`/`act.click` 被拒；fs-observation 要求完整读文件后才能 write/edit（会话重启后读状态会丢，需重读）。
+
+## 2026-11-12 下载面重构：独立验证页 + 多域名 + Cloudflare 302
+- [x] 用户指令：m02647 只提供 Infinity Studio / Infinity Server 下载、无源码链接、走 Cloudflare 302；m03070 所有页面加 Turnstile 且功能真跑通；m03279 人机验证做**单独页面**；m03280 页面**拆到多个域名**；m03281 多开子智能体并行。
+- [x] 网络定性：`*.workers.dev` 在本机被 **SNI 阻断**（DNS 被污染到 157.240.2.36 / 199.96.62.21；`curl --resolve` 到 104.16.132.229 / 104.17.0.1 / 172.67.0.1 / 104.21.0.1 全部 `schannel: failed to receive handshake`）；`*.pages.dev`、netlify.app、azurewebsites.net、challenges.cloudflare.com 均可达。故下载门从 Worker 迁到 **Pages Functions**。
+- [x] 资产上传：`tools/publish-electron.mjs` 的 uploadStream（node:https + 显式 content-length + 256 KiB 分块）真发成功——Studio asset id 738942420 / 83,773,072 B / digest `869fbb70…330f`，Server asset id 738942978 / 83,745,744 B / digest `129e4ec1…54a4`，URL 在 `zssx-2026/Infinity-Studio` 与 `zssx-2026/Infinity-Server` 的 `v1.0.0-pre8` release。
+- [x] 下载门（`work/pages-gate/functions/api/catalog.js` + `functions/dl/[asset].js`）：`/api/catalog` 返回两条产品（asset/id/name/version/size/sha256/url/dl）；`/dl/<asset>` 无票返回 Turnstile 验证页、`siteverify` 通过才 302 到 GitHub 资产，否则 403 `turnstile_required` / `turnstile_failed`，未知资产 404 `unknown_asset`。实测：catalog 200 / 830 B，gate 200 / 1,588 B 含 turnstile，假票 403，`/dl/Nope` 404。
+- [x] Pages 部署坑：`wrangler pages deploy work/pages-gate` 只传静态文件、Functions 不生效（wrangler 从 CWD 找 functions）→ 必须 `Push-Location work/pages-gate; wrangler pages deploy . --project-name infinity-downloads --branch main --commit-dirty=true`，看到 `Compiled Worker successfully` 才算部署。
+- [x] Turnstile：worker 用旧 widget `0x4AAAAAAF8t6z1cwYgU47BZ`；pages.dev 用新 widget `0x4AAAAAAF-CBPThfL7uy0hi`（secret 以 Pages `TURNSTILE_SECRET` secret_text 存，未回显）。**widget 更新必须 PUT，PATCH 回 405 code 10405**；PUT 后 domains = infinity-downloads.pages.dev / infinity-studio-craft.github.io / infinity-verify.pages.dev / zssx-2026.github.io。
+- [ ] 独立验证页 `https://infinity-verify.pages.dev`（子智能体 verify-page，写 `work/verify-gate/`）。
+- [ ] 落地页改跳独立验证页并发布 GitHub Pages（子智能体 landing-page，写 `work/_org-pages/index.html`）。
+- [ ] Studio 静默安装 QA + 在线安装端到端（子智能体 studio-qa，写 `work/qa-studio-*`）。
+- [ ] 浏览器真过 Turnstile → 302 → 文件可下（dsh-browser 的 `script.evaluate` 在审批禁用下被拒，只能用 target.open / observe.read / act.click + Windows OCR 取证）。
+- 工具坑：fs-observation 要求**完整读**文件后才能 write/edit（只读前几行不够）；PowerShell 写进 TS String.raw 时不能出现反引号。
+
+## 2026-11-11 InfinityViewer 更名 + 内置下载管理器（本轮）
+- [x] 更名：窗口标题与内部 UI 全改 `InfinityViewer`（`shell/main.js` 的 `title`、fatal 页标题/标题行、`work/webview2/ui` 11 个文件、console 前缀、`about` 文案），`work/patch-viewer.mjs` 一次性替换并复核命中清单。
+- [x] 下载引擎 `shell/downloads.js`（CommonJS，16,780 B，零依赖）：HEAD 探测（>=400 退化为 `GET range: bytes=0-0`）→ `Accept-Ranges` 且 >256 KB 走 8 连接分片直写同一 fd、否则单流续传；队列持久化到 `userData/downloads.json`，重启把 running 降为 paused；重试 3 次退避、暂停/继续/取消/移除/清除已完成、速率与 ETA 由 500 ms tick 计算。
+- [x] 引擎单测 `shell/download-test.mjs`（19 条断言）：本地 range 服务器 + 4,206,649 B 随机体，**DOWNLOAD-TEST PASS 19/19**（8 分片、sha256 与源一致、Content-Disposition 取名、HEAD-405 回退、暂停不增长、续传从 1,048,576 B 继续且哈希一致、重启恢复无 running）。修掉真 bug：续传时 `uniquePath` 换名导致旧字节被弃 → `it.file = it.file || self.uniquePath(it.name)`。
+- [x] 宿主接管：`session.defaultSession.on('will-download')` 对 http(s) 一律 `item.cancel()` 后交给引擎，Chromium 自带下载面板不再出现；`viewer.download` 帧支持 list/start/pause/resume/cancel/remove/clear/open/folder，异常也回快照。
+- [x] 面板 UI：工具栏 `#btn-downloads`（含 running 数角标）、右侧 `.dlpanel`（目录、粘贴地址、任务列表、速率/ETA/分片数、按钮组、清除已完成），i18n 两种语言各 23 条 `dl.*` 键；菜单「下载」改为直接开面板。
+- [x] 端到端探针（真点按钮、真填地址、真落盘）：`INFINITY_SHELL_PROBE_DL` 驱动页面自己的工具栏与输入框，24 MB 慢速服务器 8 连接，中途快照 `probe.bin 6.5 MB / 24.0 MB · 2.9 MB/s · 6s · 8 连接`、角标 1，完成后文件 25,165,824 B 落 `%USERPROFILE%\Downloads\InfinityViewer`。证据 `work/viewer-dl.png` 115,363 B，OCR 读到「10.0 MB / 24.0 MB · 2.x MB/s · 7s · 8 连接 / 暂停 / 取消 / 移除 / 1 个任务」。
+- [x] 无框窗口：`windowOptions` 增 `frame: false`，页面自绘标题栏（`shell.css` 的 `-webkit-app-region: drag` 与 cap 按钮）成为唯一标题栏，不再与原生框重复；探针 `windowActions` 五动作全真（minimize true / restore false / maximize true / restore false / new windows=2）。证据 `work/viewer-win.png` 75,912 B，探针 dpr=1.5、title `InfinityViewer`、origin `infinity-shell://ui`。
+- [x] 契约自检扩到 **59 条全绿**（新增下载 13 条 + 无框 3 条 + `build.mjs` 必须随包发 `downloads.js`）。
+- [x] 清理：删掉 `.pz-music*` 五条死 CSS 与 i18n 音乐键 8 处（`work/strip-music.mjs`）。
+- [x] 构建：`INC_SHELL_ARCHES=x64 node shell/build.mjs` → 六个 x64 目录，每个 188,784,128 B；探针后已清 `%APPDATA%\infinity-shell` 与下载目录，无残留进程。
+
 ## 2026-11-11 v1.0pre7 收口（本轮）
 - [x] 外壳接线（本轮核心）：`work/webview2/ui` 的 Edge 风格界面接进 Electron 窗口——`shell/preload.js` 改为唯一桥（`__INFINITY_HOST__.postMessage` → ipc），`shell/main.js` 新增 `serveChrome()`/`shellFrame()`/`windowCommand()`/`sessionFile()`；产品页面以 iframe 跑在外壳里。
 - [x] 稳定 origin 修复：外壳页面原来由随机端口的 HTTP 服务提供，每次启动 origin 都变 → localStorage 全丢、会话恢复名存实亡。改为注册私有 scheme `infinity-shell://ui/index.html?render=iframe&url=…`，`protocol.handle` 从 `resources/app/ui` 读资源（路径穿越 403、`cache-control: no-store`），导航白名单只允许该 origin + `http://127.0.0.1:<port>/`。探针两次连跑：第一次 `hasSession=false`，第二次 `hasSession=true` —— 会话真的跨重启留下。

@@ -43,8 +43,8 @@ const SHELL_DIR = SHELL === 'electron'
 const SHELL_ARCH = String(process.env.INC_SHELL_ARCH || 'win32-x64').trim();
 const SHELL_FOLDER = function (app) { return app.prefix + '_shell'; };
 const PORTS = { inc: 7621, ifm: 7623, ipm: 7632, iim: 7643, int: 7653, ing: 7664 };
-const RELEASE = process.env.INC_RELEASE || 'v1.0pre7';
-const VERSION = process.env.INC_VERSION || '1.0.0-pre7';
+const RELEASE = process.env.INC_RELEASE || 'v1.0pre8';
+const VERSION = process.env.INC_VERSION || '1.0.0-pre8';
 const OUT = path.join(ROOT, 'release', RELEASE);
 const MAKENSIS = 'C:/Program Files (x86)/NSIS/makensis.exe';
 

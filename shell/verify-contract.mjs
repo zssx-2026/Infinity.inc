@@ -96,6 +96,7 @@ ok(pl.adminGuiName('inc') === 'inx_gui.exe', 'adminGuiName(inc) is inx_gui.exe, 
 ok(buildSrc.indexOf('adminGuiName(') >= 0, 'build.mjs derives the admin gui name from payload.adminGuiName');
 ok(buildSrc.indexOf("t.prefix + 'x_gui'") < 0, 'build.mjs no longer derives <prefix>x_gui locally');
 ok(buildSrc.indexOf("'preload.js'") >= 0, 'build.mjs ships preload.js with the shell');
+ok(buildSrc.indexOf("'downloads.js'") >= 0, 'build.mjs ships downloads.js with the shell');
 ok(buildSrc.indexOf("'ui'") >= 0, 'build.mjs ships the chrome ui/ with the shell');
 const shellOut = path.join(ROOT, 'shell', 'build');
 if (fs.existsSync(shellOut)) {
@@ -120,6 +121,44 @@ if (fs.existsSync(shellOut)) {
 } else {
   console.log('  note shell/build is absent; on-disk shell-name check skipped');
 }
+
+/* --- 6. quiet by default: no console windows, no audio at all ---
+ * The user's rule is absolute: the product never pops a console window and
+ * never plays a sound. The chrome page may not carry an audio element, and the
+ * shell must not construct one at runtime either. */
+const uiHtml = read('work/webview2/ui/index.html');
+const uiJs = read('work/webview2/ui/assets/js/shell.js');
+ok(uiHtml.indexOf('<audio') < 0, 'chrome page has no <audio> element');
+ok(uiHtml.indexOf('pzAudio') < 0 && uiJs.indexOf('pzAudio') < 0, 'play zone audio element is gone from markup and script');
+ok(!/new\s+Audio\s*\(/.test(uiJs), 'shell never constructs an Audio object');
+ok(uiJs.indexOf('AudioContext') < 0, 'shell never opens an AudioContext');
+ok(uiJs.indexOf('.play()') < 0, 'shell never calls play()');
+ok(main.indexOf('windowsHide: true') >= 0, 'the UI server is spawned with windowsHide');
+ok(/frame:\s*false/.test(main), 'the window is frameless so the chrome title bar is the only one');
+ok(uiHtml.indexOf('id="cap-min"') >= 0 && uiJs.indexOf('"cap-close"') >= 0, 'the chrome title bar owns the window buttons');
+ok(/shell\.window/.test(main) && /win\.minimize\(\)/.test(main), 'main.js performs shell.window for real');
+ok(main.indexOf('audioElements:document.querySelectorAll("audio").length') >= 0, 'the window probe reports audioElements');
+
+
+/* --- 7. InfinityViewer's built-in download manager ---
+ * The viewer owns every download: Chromium's own shelf is cancelled in
+ * will-download and the queue lives in shell/downloads.js. The chrome page must
+ * carry the panel and speak the same frame names the host answers. */
+const dl = read('shell/downloads.js');
+const i18n = read('work/webview2/ui/assets/js/i18n.js');
+ok(/class DownloadManager/.test(dl) && /module\.exports/.test(dl), 'downloads.js exports a DownloadManager');
+ok(main.indexOf("require('./downloads')") >= 0, 'main.js loads the download manager');
+ok(main.indexOf("'will-download'") >= 0 && main.indexOf('item.cancel()') >= 0, "main.js cancels Chromium's own download and takes it over");
+ok(main.indexOf("'viewer.download'") >= 0, 'main.js answers viewer.download');
+ok(main.indexOf("path.join(app.getPath('downloads'), 'InfinityViewer')") >= 0, 'downloads land in the Downloads/InfinityViewer folder');
+ok(main.indexOf("path.join(app.getPath('userData'), 'downloads.json')") >= 0, 'the download queue survives a restart');
+ok(/it\.file \|\| self\.uniquePath/.test(dl), 'a resumed download keeps the file its earlier bytes live in');
+ok(dl.indexOf('range: \'bytes=\' + from + \'\'') >= 0 || dl.indexOf("range: 'bytes=' + from + '-'") >= 0, 'a single-stream download resumes from its byte offset');
+ok(uiHtml.indexOf('id="dlpanel"') >= 0, 'chrome page carries the downloads panel');
+ok(uiHtml.indexOf('id="btn-downloads"') >= 0, 'the toolbar has a downloads button');
+ok(uiJs.indexOf('viewer.download') >= 0, 'shell.js speaks viewer.download');
+ok(uiJs.indexOf('case "host.download"') >= 0, 'shell.js renders host.download snapshots');
+ok((i18n.match(/"dl\.status\.done"/g) || []).length >= 2, 'both locales name the download states');
 
 console.log('');
 console.log((fail === 0 ? 'SELFTEST PASS' : 'SELFTEST FAIL') + '  pass=' + pass + ' fail=' + fail);

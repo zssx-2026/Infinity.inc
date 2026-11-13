@@ -21,6 +21,8 @@
  *   GET  /api/gate?scope=...          signed PoW challenge for the download gate
  *   POST /api/gate/verify             check the proof, hand out a short-lived pass
  *   GET  /api/dl?scope&asset&pass     check the pass, 302 to the real asset URL
+ *   GET  /dl/<asset>                  public 302 for the assets the site lists
+ *   GET  /api/catalog                 the public product list the studio reads
  *   GET  /api/auth/github             start GitHub OAuth (state cookie)
  *   GET  /api/auth/github/callback    exchange code + secret, redirect  FRONTEND_URL#token=...
  *
@@ -547,6 +549,108 @@ function dlMap(env) {
   } catch (e) { return {}; }
 }
 
+/* The public download surface: only the assets the site lists are reachable
+ * here, everything else still needs a gate pass through /api/dl. DL_PUBLIC is
+ * one variable doing two jobs - the 302 table and the catalog - because its
+ * keys are asset file names and its values carry { url, size, sha256, name,
+ * id }, so /api/catalog needs no second list to drift out of step. */
+function dlPublic(env) {
+  try {
+    const j = JSON.parse(env.DL_PUBLIC || '{}');
+    return j && typeof j === 'object' ? j : {};
+  } catch (e) { return {}; }
+}
+
+function publicJson(obj, status) {
+  return new Response(JSON.stringify(obj), {
+    status: status || 200,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-store'
+    }
+  });
+}
+
+function htmlPage(markup, status) {
+  return new Response(markup, {
+    status: status || 200,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }
+  });
+}
+
+/* Human verification: the site asks Turnstile for a ticket first, then presents
+ * it here to collect the 302. Tickets are single-use and expire in minutes and
+ * the check happens on Cloudflare's side, so a copied /dl/ link without a
+ * ticket only ever reaches this page. */
+/* The page a bare /dl/<asset> gets: one Turnstile widget, which returns to the
+ * same address with the ticket. The download target therefore never has to be
+ * written into a page. */
+function gatePage(env, asset) {
+  const sitekey = String(env.TURNSTILE_SITEKEY || '');
+  if (!sitekey) return publicJson({ error: 'not_configured', message: MSG.not_configured }, 503);
+  const action = JSON.stringify('/dl/' + encodeURIComponent(asset));
+  const key = JSON.stringify(sitekey);
+  const parts = [
+    '<!doctype html><html lang="en"><head><meta charset="utf-8">',
+    '<meta name="viewport" content="width=device-width,initial-scale=1"><title>Verifying</title>',
+    '<style>html,body{margin:0;height:100%;background:#0e1116;color:#e6e6ea;',
+    'font:14px/1.5 system-ui,"Segoe UI",sans-serif}',
+    'main{max-width:420px;margin:0 auto;padding:96px 24px}h1{font-size:16px;font-weight:600;margin:0 0 6px}',
+    'p{margin:0 0 20px;color:#8b8b95}#w{min-height:65px}</style></head><body><main>',
+    '<h1>Verifying…</h1><p>One quick check before the download starts.</p><div id="w"></div><p id="m"></p>',
+    '</main><script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>',
+    '<script>var action=', action, ';var sitekey=', key, ';',
+    'function go(token){location.replace(action+"?token="+encodeURIComponent(token));}',
+    'function start(){if(!window.turnstile){setTimeout(start,120);return;}',
+    'turnstile.render("#w",{sitekey:sitekey,callback:go,',
+    '"error-callback":function(){document.getElementById("m").textContent="Verification failed. Reload the page and try again.";},',
+    '"expired-callback":function(){turnstile.reset();}});}start();</script></body></html>'
+  ];
+  return htmlPage(parts.join(''), 200);
+}
+
+async function handlePublicDl(request, env, url) {
+  const asset = decodeURIComponent(url.pathname.slice('/dl/'.length));
+  if (!/^[A-Za-z0-9._-]{1,140}$/.test(asset)) return publicJson({ error: 'bad_request', message: MSG.bad_request }, 400);
+  if (!rateLimit('dlp', clientIp(request), 120, 10 * 60 * 1000)) {
+    return publicJson({ error: 'rate_limited', message: MSG.rate_limited }, 429);
+  }
+  const row = dlPublic(env)[asset];
+  const target = typeof row === 'string' ? row : (row && row.url);
+  if (!target) return publicJson({ error: 'not_found', message: MSG.not_found }, 404);
+  const token = String(url.searchParams.get('token') || '');
+  const wantsHtml = String(request.headers.get('accept') || '').indexOf('text/html') >= 0;
+  if (!token) {
+    if (wantsHtml) return gatePage(env, asset);
+    return publicJson({ error: 'turnstile_required', message: 'A human verification ticket (?token=) is required.' }, 403);
+  }
+  const passed = await verifyTurnstile(env, token, clientIp(request));
+  if (!passed) {
+    if (wantsHtml) return gatePage(env, asset);
+    return publicJson({ error: 'turnstile_failed', message: MSG.turnstile_failed }, 403);
+  }
+  return redirect(target);
+}
+
+function handleCatalog(env, url) {
+  const map = dlPublic(env);
+  const products = Object.keys(map).sort().map(function (asset) {
+    const row = map[asset];
+    const o = typeof row === 'string' ? { url: row } : (row || {});
+    return {
+      id: o.id || '',
+      name: o.name || '',
+      asset: asset,
+      size: Number(o.size) || 0,
+      sha256: o.sha256 || '',
+      url: o.url || '',
+      dl: url.origin + '/dl/' + encodeURIComponent(asset)
+    };
+  });
+  return { ok: true, version: env.CATALOG_VERSION || '', updated: env.CATALOG_UPDATED || '', products: products };
+}
+
 async function handleGate(request, env, url) {
   const scope = String(url.searchParams.get('scope') || '');
   if (!gateScopeOk(scope)) return json(env, { error: 'bad_request', message: MSG.bad_request }, 400);
@@ -606,6 +710,8 @@ export default {
       if (p === '/api/gate' && request.method === 'GET') return handleGate(request, env, url);
       if (p === '/api/gate/verify' && request.method === 'POST') return handleGateVerify(request, env);
       if (p === '/api/dl' && request.method === 'GET') return handleDl(request, env, url);
+      if (p === '/api/catalog' && request.method === 'GET') return publicJson(handleCatalog(env, url));
+      if (p.indexOf('/dl/') === 0 && request.method === 'GET') return handlePublicDl(request, env, url);
       if (p === '/api/auth/github' && request.method === 'GET') return handleOAuthStart(request, env, url);
       if (p === '/api/auth/github/callback' && request.method === 'GET') return handleOAuthCallback(request, env, url);
       return json(env, { error: 'not_found', message: MSG.not_found }, 404);

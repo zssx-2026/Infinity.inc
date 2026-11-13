@@ -1,7 +1,7 @@
 /*
- * main.js - the Infinity.Inc Electron shell.
+ * main.js - InfinityViewer, the Infinity.Inc browser window.
  *
- * One shell, five applications. The window is the whole job: the program
+ * One viewer, several applications. The window is the whole job: the program
  * already knows how to serve its own interface on loopback, so the shell
  * starts that server, waits for the port to answer, and points a window at
  * it. Nothing about the interface is duplicated here, which is what keeps
@@ -15,11 +15,14 @@
  *
  *   inc_gui.exe   inx_gui.exe   ->  Infinity Cloud             inc_cli.exe   7621
  *   ipm_gui.exe   ipmx_gui.exe  ->  InfinityPackageManager     ipm_cli.exe   7632
+ *   int_gui.exe   intx_gui.exe  ->  Infinity Toolbox            int_cli.exe   7653
  *
  * The server executable is expected beside the shell, which is how the
- * installer lays the directory out.
+ * installer lays the directory out. The window itself is always called
+ * InfinityViewer: the product inside it is a tab, not the browser.
  */
-const { app, BrowserWindow, Menu, ipcMain, shell, screen, protocol } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, shell, screen, protocol, session } = require('electron');
+const { DownloadManager } = require('./downloads');
 const path = require('node:path');
 const fs = require('node:fs');
 const net = require('node:net');
@@ -144,9 +147,13 @@ function windowOptions(meta) {
     height: 780,
     minWidth: 900,
     minHeight: 600,
-    title: meta.name,
+    title: 'InfinityViewer',
     backgroundColor: '#0e1116',
     autoHideMenuBar: true,
+    /* The chrome page draws its own title bar, tab strip and caption buttons
+     * (shell.css keeps a drag region for them). A native frame on top of that
+     * would show two title bars and two sets of window buttons. */
+    frame: false,
     /* The chrome page reaches the window through preload.js and nothing else:
      * context isolation on, Node off, sandbox on. */
     webPreferences: {
@@ -187,7 +194,7 @@ function guardWindow(w, ports) {
 function showFatal(meta, message) {
   const html =
     '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">' +
-    '<title>' + escapeHtml(meta.name) + '</title><style>' +
+    '<title>InfinityViewer</title><style>' +
     'html,body{margin:0;height:100%}' +
     'body{background:#0e1116;color:#e6edf3;display:flex;align-items:center;' +
     'justify-content:center;font-family:"Microsoft YaHei",system-ui,-apple-system,sans-serif}' +
@@ -196,7 +203,7 @@ function showFatal(meta, message) {
     'p{font-size:14px;line-height:1.7;color:#9da7b3;margin:0 0 10px;word-break:break-all}' +
     '.hint{color:#6b7684;font-size:13px;margin-top:20px}' +
     '</style></head><body><div class="box">' +
-    '<h1>' + escapeHtml(meta.name) + ' 无法启动</h1>' +
+    '<h1>InfinityViewer 无法启动</h1><p>' + escapeHtml(meta.name) + '</p>' +
     '<p>' + escapeHtml(message) + '</p>' +
     '<p class="hint">请重新安装本程序，或确认安装目录中的命令行程序未被删除。</p>' +
     '</div></body></html>';
@@ -256,6 +263,62 @@ function serveChrome() {
   });
 }
 
+/* ------------------------------------------------------------------ *
+ * downloads - the built-in download manager
+ * ------------------------------------------------------------------ */
+
+let downloads = null;
+
+function downloadManager() {
+  if (downloads) return downloads;
+  const dir = path.join(app.getPath('downloads'), 'InfinityViewer');
+  try { fs.mkdirSync(dir, { recursive: true }); } catch (e) { }
+  downloads = new DownloadManager({
+    dir: dir,
+    stateFile: path.join(app.getPath('userData'), 'downloads.json'),
+    /* Eight range requests per file is the IDM default and what makes a
+     * single slow connection stop holding the whole transfer back. */
+    connections: 8,
+    concurrency: 3,
+    onEvent: function (snap) { replyShell('host.download', snap); }
+  });
+  return downloads;
+}
+
+/* Chromium's own download path is turned off on purpose: everything the page
+ * starts is handed to the engine above, which is what "built-in" means. */
+function watchDownloads() {
+  try {
+    session.defaultSession.on('will-download', function (_e, item) {
+      const url = item.getURL();
+      if (!/^https?:/i.test(url)) return;
+      item.cancel();
+      try { downloadManager().start(url, item.getFilename()); } catch (err) { }
+    });
+  } catch (e) { }
+}
+
+function downloadCommand(p) {
+  const mgr = downloadManager();
+  const action = String(p.action || 'list');
+  try {
+    if (action === 'start') mgr.start(String(p.url || ''), p.name ? String(p.name) : undefined);
+    else if (action === 'pause') mgr.pause(String(p.id));
+    else if (action === 'resume') mgr.resume(String(p.id));
+    else if (action === 'cancel') mgr.cancel(String(p.id));
+    else if (action === 'remove') mgr.remove(String(p.id));
+    else if (action === 'clear') mgr.clearDone();
+    else if (action === 'open') {
+      const it = mgr.find(String(p.id));
+      if (it && it.file) shell.showItemInFolder(it.file);
+    } else if (action === 'folder') shell.openPath(mgr.dir);
+  } catch (e) {
+    replyShell('host.download', { dir: mgr.dir, error: String(e.message || e), items: mgr.snapshot().items });
+    return;
+  }
+  replyShell('host.download', mgr.snapshot());
+}
+
 /* Frames from the chrome page. The page owns its tabs and embeds the
  * application itself, so the host answers the window commands and keeps the
  * session - page content never crosses this bridge. */
@@ -282,6 +345,9 @@ function shellFrame(frame) {
         fs.writeFileSync(sessionFile(), JSON.stringify(p, null, 2), 'utf8');
       } catch (e) { }
       replyShell('host.ack', { of: frame.type });
+      break;
+    case 'viewer.download':
+      downloadCommand(p);
       break;
     case 'shell.content-rect':
       /* The page renders the application in its own iframe, so no native
@@ -355,6 +421,83 @@ function probeWindowActions(done) {
   next();
 }
 
+/* INFINITY_SHELL_PROBE_DL proves the built-in download manager end to end:
+ * the page's own toolbar button and URL box drive it, the frame crosses the
+ * bridge, main.js queues the transfer, and a real file lands on disk. A value
+ * of "1" starts a local range-capable server, so the check needs no network. */
+function probeDownloadServer(slow, cb) {
+  const http = require('node:http');
+  const payload = Buffer.alloc((slow ? 24 : 6) * 1024 * 1024, 0x5a);
+  const total = payload.length;
+  /* The slow server streams in chunks so the probe can photograph a transfer
+   * in flight: speed, ETA and the segment count only exist mid-download. */
+  const stream = function (res, buf) {
+    let at = 0;
+    const tick = function () {
+      if (at >= buf.length) { res.end(); return; }
+      const end = Math.min(at + 64 * 1024, buf.length);
+      res.write(buf.subarray(at, end));
+      at = end;
+      setTimeout(tick, 200);
+    };
+    tick();
+  };
+  const srv = http.createServer(function (req, res) {
+    /* A HEAD reply must carry its headers and stop: streaming a body for it
+     * leaves the client waiting for headers that never flush. */
+    if (req.method === 'HEAD') {
+      res.writeHead(200, {
+        'accept-ranges': 'bytes',
+        'content-type': 'application/octet-stream',
+        'content-length': total
+      });
+      res.end();
+      return;
+    }
+    const range = req.headers.range;
+    res.setHeader('accept-ranges', 'bytes');
+    res.setHeader('content-type', 'application/octet-stream');
+    if (range) {
+      const m = /bytes=(\d+)-(\d*)/.exec(range);
+      const start = Number(m[1]);
+      const end = m[2] ? Math.min(Number(m[2]), total - 1) : total - 1;
+      res.writeHead(206, {
+        'content-range': 'bytes ' + start + '-' + end + '/' + total,
+        'content-length': end - start + 1
+      });
+      if (slow) { stream(res, payload.subarray(start, end + 1)); }
+      else { res.end(payload.subarray(start, end + 1)); }
+      return;
+    }
+    res.writeHead(200, { 'content-length': total });
+    if (slow) { stream(res, payload); }
+    else { res.end(payload); }
+  });
+  srv.listen(0, '127.0.0.1', function () {
+    cb(srv, 'http://127.0.0.1:' + srv.address().port + '/probe.bin');
+  });
+}
+
+function probeDownload(url, done) {
+  const js = '(function(){' +
+    'var b=document.getElementById("btn-downloads");if(b)b.click();' +
+    'var i=document.getElementById("dlUrl");if(i)i.value=' + JSON.stringify(url) + ';' +
+    'var a=document.getElementById("dlAdd");if(a)a.click();' +
+    'return true;})()';
+  win.webContents.executeJavaScript(js).catch(function () { });
+  setTimeout(function () {
+    win.webContents.executeJavaScript(
+      '({open:(document.getElementById("dlpanel")||{}).hidden===false,' +
+      'items:document.querySelectorAll(".dl-item").length,' +
+      'text:((document.getElementById("dlList")||{}).innerText||"").slice(0,200),' +
+      'dir:((document.getElementById("dlDir")||{}).textContent||""),' +
+      'badge:((document.getElementById("dlBadge")||{}).textContent||"")})'
+    ).then(function (state) { done(state); }).catch(function (e) {
+      done({ error: String(e && e.message) });
+    });
+  }, 3000);
+}
+
 async function boot() {
   const base = prefixFromName();
   const wantsAdmin = process.argv.some(function (a) { return a === '--admin'; });
@@ -394,7 +537,14 @@ async function boot() {
    * instead of asking a native host to position a content region. */
   shellUrl = CHROME_ORIGIN + 'index.html?render=iframe&url=' +
     encodeURIComponent('http://127.0.0.1:' + port + '/');
+  /* A probe may need the chrome in a particular state (the downloads panel
+   * open, for instance) without any host support of its own. */
+  if (process.env.INFINITY_SHELL_PROBE_QUERY) {
+    shellUrl += '&' + String(process.env.INFINITY_SHELL_PROBE_QUERY).replace(/^[&?]/, '');
+  }
   ipcMain.on('shell:frame', function (_e, frame) { shellFrame(frame); });
+  watchDownloads();
+  downloadManager();
 
   Menu.setApplicationMenu(null);
   win = new BrowserWindow(windowOptions(meta));
@@ -414,7 +564,12 @@ async function boot() {
         'lsKeys:Object.keys(localStorage).sort().join(","),' +
         'hasSession:!!localStorage.getItem("infinity-shell-session"),' +
         'tabCount:document.querySelectorAll(".tab").length,' +
+          'audioElements:document.querySelectorAll("audio").length,' +
         'frameSrc:(document.querySelector("iframe")||{}).src||"",' +
+        'dlOpen:(document.getElementById("dlpanel")||{}).hidden===false,' +
+        'dlItems:document.querySelectorAll(".dl-item").length,' +
+        'dlText:((document.getElementById("dlList")||{}).innerText||"").slice(0,160),' +
+        'dlBadge:((document.getElementById("dlBadge")||{}).textContent||""),' +
         'bodyText:(document.body.innerText||"").slice(0,80)})'
       ).then(function (info) {
         info.scaleFactor = screen.getPrimaryDisplay().scaleFactor;
@@ -464,6 +619,28 @@ async function boot() {
         /* The title-bar buttons go through the real bridge - page, preload,
          * ipc, main, window - so this proves the wiring instead of assuming
          * it. The states are recorded after each command. */
+        /* The download probe drives the real toolbar, so it also proves the
+         * panel is wired to the host rather than only present in the markup. */
+        const dlTarget = process.env.INFINITY_SHELL_PROBE_DL;
+        if (dlTarget) {
+          const startWith = function (url) {
+            probeDownload(url, function (state) {
+              info.download = state;
+              writeProbe();
+              finishProbe();
+            });
+          };
+          if (dlTarget === '1' || dlTarget === 'slow') {
+            probeDownloadServer(dlTarget === 'slow', function (_srv, url) {
+              info.downloadServer = url;
+              startWith(url);
+            });
+          } else {
+            startWith(dlTarget);
+          }
+          return;
+        }
+
         if (process.env.INFINITY_SHELL_PROBE_ACTIONS) {
           probeWindowActions(function (steps) {
             info.windowActions = steps;

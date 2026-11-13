@@ -7,9 +7,9 @@
   and a vent slot on the right. Rectangles only - a rack is the one product
   where the honest drawing is already made of rectangles.
 
-  InfinityServer is released on its own and ships as an Electron shell, so no
-  .ico is produced for it today; this file keeps the set complete for the day
-  one is needed, and for the website card, which uses the SVG directly.
+  InfinityServer ships as its own Electron application with an NSIS setup, so
+  this file is rasterised into isv.ico by icons/tools/svg2ico.py and used for
+  the installer, the shortcut and the Add/Remove entry.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
   <rect x="8" y="8" width="240" height="240" rx="54" fill="#0E2B23"/>

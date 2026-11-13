@@ -1,0 +1,27 @@
+{
+  "dpr": 1.5,
+  "cssW": 1166,
+  "cssH": 715,
+  "screenW": 1280,
+  "screenH": 800,
+  "availH": 752,
+  "title": "Infinity Edge Shell",
+  "origin": "infinity-shell://ui",
+  "lsKeys": "infinity-shell-session,infinity-shell-state",
+  "hasSession": true,
+  "tabCount": 1,
+  "audioElements": 0,
+  "frameSrc": "http://127.0.0.1:7653/",
+  "bodyText": "127.0.0.1:7653\nhttp://\nII\n侧栏\n应用\nINC\nInfinity 云\nITB\nInfinity 工具箱\nIIM\nInfinity 安装管",
+  "scaleFactor": 1.5,
+  "bounds": {
+    "x": 50,
+    "y": 0,
+    "width": 1180,
+    "height": 752
+  },
+  "contentSize": [
+    1166,
+    715
+  ]
+}

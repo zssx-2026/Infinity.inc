@@ -11,10 +11,10 @@
  *
  * Usage:
  *   node tools/publish.mjs [tag] [--dry-run]
- *   INC_RELEASE=v1.0pre6 INC_TAG=v1.0.0-pre6 node tools/publish.mjs --dry-run
+ *   INC_RELEASE=v1.0pre8 INC_TAG=v1.0.0-pre8 node tools/publish.mjs --dry-run
  *
- * The release directory comes from INC_RELEASE (default v1.0pre6) and the git
- * tag from the first non-flag argument or INC_TAG (default v1.0.0-pre6), the
+ * The release directory comes from INC_RELEASE (default v1.0pre8) and the git
+ * tag from the first non-flag argument or INC_TAG (default v1.0.0-pre8), the
  * same pair tools/package.mjs uses. The version inside the file name is TAG
  * without its leading "v" unless INC_VERSION says otherwise.
  *
@@ -36,13 +36,13 @@ import { execFileSync } from 'node:child_process';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
-const RELEASE = process.env.INC_RELEASE || 'v1.0pre7';
+const RELEASE = process.env.INC_RELEASE || 'v1.0pre8';
 const OUT = path.join(ROOT, 'release', RELEASE);
 
 const ARGV = process.argv.slice(2);
 const DRY_RUN = ARGV.indexOf('--dry-run') >= 0;
 const POSITIONAL = ARGV.filter(function (a) { return a.charAt(0) !== '-'; });
-const TAG = POSITIONAL[0] || process.env.INC_TAG || 'v1.0.0-pre7';
+const TAG = POSITIONAL[0] || process.env.INC_TAG || 'v1.0.0-pre8';
 const VERSION = process.env.INC_VERSION || TAG.replace(/^v/, '');
 const OWNER = 'zssx-2026';
 
@@ -121,10 +121,12 @@ function sha256(file) {
  * fallback for a checkout that has no docs/ directory. */
 const BODY_FILE = path.resolve(ROOT, '..', 'docs', 'RELEASE-' + RELEASE + '-body.md');
 const FALLBACK_BODY = [
-  'Infinity.Inc v1.0.0-pre7 —— 三个自包含 Windows 应用：',
+  'Infinity.Inc v1.0.0-pre8 —— 三个自包含 Windows 应用：',
   'Infinity Cloud / InfinityPackageManager / Infinity Toolbox。',
   '',
-  '· 窗口外壳是随包的 Edge 风格界面：标签页条、地址栏、应用侧栏、游玩区、设置面板',
+  '· 窗口外壳是随包的 Edge 风格界面：标签页条、地址栏、应用侧栏、游玩区（配色与主题）、设置面板',
+  '· 安静运行：外壳与页面不含音频元素、不自动播放（游玩区只保留配色与主题）',
+  '· 安静运行：界面服务隐藏窗口启动，快捷方式指向 GUI 可执行文件，安装卸载不出黑框',
   '· 产品页面跑在 iframe 里，外壳通过 preload 桥接发窗口命令（最小化/最大化/关闭/新窗口）',
   '· 标签页可拖拽排序、可垂直显示；会话（打开的标签与当前页）随外壳持久化并恢复',
   '· Electron 33.4.11 套壳，1.5 倍缩放下按原生像素渲染，界面不再发糊',

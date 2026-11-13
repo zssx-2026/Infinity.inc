@@ -1,0 +1,13 @@
+{
+  "name": "infinity-studio",
+  "version": "1.0.0-pre8",
+  "private": true,
+  "type": "module",
+  "description": "InfinityStudio - 六产品整合安装器（Visual Studio 风格工作负载）",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/cli.js",
+    "pack": "node build.mjs"
+  },
+  "dependencies": {}
+}

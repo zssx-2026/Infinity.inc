@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-const dir = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : 'cpp/release/v1.0pre7';
+const dir = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : 'cpp/release/v1.0pre8';
 const check = process.argv.includes('--check');
 const problems = [];
 const sha256 = (p) => crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');

@@ -45,7 +45,7 @@ function run(args, withEnv) {
 
 const paths = run(['--paths']);
 ok('int --paths exits 0', paths.status === 0, paths.status + ' ' + (paths.error || ''));
-ok('int --paths reports version 1.0.0-pre7', paths.stdout.indexOf('1.0.0-pre7') >= 0);
+ok('int --paths reports version 1.0.0-pre8', paths.stdout.indexOf('1.0.0-pre8') >= 0);
 
 const list = run(['plugin', 'list'], true);
 ok('int plugin list exits 0 (sandboxed LOCALAPPDATA)', list.status === 0, list.status + ' ' + (list.error || ''));

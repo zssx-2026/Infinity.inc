@@ -1,0 +1,13 @@
+{
+  "name": "infinity-server",
+  "version": "1.0.0-pre8",
+  "private": true,
+  "type": "module",
+  "description": "InfinityServer - 图灵完备的机架级计算架构（Electron 控制台）",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/cli.js",
+    "pack": "node build.mjs"
+  },
+  "dependencies": {}
+}

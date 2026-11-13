@@ -1,16 +1,16 @@
 # Infinity.Inc
 
-[中文](#中文) · [English](#english) · [v1.0.0-pre7 发行说明](docs/RELEASE-v1.0pre7.md)
+[中文](#中文) · [English](#english) · [v1.0.0-pre8 发行说明](docs/RELEASE-v1.0pre8.md)
 
 ## 索引 / Index
 
 ```text
 Infinity.Inc
 ├── 产品与下载 / Products and downloads ......... #产品与下载
-├── v1.0.0-pre7 发行说明 / Release notes ........ docs/RELEASE-v1.0pre7.md
+├── v1.0.0-pre8 发行说明 / Release notes ........ docs/RELEASE-v1.0pre8.md
 ├── 语言与界面原则 / Language and UI rules ...... docs/ENGINEERING-RULES.md
 ├── .itbt 工具容器 / .itbt container ............ work/ITBT-FORMAT.md
-├── IPM 目录 / catalogue ....................... docs/RELEASE-v1.0pre7.md#七ipm-目录与-nametxt
+├── IPM 目录 / catalogue ....................... docs/RELEASE-v1.0pre8.md#七ipm-目录与-nametxt
 ├── 历史归档还原 / history restore ............. work/restore-report.md
 ├── 构建与发布 / Building and releasing ........ #构建与发布
 ├── 通用 Infinity.Inc 许可 / General license ... LICENCE
@@ -39,9 +39,9 @@ InfinityPackageManager 分发（[dist/](dist/)）以及工作与历史数据。
 
 | 产品 | 前缀（管理员孪生） | 仓库 | 下载 |
 | --- | --- | --- | --- |
-| Infinity Cloud | `inc`（`inx`） | [zssx-2026/Infinity-Cloud](https://github.com/zssx-2026/Infinity-Cloud) | [v1.0.0-pre7](https://github.com/zssx-2026/Infinity-Cloud/releases/tag/v1.0.0-pre7) |
-| InfinityPackageManager | `ipm`（`ipmx`） | [zssx-2026/InfinityPackageManager](https://github.com/zssx-2026/InfinityPackageManager) | [v1.0.0-pre7](https://github.com/zssx-2026/InfinityPackageManager/releases/tag/v1.0.0-pre7) |
-| Infinity Toolbox | `int`（`intx`） | [zssx-2026/Infinity-Toolbox](https://github.com/zssx-2026/Infinity-Toolbox) | [v1.0.0-pre7](https://github.com/zssx-2026/Infinity-Toolbox/releases/tag/v1.0.0-pre7) |
+| Infinity Cloud | `inc`（`inx`） | [zssx-2026/Infinity-Cloud](https://github.com/zssx-2026/Infinity-Cloud) | [v1.0.0-pre8](https://github.com/zssx-2026/Infinity-Cloud/releases/tag/v1.0.0-pre8) |
+| InfinityPackageManager | `ipm`（`ipmx`） | [zssx-2026/InfinityPackageManager](https://github.com/zssx-2026/InfinityPackageManager) | [v1.0.0-pre8](https://github.com/zssx-2026/InfinityPackageManager/releases/tag/v1.0.0-pre8) |
+| Infinity Toolbox | `int`（`intx`） | [zssx-2026/Infinity-Toolbox](https://github.com/zssx-2026/Infinity-Toolbox) | [v1.0.0-pre8](https://github.com/zssx-2026/Infinity-Toolbox/releases/tag/v1.0.0-pre8) |
 
 InfinityFileManager（`ifm`）、InfinityInstallerManager（`iim`）、InfinityGames（`ing`）
 仍停在 v1.0.0-pre4，其目录条目保留在 IPM 的 `name.txt` 里。
@@ -53,8 +53,8 @@ Infinity Cloud 与 InfinityPackageManager 三个面孔都出（每应用 6 个�
 必须与 [cpp/core/include/inc/mode.hpp](cpp/core/include/inc/mode.hpp) 一致，不属于该应用的面孔会被拒绝。
 历史上的 `tui` 面孔已从 `mode.hpp` 删除，因此当前没有 `*_tui.exe`。
 
-v1.0.0-pre7 的 3 个安装包（合计 252,164,464 字节）、字节数与 SHA-256 见
-[docs/RELEASE-v1.0pre7.md](docs/RELEASE-v1.0pre7.md)。
+v1.0.0-pre8 的 3 个安装包（合计 252,164,464 字节）、字节数与 SHA-256 见
+[docs/RELEASE-v1.0pre8.md](docs/RELEASE-v1.0pre8.md)。
 
 ### 构建与发布
 
@@ -82,10 +82,10 @@ node cpp/tools/publish.mjs    # 把每个安装包上传到该应用自己的仓
 ### 发布约定
 
 - Git 标签：`v1.0.0-preN`。
-- 发布目录：`cpp/release/v1.0preN`（来自 `INC_RELEASE`，默认 `v1.0pre7`）。
+- 发布目录：`cpp/release/v1.0preN`（来自 `INC_RELEASE`，默认 `v1.0pre8`）。
 - 安装包文件名：`<package>_<version>_win64_setup.exe`，其中 `<version>` 为
   `1.0.0-preN`（来自 `INC_VERSION`，默认由 tag 推导），例如
-  `InfinityCloud_1.0.0-pre7_win64_setup.exe`。
+  `InfinityCloud_1.0.0-pre8_win64_setup.exe`。
 - 包名：`InfinityCloud`、`InfinityPackageManager`、`InfinityToolbox`。
 - 外壳：`INC_SHELL=electron` 走随包 Electron 分支（`INC_SHELL_ARCH` 默认 `win32-x64`）；
   `INC_SHELL=webview2` 是已退役的自建宿主路径。
@@ -135,7 +135,7 @@ Windows DPAPI 加密存本机（`%LOCALAPPDATA%\Infinity\<app>\token.bin`），�
 
 | 主题 | 文件 |
 | --- | --- |
-| v1.0.0-pre7 发行说明（三应用、下载、大小、sha256） | [docs/RELEASE-v1.0pre7.md](docs/RELEASE-v1.0pre7.md) |
+| v1.0.0-pre8 发行说明（三应用、下载、大小、sha256） | [docs/RELEASE-v1.0pre8.md](docs/RELEASE-v1.0pre8.md) |
 | 语言选择、界面原则、验收与发布纪律 | [docs/ENGINEERING-RULES.md](docs/ENGINEERING-RULES.md) |
 | `.itbt` 工具容器格式 v1 | [work/ITBT-FORMAT.md](work/ITBT-FORMAT.md) |
 | 历史归档独立还原验证 | [work/restore-report.md](work/restore-report.md)、[work/restore-history.ps1](work/restore-history.ps1) |
@@ -158,7 +158,7 @@ Each product is built once as a single C++ executable and then copied under
 several names; the program reads its own file name to decide which face to run.
 The executables import only DLLs that ship with Windows — the C++ side needs no
 Node and no Visual C++ redistributable, and there is no runtime to install; the
-window is hosted by the **bundled Electron shell** (since v1.0.0-pre7, shipped
+window is hosted by the **bundled Electron shell** (since v1.0.0-pre8, shipped
 inside the installer, not taken from the system). The build enforces the
 zero-external-dependency claim:
 `cpp/tools/build.mjs` reads each executable's import table with `objdump -p`
@@ -173,14 +173,14 @@ InfinityPackageManager distribution (`dist/`), and the working/history data.
 
 | Product | Prefix (admin twin) | Repository | Downloads |
 | --- | --- | --- | --- |
-| Infinity Cloud | `inc` (`inx`) | [zssx-2026/Infinity-Cloud](https://github.com/zssx-2026/Infinity-Cloud) | [v1.0.0-pre7](https://github.com/zssx-2026/Infinity-Cloud/releases/tag/v1.0.0-pre7) |
-| InfinityPackageManager | `ipm` (`ipmx`) | [zssx-2026/InfinityPackageManager](https://github.com/zssx-2026/InfinityPackageManager) | [v1.0.0-pre7](https://github.com/zssx-2026/InfinityPackageManager/releases/tag/v1.0.0-pre7) |
-| Infinity Toolbox | `int` (`intx`) | [zssx-2026/Infinity-Toolbox](https://github.com/zssx-2026/Infinity-Toolbox) | [v1.0.0-pre7](https://github.com/zssx-2026/Infinity-Toolbox/releases/tag/v1.0.0-pre7) |
+| Infinity Cloud | `inc` (`inx`) | [zssx-2026/Infinity-Cloud](https://github.com/zssx-2026/Infinity-Cloud) | [v1.0.0-pre8](https://github.com/zssx-2026/Infinity-Cloud/releases/tag/v1.0.0-pre8) |
+| InfinityPackageManager | `ipm` (`ipmx`) | [zssx-2026/InfinityPackageManager](https://github.com/zssx-2026/InfinityPackageManager) | [v1.0.0-pre8](https://github.com/zssx-2026/InfinityPackageManager/releases/tag/v1.0.0-pre8) |
+| Infinity Toolbox | `int` (`intx`) | [zssx-2026/Infinity-Toolbox](https://github.com/zssx-2026/Infinity-Toolbox) | [v1.0.0-pre8](https://github.com/zssx-2026/Infinity-Toolbox/releases/tag/v1.0.0-pre8) |
 
 InfinityFileManager (`ifm`), InfinityInstallerManager (`iim`) and InfinityGames
 (`ing`) remain at v1.0.0-pre4; their entries stay in the IPM `name.txt`.
-The three v1.0.0-pre7 installers (252,164,464 bytes in total), their sizes and
-SHA-256 digests are listed in [docs/RELEASE-v1.0pre7.md](docs/RELEASE-v1.0pre7.md).
+The three v1.0.0-pre8 installers (252,164,464 bytes in total), their sizes and
+SHA-256 digests are listed in [docs/RELEASE-v1.0pre8.md](docs/RELEASE-v1.0pre8.md).
 
 A name is `<prefix>_<face>.exe`: the prefix selects the product and the suffix
 selects the face, and the administrator twin adds an `x` to the prefix
@@ -224,10 +224,10 @@ Node build.
 
 - Git tag: `v1.0.0-preN`.
 - Release directory: `cpp/release/v1.0preN` (from `INC_RELEASE`, default
-  `v1.0pre7`).
+  `v1.0pre8`).
 - Installer file name: `<package>_<version>_win64_setup.exe`, with
   `<version>` = `1.0.0-preN` (from `INC_VERSION`, by default derived from
-  the tag), e.g. `InfinityCloud_1.0.0-pre7_win64_setup.exe`.
+  the tag), e.g. `InfinityCloud_1.0.0-pre8_win64_setup.exe`.
 - Package names: `InfinityCloud`, `InfinityPackageManager`, `InfinityToolbox`.
 - Shell: `INC_SHELL=electron` selects the bundled-Electron branch
   (`INC_SHELL_ARCH` defaults to `win32-x64`); `INC_SHELL=webview2` is the retired

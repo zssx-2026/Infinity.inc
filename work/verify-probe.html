@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>下载前验证 · Infinity.Inc</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 50% -10%, #1b2a3d 0%, #0e1116 60%);
+    color: #e6edf3; font: 15px/1.6 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  main { width: 100%; max-width: 420px; text-align: center; }
+  .brand { font-size: 13px; letter-spacing: .18em; color: #7d8b9a; text-transform: uppercase; }
+  h1 { font-size: 22px; font-weight: 600; margin: 10px 0 6px; }
+  .sub { color: #9aa7b4; margin: 0 0 22px; min-height: 22px; font-size: 14px; }
+  .card { background: #141a21; border: 1px solid #232c37; border-radius: 12px; padding: 18px; }
+  #ts { display: flex; justify-content: center; min-height: 66px; }
+  .hint { color: #6f7c8a; font-size: 12.5px; margin: 14px 0 0; }
+  button {
+    margin-top: 14px; background: #1f6feb; color: #fff; border: 0; border-radius: 8px;
+    padding: 9px 18px; font-size: 14px; cursor: pointer;
+  }
+  button:hover { background: #2a7bf5; }
+  footer { margin-top: 26px; color: #4f5a67; font-size: 12px; }
+  a { color: #5b9bff; text-decoration: none; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">Infinity.Inc</div>
+  <h1>下载前验证</h1>
+  <p class="sub" id="sub">正在确认安装包…</p>
+  <div class="card">
+    <div id="ts"></div>
+    <p class="hint" id="hint">这一步由 Cloudflare Turnstile 确认，通过后自动跳转到下载。</p>
+    <button id="retry" hidden>重新验证</button>
+  </div>
+  <footer>验证与下载由 Cloudflare 提供 · <a href="https://infinity-studio-craft.github.io/">返回首页</a></footer>
+</main>
+<script>
+(function () {
+  var SITEKEY = '0x4AAAAAAF-CBPThfL7uy0hi';
+  var GATE = 'https://infinity-downloads.pages.dev';
+  var ALLOW = ['InfinityStudio-setup', 'InfinityServer-setup'];
+  var q = new URLSearchParams(location.search);
+  var asset = q.get('asset') || '';
+  if (ALLOW.indexOf(asset) < 0) asset = 'InfinityStudio-setup';
+
+  var sub = document.getElementById('sub');
+  var hint = document.getElementById('hint');
+  var retry = document.getElementById('retry');
+  var widgetId = null;
+
+  function human(n) {
+    if (!n || n < 0) return '';
+    var u = ['B', 'KB', 'MB', 'GB'], i = 0, v = n;
+    while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+    return (i === 0 ? v : v.toFixed(1)) + ' ' + u[i];
+  }
+
+  fetch(GATE + '/api/catalog', { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (j) {
+      var p = j && j.products ? j.products.filter(function (x) { return x.asset === asset; })[0] : null;
+      if (p) {
+        sub.textContent = p.name + ' ' + (p.version || '') + (p.size ? ' · ' + human(p.size) : '');
+        document.title = '下载前验证 · ' + p.name;
+      } else {
+        sub.textContent = asset.replace(/-setup$/, '');
+      }
+    })
+    .catch(function () { sub.textContent = asset.replace(/-setup$/, ''); });
+
+  function go(token) {
+    hint.textContent = '验证通过，正在跳转到下载…';
+    location.replace(GATE + '/dl/' + encodeURIComponent(asset) + '?token=' + encodeURIComponent(token));
+  }
+
+  window.onTurnstileReady = function () {
+    if (!window.turnstile || widgetId !== null) return;
+    widgetId = window.turnstile.render('#ts', {
+      sitekey: SITEKEY,
+      theme: 'dark',
+      language: 'zh-cn',
+      callback: go,
+      'error-callback': function () {
+        hint.textContent = '人机验证未能完成，请点下面的按钮重试。';
+        retry.hidden = false;
+      },
+      'expired-callback': function () {
+        hint.textContent = '验证已过期，请重新验证。';
+        retry.hidden = false;
+      }
+    });
+  };
+
+  retry.addEventListener('click', function () {
+    retry.hidden = true;
+    hint.textContent = '这一步由 Cloudflare Turnstile 确认，通过后自动跳转到下载。';
+    if (window.turnstile && widgetId !== null) window.turnstile.reset(widgetId);
+    else window.onTurnstileReady();
+  });
+
+  var s = document.createElement('script');
+  s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTurnstileReady';
+  s.async = true; s.defer = true;
+  s.onerror = function () {
+    hint.textContent = '验证组件加载失败，请检查网络后刷新页面。';
+    retry.hidden = false;
+  };
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>

@@ -8,6 +8,7 @@
  */
 
 import { app, BrowserWindow } from 'electron';
+import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { start } from './server.js';
@@ -20,7 +21,6 @@ let held = null;
 
 function isAlive(port) {
   return new Promise((resolve) => {
-    const net = require('node:net');
     const s = net.connect({ host: '127.0.0.1', port: port });
     s.setTimeout(600);
     s.once('connect', () => { s.destroy(); resolve(true); });

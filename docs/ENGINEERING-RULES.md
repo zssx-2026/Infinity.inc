@@ -31,6 +31,16 @@
   第一次启动由程序自己弹输入界面，凭据加密存本机（DPAPI，`%LOCALAPPDATA%\Infinity\<app>\token.bin`），
   环境变量只是回退路径。
 
+### 2.1 安静运行：不弹控制台、不播放声音
+
+用户的桌面不是日志窗口，也不是播放器。两条硬规则：
+
+- **不弹控制台窗口**：产品里任何子进程都必须隐藏窗口启动（Electron 侧 `spawn(..., { windowsHide: true })`，
+  Win32 侧 `CreateProcess` 带 `CREATE_NO_WINDOW`），快捷方式指向 GUI 可执行文件而不是 `_cli.exe`；
+  安装器/卸载器静默运行时不出现黑框。
+- **不播放任何声音**：外壳与产品页面都不含音频元素、不做自动播放、不因打开某个面板而发声。
+  游玩区只保留配色与主题，音乐能力已删除（`<audio>` 元素不存在，探针断言 `audioElements === 0`）。
+
 ## 3. 自包含交付
 
 - 安装后即可运行：不需要 Node、不需要系统浏览器内核、不需要 VC++ 运行库。
@@ -64,6 +74,8 @@
   prose. First-run, error and empty states stay minimal (one purpose, fewest fields, one short sentence).
   The app asks for its own token on first launch and stores it encrypted (DPAPI); environment variables are
   only a fallback.
+- **Quiet by default**: no console windows (child processes spawn hidden, shortcuts point at the GUI executable)
+  and no audio at all (no `<audio>` element, no autoplay; the play zone keeps colours only).
 - **Self-contained**: nothing to install but the app; the GUI face runs inside the bundled Electron shell.
 - **Acceptance**: real runs only — import-table audit, smoke scripts ending in `...-PASS n/n` with exit 0,
   silent install + window probe (`devicePixelRatio` 1.5 under 150% scaling) + OCR of a captured frame,
