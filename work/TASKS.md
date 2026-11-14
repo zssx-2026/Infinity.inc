@@ -1,5 +1,19 @@
 # Infinity.Inc 任务清单（队列：先到先做，用户新需求排最后）
 
+## 2026-11-14 个人资料 / 扩展从提示变成真页面（用户「真正实现所有功能」）
+- [x] 动机：工具栏最后两个按钮（`#btn-extensions` / `#btn-profile`）与菜单项只 toast「该功能尚未实现」，是最后一批假按钮。
+- [x] `DEFAULTS` 增 `profile: { name: "", color: "blue" }`（只写本机 localStorage，无账号后端）。
+- [x] 路由三处补 `about:profile` / `about:extensions`：`titleFor`、`kindFor`、`resolveTarget` 正则改 `/^about:(history|favorites|collections|profile|extensions)$/i`——**只加前两处不够**，第一次跑探针 profile 页空白、rows=0 就是漏了 resolveTarget。
+- [x] `buildProfile()`：`#pfName` 输入框 + `#pfSave`（写 `settings.profile` → `saveSettings()` → toast → 重渲染）、5 个头像色 `#profile-swatch`、5 条只读事实（宿主/引擎/协议/语言/主题）、「只存在本机」说明。
+- [x] `builtinFeatures()`：6 条读实时状态的内置能力（下载队列数与完成数、历史条数、收藏数、集锦数、webview 可用性、地址栏搜索引擎），每行「打开」；末尾「加载第三方扩展目前不支持，也不会假装支持」。
+- [x] i18n zh/en 各 24 条；`shell.css` 追加 `.profile*` 样式（656 行、花括号 361/361）。
+- [x] 探针扩两段（`probeInternal` + `work/probe-internal.ps1` 断言 `hasName/facts>=4/saved==='Probe User'/extensions rows>=6`）→ **INTERNAL-PAGES PASS**：`profile_page title=个人资料 facts=5 saved=Probe User`、`extensions_page rows=6 title=扩展`。保存断言读 `window.__InfinityShell.settings.profile.name`，不只看输入框——能渲染但不保存的页面也会通过 DOM 检查。
+- [x] 契约第 11 节 8 条 + 第 10 节失效断言替换（`toast.notImplemented` 已不存在）→ **SELFTEST PASS pass=92 fail=0**。
+- [x] 三个组件第五次重打包（job `pwsh-5cde131ad0cb4d4a` exit 0，attempt=1 即 Valid）：InfinityCloud **84,194,040 B / `3b4302615706…abc5`**、InfinityPackageManager **83,940,752 B / `823708d28605…2264`**、InfinityToolbox **83,953,688 B / `c18485e9d75c…19a3`**。
+- [x] 重发（job `pwsh-544953c9667d467d` exit 0）：删旧资产 746326875 / 746327342 / 746327877，上传 **746393499 / 746394372 / 746395021**，digest 与本地一致；COMPONENTS 表更新 → 部署 **b9ec6e80**，`/api/components` 实测三条新 size/sha、各 2 mirrors。
+- [x] 装出来的组件复验（`work/qa-viewer-internal.ps1`，加强断言后重跑）→ **VIEWER-INTERNAL PASS**：Infinity Cloud 97 文件 / 292,512,317 B，staged `main.js` 42,275 B、`shell.js` 112,538 B；装好的 `inc_window.exe` 跑探针得 `history=2 / fav=4->5 / collections=1 / profile facts=5 saved=Probe User / extensions rows=6` → `/S` 卸载 exit 0、目录消失。
+- [x] `docs/DOWNLOADS-v1.0pre8.md` 新增「四·C-3」并把组件表换成第五次重打包数字。
+
 ## 2026-11-14 历史 / 收藏 / 集锦从假按钮变成真页面（用户「真正实现所有功能」）
 - [x] 动机：浏览器菜单里的 `history`、`favorites`、`collections`、`print`、`extensions`、`profile` 全是假按钮——点下去只发一条宿主没有分支的 `shell.command` 再 toast「已发送」。菜单报成功而什么都没发生，比没有菜单更糟。
 - [x] `work/webview2/ui/assets/js/shell.js` 新增存储层：`HISTORY_KEY = "infinity.history.v1"`、`COLL_KEY = "infinity.collections.v1"`、`HISTORY_MAX = 500`、`recordHistory`（跳过 `about:|search:|inc://|data:|blob:`，同 URL 连续只更新时间戳）、`clearHistory`、`saveCollection`、`removeCollection`、`restoreCollection`。

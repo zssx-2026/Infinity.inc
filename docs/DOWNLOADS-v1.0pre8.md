@@ -92,11 +92,11 @@ Studio 的「在线安装」页不经过浏览器验证：桌面程序直接读�
 
 | 资产 | 名称 | 字节 | sha256 |
 |---|---|---|---|
-| `InfinityCloud-setup` | Infinity Cloud | 84,184,120 | `90c7b8e69962…e174` |
-| `InfinityPackageManager-setup` | Infinity Package Manager | 83,960,840 | `8cc06ea52101…f2a7` |
-| `InfinityToolbox-setup` | Infinity Toolbox | 83,960,576 | `1b7ba6031868…ef52` |
+| `InfinityCloud-setup` | Infinity Cloud | 84,194,040 | `3b4302615706…abc5` |
+| `InfinityPackageManager-setup` | Infinity Package Manager | 83,940,752 | `823708d28605…2264` |
+| `InfinityToolbox-setup` | Infinity Toolbox | 83,953,688 | `c18485e9d75c…19a3` |
 
-上表是 2026-11-14 **第四次**重打包（外壳加了「历史 / 收藏 / 集锦是真页面」，见四·C-2）：资产 id 746326875 / 746327342 / 746327877，digest 与本地 sha256 逐字符一致，部署 8f7632be；前三版（84,194,352 / 84,004,072 / 83,946,304、84,202,296 / 83,957,264 / 83,963,224、84,199,784 / 83,989,016 / 83,943,776）已被同名替换。
+上表是 2026-11-14 **第五次**重打包（外壳加了「个人资料 / 扩展是真页面」，见四·C-3）：资产 id 746393499 / 746394372 / 746395021，digest 与本地 sha256 逐字符一致，部署 b9ec6e80；前四版（84,194,352 / 84,004,072 / 83,946,304、84,202,296 / 83,957,264 / 83,963,224、84,199,784 / 83,989,016 / 83,943,776、84,184,120 / 83,960,840 / 83,960,576）已被同名替换。
 
 - 重打包的理由：pre8 的三个 C++ 安装包是 InfinityViewer 更名（无框窗口 + 内置下载管理器）**之前**打的，直接拿来发等于把旧外壳塞给用户。重打包只换外壳载荷，命令行二进制不变；
 - 客户端不用重编就能看到新组件：`fetchCatalog` 拉完公开目录后再拉 `/api/components` 合并，读不到组件门也不算失败（旧门照常只给两个 setup）；
@@ -170,6 +170,27 @@ favorites_page rows=5   collections_page rows=1
 契约自检补第 10 节 11 条（两个独立存储键、recordHistory、三条 about: 路由、buildInternal、集锦保存与恢复、printActive、未实现提示、探针与样式）→ **SELFTEST PASS pass=84 fail=0**。
 
 装出来的组件复验（`work/qa-viewer-internal.ps1`）→ **VIEWER-INTERNAL PASS**：静默装 Infinity Cloud（97 文件 / 292,500,742 B，staged `main.js` 39,995 B 含 `INFINITY_SHELL_PROBE_INTERNAL`，`ui\assets\js\shell.js` 106,550 B 含 `function buildInternal` 与 `about:history`）→ 用装好的 `inc_window.exe` 跑同一探针 → `history=2 / fav=4->5 / collections=1 / pages 2-5-1` → `/S` 卸载 exit 0、目录消失。
+
+### 四·C-3、个人资料与扩展也是真页面（2026-11-14）
+
+工具栏最后两个按钮（`#btn-extensions`、`#btn-profile`）此前只回一句「该功能尚未实现」。现在：
+
+- **`about:profile`**：显示名输入框（`#pfName`）+ 保存（`#pfSave`）写进 `settings.profile`、5 个头像色、5 条只读事实（宿主 / 引擎 / 协议 / 语言 / 主题），底部写明「只存在本机」——没有账号后端，所以不假装有云同步。
+- **`about:extensions`**：`builtinFeatures()` 用**实时状态**生成 6 行（下载队列数与完成数、历史条数、收藏数、集锦数、webview 是否可用、地址栏搜索引擎），每行可「打开」；末尾一句「加载第三方扩展目前不支持，也不会假装支持」。
+- 路由补两个 kind：`resolveTarget` 的正则扩成 `/^about:(history|favorites|collections|profile|extensions)$/i`（只加 `titleFor`/`kindFor` 不够——第一次跑探针时 profile 页是空白、rows=0，就是漏了这里）。
+
+探针扩两段（`work/probe-internal.ps1`）→ **INTERNAL-PAGES PASS**：
+
+```
+profile_page title=个人资料 facts=5 saved=Probe User
+extensions_page rows=6 title=扩展
+```
+
+保存的那条断言刻意读 `window.__InfinityShell.settings.profile.name` 而不是只看输入框：**能渲染但不保存的页面也会通过 DOM 检查**。
+
+契约补第 11 节 8 条（路由正则、buildProfile、builtinFeatures、写 settings、两个语言都有 `pf.local`/`ext.note`、探针写名字、样式），并把第 10 节里已失效的「未实现就直说」断言换成「菜单两个 case 打开真页面」→ **SELFTEST PASS pass=92 fail=0**。
+
+装出来的组件复验（第五次重打包）→ **VIEWER-INTERNAL PASS**：Infinity Cloud 97 文件 / 292,512,317 B，staged `main.js` 42,275 B、`shell.js` 112,538 B；装好的 `inc_window.exe` 跑探针得 `history=2 / fav=4->5 / collections=1 / profile facts=5 saved=Probe User / extensions rows=6` → `/S` 卸载 exit 0、目录消失。
 
 ## 五、无窗口验收（硬约束）
 

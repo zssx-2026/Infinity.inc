@@ -30,12 +30,12 @@
   ],
   "internal": {
     "history": [
-      "http://127.0.0.1:50660/b.html",
-      "http://127.0.0.1:50660/a.html"
+      "http://127.0.0.1:50118/b.html",
+      "http://127.0.0.1:50118/a.html"
     ],
     "favBefore": 4,
     "favAfter": 5,
-    "colId": "col-bubz5",
+    "colId": "col-beg6d",
     "colTabs": 1,
     "collections": 1,
     "historyPage": {
@@ -43,7 +43,7 @@
       "title": "历史记录",
       "rows": 2,
       "count": "2 条",
-      "body": "历史记录2 条清空历史Second Pagehttp://127.0.0.1:50660/b.html11/14 12:34First Pagehttp://127.0.0.1:50660/a.html11/14 12:34"
+      "body": "历史记录2 条清空历史Second Pagehttp://127.0.0.1:50118/b.html11/14 13:03First Pagehttp://127.0.0.1:50118/a.html11/14 13:03"
     },
     "favoritesPage": {
       "page": true,
@@ -52,6 +52,20 @@
     "collectionsPage": {
       "page": true,
       "rows": 1
+    },
+    "profilePage": {
+      "page": true,
+      "title": "个人资料",
+      "hasName": true,
+      "hasSave": true,
+      "facts": 5,
+      "saved": "Probe User"
+    },
+    "extensionsPage": {
+      "page": true,
+      "title": "扩展",
+      "rows": 6,
+      "note": "以上都是本程序内置的能力，读的是实时状态。加载第三方扩展目前不支持，也不会假装支持。"
     }
   }
 }

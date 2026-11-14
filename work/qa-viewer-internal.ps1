@@ -36,7 +36,8 @@ if (Test-Path $out) {
   if ($i -and -not $i.error) {
     Write-Output ('history=' + @($i.history).Count + ' fav=' + $i.favBefore + '->' + $i.favAfter + ' collections=' + $i.collections + ' colTabs=' + $i.colTabs)
     Write-Output ('pages history=' + $i.historyPage.rows + ' favorites=' + $i.favoritesPage.rows + ' collections=' + $i.collectionsPage.rows)
-    $good = (@($i.history).Count -ge 2) -and ($i.favAfter -eq ($i.favBefore + 1)) -and ($i.collections -ge 1) -and ($i.colTabs -ge 1) -and ($i.historyPage.rows -ge 2) -and ($i.favoritesPage.rows -ge 1) -and ($i.collectionsPage.rows -ge 1)
+    Write-Output ('profile facts=' + $i.profilePage.facts + ' saved=' + $i.profilePage.saved + ' extensions rows=' + $i.extensionsPage.rows)
+    $good = (@($i.history).Count -ge 2) -and ($i.favAfter -eq ($i.favBefore + 1)) -and ($i.collections -ge 1) -and ($i.colTabs -ge 1) -and ($i.historyPage.rows -ge 2) -and ($i.favoritesPage.rows -ge 1) -and ($i.collectionsPage.rows -ge 1) -and ($i.profilePage.page) -and ($i.profilePage.facts -ge 4) -and ($i.profilePage.saved -eq 'Probe User') -and ($i.extensionsPage.rows -ge 6)
   } else { Write-Output ('probe error: ' + $i.error) }
 } else { Write-Output 'no probe json' }
 

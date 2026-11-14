@@ -158,6 +158,13 @@ async function main() {
   const baseCommit = api('GET', '/repos/' + OWNER + '/' + REPO + '/git/commits/' + oldHead);
   const baseTree = baseCommit.data.tree.sha;
   const base = api('GET', '/repos/' + OWNER + '/' + REPO + '/git/trees/' + baseTree + '?recursive=1');
+  /* A null body here used to surface as "Cannot read properties of null", which
+   * says nothing about the cause. It is almost always the content-creation
+   * throttle answering 403, so say that instead. */
+  if (base.status !== 200 || !base.data) {
+    console.error('cannot read base tree: ' + base.status + ' ' + (base.error || 'empty body'));
+    process.exit(2);
+  }
   const remote = {};
   for (const e of (base.data.tree || [])) if (e.type === 'blob') remote[e.path] = e.sha;
 

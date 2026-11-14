@@ -30,9 +30,11 @@ Write-Output ('history_urls=' + (@($i.history) -join ','))
 Write-Output ('fav=' + $i.favBefore + '->' + $i.favAfter + ' collections=' + $i.collections + ' colTabs=' + $i.colTabs)
 Write-Output ('history_page rows=' + $i.historyPage.rows + ' title=' + $i.historyPage.title + ' count=' + $i.historyPage.count)
 Write-Output ('favorites_page rows=' + $i.favoritesPage.rows + ' collections_page rows=' + $i.collectionsPage.rows)
+Write-Output ('profile_page title=' + $i.profilePage.title + ' facts=' + $i.profilePage.facts + ' saved=' + $i.profilePage.saved)
+Write-Output ('extensions_page rows=' + $i.extensionsPage.rows + ' title=' + $i.extensionsPage.title)
 # One collection tab is the honest number here: the probe navigates the same tab twice,
 # so a saved collection of the window holds exactly one entry.
-$ok = (@($i.history).Count -ge 2) -and ($i.favAfter -eq ($i.favBefore + 1)) -and ($i.collections -ge 1) -and ($i.colTabs -ge 1) -and ($i.historyPage.page) -and ($i.historyPage.rows -ge 2) -and ($i.favoritesPage.rows -ge 1) -and ($i.collectionsPage.rows -ge 1)
+$ok = (@($i.history).Count -ge 2) -and ($i.favAfter -eq ($i.favBefore + 1)) -and ($i.collections -ge 1) -and ($i.colTabs -ge 1) -and ($i.historyPage.page) -and ($i.historyPage.rows -ge 2) -and ($i.favoritesPage.rows -ge 1) -and ($i.collectionsPage.rows -ge 1) -and ($i.profilePage.page) -and ($i.profilePage.hasName) -and ($i.profilePage.facts -ge 4) -and ($i.profilePage.saved -eq 'Probe User') -and ($i.extensionsPage.page) -and ($i.extensionsPage.rows -ge 6)
 if (-not $ok) { Write-Output 'INTERNAL-PAGES FAIL'; exit 1 }
 Write-Output 'INTERNAL-PAGES PASS'
 exit 0

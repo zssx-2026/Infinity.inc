@@ -640,8 +640,45 @@ function probeInternal(done) {
             })
             .then(function (colDom) {
               state.collectionsPage = colDom;
-              try { srv.close(); } catch (err) { }
-              done(state);
+              /* The profile page is the one place the user can write something
+               * down, so the probe types a name, saves it, and reads it back
+               * from the store - a page that renders but saves nothing would
+               * still pass a DOM-only check. */
+              return run('window.__InfinityShell.open("about:profile","current"); true')
+                .then(function () { return new Promise(function (r) { setTimeout(r, 600); }); })
+                .then(function () {
+                  return run(
+                    '(function(){var inp=document.querySelector("#pfName");' +
+                    'var btn=document.querySelector("#pfSave");' +
+                    'if(inp){inp.value="Probe User";}' +
+                    'if(btn){btn.click();}' +
+                    'var root=document.querySelector(".view:not([hidden]) .internal");' +
+                    'return {page:!!root,' +
+                    'title:root?String((root.querySelector("h1")||{}).textContent||""):"",' +
+                    'hasName:!!inp,hasSave:!!btn,' +
+                    'facts:root?root.querySelectorAll(".profile-fact").length:0,' +
+                    'saved:((window.__InfinityShell.settings.profile||{}).name)||""};})()'
+                  );
+                })
+                .then(function (pfDom) {
+                  state.profilePage = pfDom;
+                  return run('window.__InfinityShell.open("about:extensions","current"); true')
+                    .then(function () { return new Promise(function (r) { setTimeout(r, 600); }); })
+                    .then(function () {
+                      return run(
+                        '(function(){var root=document.querySelector(".view:not([hidden]) .internal");' +
+                        'return {page:!!root,' +
+                        'title:root?String((root.querySelector("h1")||{}).textContent||""):"",' +
+                        'rows:root?root.querySelectorAll(".internal-row").length:0,' +
+                        'note:root?String((root.querySelector(".internal-empty")||{}).textContent||""):""};})()'
+                      );
+                    });
+                })
+                .then(function (extDom) {
+                  state.extensionsPage = extDom;
+                  try { srv.close(); } catch (err) { }
+                  done(state);
+                });
             });
         });
       })

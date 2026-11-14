@@ -203,10 +203,26 @@ ok(/\^about:history\$/i.test(uiJs) && /\^about:favorites\$/i.test(uiJs) && /\^ab
 ok(uiJs.indexOf('function buildInternal') >= 0, 'shell.js renders the internal pages');
 ok(uiJs.indexOf('function saveCollection') >= 0 && uiJs.indexOf('function restoreCollection') >= 0, 'a collection can be saved and restored');
 ok(uiJs.indexOf('function printActive') >= 0, 'print reaches the guest instead of faking it');
-ok(uiJs.indexOf('toast.notImplemented') >= 0, 'the entries that are still unimplemented say so plainly');
+ok(uiJs.indexOf('case "extensions": openUrl("about:extensions"') >= 0 &&
+  uiJs.indexOf('case "profile": openUrl("about:profile"') >= 0,
+  'the menu opens real pages for extensions and profile');
 ok(main.indexOf('INFINITY_SHELL_PROBE_INTERNAL') >= 0, 'the shell can prove the internal pages headlessly');
 ok(read('work/probe-internal.ps1').indexOf('INTERNAL-PAGES PASS') >= 0, 'the internal-pages probe prints its verdict');
 ok(read('work/webview2/ui/assets/css/shell.css').indexOf('.internal-row') >= 0, 'the internal pages have their own styling');
+
+/* --- 11. profile and extensions are pages, not toasts ---
+ * The toolbar's last two buttons used to answer "not implemented". A profile
+ * page is only real if what the user types survives a reload, and an extension
+ * list is only honest if every row reads live state - so both are asserted at
+ * the code level and then proven by the DOM probe. */
+ok(/about:\(history\|favorites\|collections\|profile\|extensions\)/.test(uiJs), 'resolveTarget routes profile and extensions too');
+ok(uiJs.indexOf('function buildProfile') >= 0, 'shell.js renders a real profile page');
+ok(uiJs.indexOf('function builtinFeatures') >= 0, 'the extensions page is built from a live feature list');
+ok(uiJs.indexOf('settings.profile = { name:') >= 0, 'saving the profile writes to settings');
+ok(uiJs.indexOf('toast(t("toast.notImplemented"))') < 0, 'no toolbar button answers "not implemented" any more');
+ok((i18n.match(/"pf\.local"/g) || []).length >= 2 && (i18n.match(/"ext\.note"/g) || []).length >= 2, 'both locales explain what profile and extensions really are');
+ok(main.indexOf('"Probe User"') >= 0, 'the probe types a profile name and reads it back from the store');
+ok(read('work/webview2/ui/assets/css/shell.css').indexOf('.profile-swatch') >= 0, 'the profile page has its own styling');
 
 console.log('');
 console.log((fail === 0 ? 'SELFTEST PASS' : 'SELFTEST FAIL') + '  pass=' + pass + ' fail=' + fail);
