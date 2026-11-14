@@ -1,4 +1,4 @@
-$b='D:\dev\DeepSeekHarnessWorkspace\Infinity.inc'
+﻿$b='D:\dev\DeepSeekHarnessWorkspace\Infinity.inc'
 $proc = Start-Process -FilePath (Join-Path $b 'cpp\out\inc\inc_cli.exe') -ArgumentList '--serve-ui --port=7699' -PassThru -WindowStyle Hidden
 Start-Sleep -Seconds 2
 $r = Invoke-WebRequest -Uri 'http://127.0.0.1:7699/' -UseBasicParsing -TimeoutSec 5

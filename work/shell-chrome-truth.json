@@ -55,6 +55,21 @@
     "count": "1 条",
     "empty": false
   },
+  "aboutProbe": {
+    "version": "v1.0.0",
+    "host": "bridge",
+    "hostTitle": "window.__INFINITY_HOST__.postMessage",
+    "apps": "INC · ITB · IIM",
+    "shell": "Electron · HTML/CSS/JS",
+    "visible": true
+  },
+  "exitProbe": {
+    "sidebarOff": 1,
+    "visible": true,
+    "body": "将保存当前标签页；「启动时恢复会话」已关闭，下次启动不会自动恢复。",
+    "bodyEn": "The current tab list will be saved; “Restore session on launch” is off, so the next launch starts empty.",
+    "localeEn": "en-US"
+  },
   "bodyText": "历史记录\n新建标签页\n历史记录\nII\n侧栏\n应用\nINC\nInfinity 云\nITB\nInfinity 工具箱\nIIM\nInfinity 安装管理器\nIFM\n",
   "scaleFactor": 1.5,
   "bounds": {

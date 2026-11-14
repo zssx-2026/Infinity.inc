@@ -378,6 +378,58 @@ ok(uiJs.indexOf('send("viewer.open-external", { url: isSearch') >= 0, 'the inter
 ok(uiJs.indexOf('case "host.openExternal"') >= 0, 'the page handles the host reply');
 ok(i18n.indexOf('"toast.openedExternal"') >= 0, 'both languages can report the open');
 
+
+/* --- 25. the About dialog tells the truth ---
+ * It printed work/edge-ui (a scratch copy that never ships), a static
+ * v0.1.0, and the bridge function name as the host. Now the version comes
+ * from package.json, the shell row names the runtime, the host row names the
+ * host kind with the bridge in a tooltip, and the product list follows what
+ * the host says is installed. */
+ok(uiHtml.indexOf('work/edge-ui') < 0, 'the About dialog does not name a scratch path');
+ok(uiHtml.indexOf('id="aboutVersion">v0.1.0') < 0, 'the static About version is not stale');
+ok(/id="aboutVersion">v/.test(uiHtml), 'the static About version is filled in');
+ok(i18n.indexOf('"about.shellValue"') >= 0, 'both languages name the shell runtime');
+ok(uiJs.indexOf('els.aboutHost.textContent = host.kind;') >= 0, 'the host row shows the kind, not the bridge');
+ok(uiJs.indexOf('installedAppCodes()') >= 0, 'the product row follows the installed set');
+ok(/id="aboutApps"/.test(uiHtml), 'the product row has a live target');
+
+ok(uiJs.indexOf('function renderAboutRows()') >= 0, 'the About rows have one renderer');
+ok(uiJs.indexOf('if (name === "about") { renderAboutRows(); }') >= 0, 'opening About refreshes the rows');
+
+
+/* --- 26. the exit promise and the sidebar match the settings ---
+ * The exit dialog promised a restore even with session restore off, and the
+ * sidebar listed a retired product as if it could launch. */
+ok(/id="exitBody"/.test(uiHtml), 'the exit body has a live target');
+ok(i18n.indexOf('"exit.bodyNoRestore"') >= 0, 'both languages can say the restore is off');
+ok(uiJs.indexOf('t(settings.restoreSession ? "exit.body" : "exit.bodyNoRestore")') >= 0, 'the exit body follows the setting');
+ok(uiJs.indexOf('b.classList.add("off")') >= 0, 'the sidebar marks an uninstalled product');
+ok(main.indexOf('exitProbe.sidebarOff') >= 0 && main.indexOf('exitProbe.body') >= 0, 'the probe reads the exit dialog and the sidebar');
+
+/* --- 27. one locale is not both locales ---
+ * exit.bodyNoRestore lived in zh-CN only, so an English user read the raw key;
+ * the old audit only looked at the literal right after t( and printed PASS. The
+ * audit now diffs the two key sets, and the probe reads the sentence in en-US
+ * from a real window. A BOM-less .ps1 also turned Chinese assertions into
+ * mojibake twice, so that rule is checked mechanically too. */
+ok(i18n.indexOf('"exit.bodyNoRestore": "The current tab list') >= 0, 'the English locale has the no-restore sentence');
+ok(main.indexOf('window.__InfinityShell.setLocale("en-US")') >= 0, 'the probe switches the live window to en-US');
+ok(main.indexOf('exitProbe.bodyEn') >= 0, 'the probe reads the exit body in English');
+const auditI18n = read('work/audit-i18n.mjs');
+ok(auditI18n.indexOf('ASYM-ZH-ONLY') >= 0, 'the i18n audit diffs the two key sets');
+ok(auditI18n.indexOf('zhOnly') >= 0 && auditI18n.indexOf('enOnly') >= 0, 'the i18n audit names the one-sided keys');
+ok(fs.existsSync(path.join(ROOT, 'work/audit-ps1-bom.mjs')), 'the BOM audit exists');
+const probePs1 = read('work/probe-chrome-truth.ps1');
+ok(probePs1.indexOf('exit-body-english') >= 0, 'the probe asserts the English sentence');
+ok(probePs1.charCodeAt(0) === 0xfeff, 'the probe keeps its BOM');
+ok(auditI18n.indexOf('DEAD-PROMISE') >= 0, 'the i18n audit fails on a dead promise');
+ok(auditI18n.indexOf("startsWith('dl.status.')") >= 0, 'only the download states may look unused');
+const i18nNow = read('work/webview2/ui/assets/js/i18n.js');
+ok(i18nNow.indexOf('"toast.notImplemented"') < 0, 'no "not implemented yet" string survives');
+ok(i18nNow.indexOf('"toast.searchSent"') < 0, 'the retired search toast is gone');
+ok(i18nNow.indexOf('"playzone.volume"') < 0, 'the retired play-zone media keys are gone');
+
+
 console.log('');
 console.log((fail === 0 ? 'SELFTEST PASS' : 'SELFTEST FAIL') + '  pass=' + pass + ' fail=' + fail);
 process.exit(fail === 0 ? 0 : 1);

@@ -92,11 +92,11 @@ Studio 的「在线安装」页不经过浏览器验证：桌面程序直接读�
 
 | 资产 | 名称 | 字节 | sha256 |
 |---|---|---|---|
-| `InfinityCloud-setup` | Infinity Cloud | 84,229,152 | `dc05546a9efa…b7dd` |
-| `InfinityPackageManager-setup` | Infinity Package Manager | 84,419,152 | `7be59d5983fb…47fe` |
-| `InfinityToolbox-setup` | Infinity Toolbox | 84,420,080 | `6df13d8a09d9…953a` |
+| `InfinityCloud-setup` | Infinity Cloud | 84,189,160 | `1724c7fcfdb1…b3c3` |
+| `InfinityPackageManager-setup` | Infinity Package Manager | 84,423,392 | `da1a60f9e3da…cc56` |
+| `InfinityToolbox-setup` | Infinity Toolbox | 84,442,240 | `4403b418695d…d60c` |
 
-上表是 2026-11-14 **第十次**重打包（「在宿主中打开」真实现，见四·C-10）：三包 attempt=1 即 Valid，重发资产 id **747228355 / 747228968 / 747229562**，部署 `e121fa63`，`/api/components` 回读三条 size/sha 各 2 个镜像；安装态 `work/qa-viewer-apps.ps1` 复验 **VIEWER-APPS PASS**（含 Ctrl+J/Ctrl+H 实测）。前九版（84,188,040 / 84,440,992 / 84,416,216 及更早八组）已被同名替换。
+上表是 2026-11-14 **第十三次**重打包（关于对话框求真 + 退出承诺与侧栏可用性，见四·C-11 / 四·C-12 / 四·C-13）：三包 attempt=1 即 Valid，重发资产 id **747721639 / 747722341 / 747723076**，部署 `9ca77a05`，`/api/components` 回读三条 size/sha 各 2 个镜像；安装态 `work/qa-viewer-apps.ps1` 复验 **VIEWER-APPS PASS**（含 Ctrl+J/Ctrl+H 实测）。前十一版（84,197,896 / 84,493,896 / 84,443,656 及更早十组）已被同名替换。
 
 - 重打包的理由：pre8 的三个 C++ 安装包是 InfinityViewer 更名（无框窗口 + 内置下载管理器）**之前**打的，直接拿来发等于把旧外壳塞给用户。重打包只换外壳载荷，命令行二进制不变；
 - 客户端不用重编就能看到新组件：`fetchCatalog` 拉完公开目录后再拉 `/api/components` 合并，读不到组件门也不算失败（旧门照常只给两个 setup）；
@@ -304,6 +304,54 @@ pre8 的三个安装包走的是 Electron 外壳（`work/package-pre8-components
 - 审计全绿：`I18N-AUDIT PASS`（used=201 / zh=233 / en=233）、`AUDIT-HARDCODED PASS`（hits=0 / untranslated=0）、`AUDIT-SHORTCUTS PASS`、`UISTALE PASS`（drift=0）。
 - `work/audit-bridge.mjs`：`replied=6 uiHandles=19`，`REPLIED-BUT-UNHANDLED-IN-UI` 只剩 `host.ack`（纯确认，不需要 UI 反应）。
 - 契约新增第 24 节 7 条（含 `shell.open` 反向断言）→ **SELFTEST PASS pass=165 fail=0**。
+
+### 四·C-11、关于对话框说的每一句都得是真的（2026-11-14）
+
+「关于」是用户唯一会拿去核对的自我描述，它此前有四处不对：
+
+- **版本号**：静态标记写 `v0.1.0`（`work/webview2/ui/index.html:221`）。脚本跑起来会被 `applyI18n()` 覆盖成 `v1.0.0`，但脚本没跑到时（或脚本出错时）它就是错的，改成 `v1.0.0`。
+- **外壳路径**：`<dd>work/edge-ui · HTML/CSS/JS</dd>` 指向 `work/edge-ui`——那是被 ghsync 排除的 scratch 副本，真正发布出去的界面在 `work/webview2/ui`。改成两语言的 `about.shellValue`（`Electron · HTML/CSS/JS`），不再把仓库内部路径印给用户。
+- **宿主**：`els.aboutHost.textContent = host.kind + " (" + host.api + ")"` 会把桥的内部函数名 `window.__INFINITY_HOST__.postMessage` 印在「宿主」行——和页脚犯过的是同一个错。改成只印 `host.kind`，内部名放 `title`。
+- **应用清单**：静态写死 `INC · ITB · IIM · IFM`，而 IFM（文件管理器）是已退役产品，宿主的 `viewer.apps` 回的是 `installed:false`。改成 `#aboutApps` 由新函数 `installedAppCodes()` 填：宿主没答话时退回静态全量，答了话只列 `installed` 的产品，全没装印 `—`。
+
+**同一处还有个时序坑**：这三行原本只在 `applyI18n()`（启动时）写一次，而 `host.apps` 的回包通常晚于启动，所以第一次打开「关于」看到的是退回值（实测 `apps=INC · ITB · IIM · IFM`，把未安装的 IFM 也列了出来）。抽出 `renderAboutRows()`，`openDialog("about")` 时再刷一次，探针复测变成 `apps=INC · ITB · IIM`。
+
+验收（全部无窗口）：
+
+- 探针加 `INFINITY_SHELL_PROBE_ABOUT=1`：点菜单「关于」，读 `#aboutVersion` / `#aboutHost` / `#aboutHost.title` / `#aboutApps` / 外壳行 / 对话框可见性 → **CHROME-TRUTH PASS 15 条**（新增 `about-opens`、`about-version`、`about-host-not-bridge`、`about-shell-names-runtime`、`about-apps-installed`）。
+- 契约新增第 25 节 9 条（不含 `work/edge-ui`、静态版本不是 `v0.1.0`、两语言有 `about.shellValue`、宿主行只印 kind、`renderAboutRows` 单一渲染器、打开即刷新）→ **SELFTEST PASS pass=174 fail=0**。
+- 审计复跑全绿：`I18N-AUDIT PASS`（used=201 / zh=234 / en=234）、`AUDIT-HARDCODED PASS`、`AUDIT-SHORTCUTS PASS`、`UISTALE PASS`（drift=0）、`audit-bridge` `replied=6 uiHandles=19`。
+
+### 四·C-12、退出时的承诺与侧栏的可用性也要是真的（2026-11-14）
+
+同一天里第三类「话说过头」：
+
+- **退出对话框承诺了不会发生的事**：`#dialog-exit` 的说明文字静态写着「将保存当前标签页，下次启动自动恢复」，但恢复是否发生由 `settings.restoreSession` 决定（`shell.js:2589`：关闭时根本不去读会话快照）。设置里把「启动时恢复会话」关掉后，对话框仍在承诺恢复。改成打开对话框时按设置选文案：开 → `exit.body`，关 → 新键 `exit.bodyNoRestore`（「将保存当前标签页；「启动时恢复会话」已关闭，下次启动不会自动恢复。」）。
+- **侧栏把退役产品画成可启动的**：`renderSidebar()`（`shell.js:1203`）无条件列出 `APPS` 四个产品，而宿主的 `viewer.apps` 对已退役的 IFM 回 `installed:false`——点下去只会得到「启动失败」内页。改成：宿主已答话且该产品未安装时，按钮加 `.off`、透明度 0.55、提示语追加「未安装」；产品仍留在列表里（用户可能要装），但不再假装可用。
+
+验收（全部无窗口）：
+
+- 探针加 `INFINITY_SHELL_PROBE_EXIT=1`：先把 `restoreSession` 置 false，点标题栏关闭按钮 `#cap-close` 打开退出对话框，读可见性与 `#exitBody` 文本，再取消并恢复设置 → **CHROME-TRUTH PASS 18 条**（新增 `exit-dialog-opens`、`exit-honest-when-restore-off`、`sidebar-marks-uninstalled`，实测 `body=将保存当前标签页；「启动时恢复会话」已关闭，下次启动不会自动恢复。`、`off=1`）。
+- 踩到的坑：`work/probe-chrome-truth.ps1` 新增的中文断言第一次恒 FAIL——脚本没有 BOM，PowerShell 5.1 按 ANSI 读，中文字面量变成乱码，`-match` 永远不成立。补 UTF-8 BOM 后立即 PASS（含中文的 .ps1 必须带 BOM，这条又踩了一次）。
+- 契约新增第 26 节 5 条 → **SELFTEST PASS pass=179 fail=0**；`I18N-AUDIT PASS`、`AUDIT-HARDCODED PASS`、`AUDIT-SHORTCUTS PASS`、`UISTALE PASS`（drift=0）。
+
+### 四·C-13、另一种语言里也必须存在那句话（2026-11-14）
+
+第四类「话说过头」不是文案错，而是**只有一半的语言**：
+
+- **真缺陷**：`exit.bodyNoRestore` 只写进了 zh-CN（`i18n.js:98`），en-US 里没有。界面语言切到英文后，退出对话框直接把裸键印出来：`exit.bodyNoRestore`。
+- **工具缺陷（更值得记）**：`work/audit-i18n.mjs` 只扫描 `t(` 紧邻的字面量，而这里用的是三元表达式 `t(settings.restoreSession ? "exit.body" : "exit.bodyNoRestore")`（`shell.js:1446`）——那个键对审计完全不可见；审计又只比较两种语言**键的数量**（235 对 235），一个单边键因此被掩盖，一路打印 `I18N-AUDIT PASS`。也就是说：审计通过过，但用户看到的是裸键。
+- **修法一（审计）**：重写为「页面与标记里所有点号字面量 ∩ 两种语言的键集」，再做集合差集，输出 `MISSING-ZH` / `MISSING-EN` / `ASYM-ZH-ONLY` / `ASYM-EN-ONLY` / `MISSING-DL-STATUS`。重写后立刻 FAIL：`MISSING-EN: exit.bodyNoRestore`、`ASYM-ZH-ONLY: exit.bodyNoRestore`。
+- **修法二（文案）**：补 en-US 键；探针在真实窗口里 `setLocale("en-US")` 再开退出对话框读 `#exitBody`，断言它是句子而不是 `exit.*` 裸键（`exit-body-english` / `exit-body-not-raw-key`，实测 `bodyEn=The current tab list will be saved; "Restore session on launch" is off, so the next launch starts empty.`、`localeEn=en-US`）。
+- **复发缺陷（BOM）**：用编辑工具写回 `work/probe-chrome-truth.ps1` 时把 UTF-8 BOM 抹掉了，中文断言再次变成乱码（`CHROME-TRUTH FAIL 1`，而 `body=` 打印的文本明明是对的）。这类坑一天踩了两次，所以不再靠记性：新增 `work/audit-ps1-bom.mjs`，扫 `work/` 与 `shell/` 下所有 `.ps1`，含非 ASCII 却无 BOM 即 FAIL，`--fix` 就地补 BOM。首跑抓到 2 个（`work/probe-chrome-truth.ps1`、`work/test-token-ui.ps1`）。
+
+- **顺手清掉 9 个「死承诺」键**：审计现在还会列出「两种语言都有、但没有任何地方引用」的键。原先有 15 个，其中 6 个是下载面板按状态拼接的 `dl.status.*`（合法），其余 9 个是真的没人用——`home.newTab`、`playzone.pick/play/pause/volume/switched`（游玩区早已是「区域配色编辑器」，没有播放概念）、`toast.devOpened`、`toast.searchSent`、`toast.notImplemented`（「这个功能还没实现」——这句话本身就不该存在于一个「真正实现所有功能」的界面里）。全部删除，两种语言各删 9 行；审计改为 `UNUSED` 只允许 `dl.status.*` 前缀，否则输出 `DEAD-PROMISE` 并 FAIL。
+
+验收（全部无窗口）：
+
+- **CHROME-TRUTH PASS 20 条**（新增 `exit-body-english`、`exit-body-not-raw-key`）。
+- 契约新增第 27 节 13 条（英文句子存在、探针切换 en-US 并读取、审计有差集、BOM 审计存在、探针带 BOM、审计拒绝死承诺、9 个死键确实消失）→ **SELFTEST PASS pass=192 fail=0**。
+- `I18N-AUDIT PASS`（`used=219 zh=225 en=225`，四种差集全空，`UNUSED` 只剩 6 个 `dl.status.*`）、`AUDIT-HARDCODED PASS`、`AUDIT-SHORTCUTS PASS`（labels=10）、`UISTALE PASS`（drift=0）、`PS1-BOM PASS`（bad=0）、`audit-buttons unwired=none`。
 
 ## 五、无窗口验收（硬约束）
 

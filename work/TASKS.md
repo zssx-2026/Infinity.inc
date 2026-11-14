@@ -1,5 +1,37 @@
 # Infinity.Inc 任务清单（队列：先到先做，用户新需求排最后）
 
+## 2026-11-14 另一种语言里也必须存在那句话（用户「真正实现所有功能」+「继续！」）
+- [x] 真缺陷：`exit.bodyNoRestore` 只写进 zh-CN（`i18n.js:98`），en-US 缺失 → 英文界面下退出对话框印出裸键。
+- [x] 工具缺陷：`work/audit-i18n.mjs` 只扫 `t(` 紧邻字面量，三元 `t(cond ? "a" : "b")`（`shell.js:1446`）里的键不可见；且只比数量（235 对 235）→ 单边键被掩盖，长期打印 PASS。
+- [x] 重写 `work/audit-i18n.mjs`：页面/标记里所有点号字面量 ∩ 两种语言键集，再输出 `MISSING-ZH` / `MISSING-EN` / `ASYM-ZH-ONLY` / `ASYM-EN-ONLY` / `MISSING-DL-STATUS`；重写后立刻 FAIL（`MISSING-EN: exit.bodyNoRestore`）。
+- [x] 补 en-US `exit.bodyNoRestore`；探针在真实窗口 `setLocale("en-US")` 后重开退出对话框读 `#exitBody`（`exitProbe.bodyEn` / `localeEn`），断言不是裸键。
+- [x] 复发缺陷：编辑工具写回 `work/probe-chrome-truth.ps1` 时抹掉 UTF-8 BOM → 中文断言再变乱码（CHROME-TRUTH FAIL 1，body 文本正确）。新增 `work/audit-ps1-bom.mjs`（含非 ASCII 无 BOM 即 FAIL，`--fix` 补 BOM），首跑抓到 2 个文件。
+- [x] 验收：**CHROME-TRUTH PASS 20 条**（`exit-body-english` / `exit-body-not-raw-key`，实测 `bodyEn=The current tab list will be saved; “Restore session on launch” is off…`）。
+- [x] 契约第 27 节 8 条 → **SELFTEST PASS pass=187 fail=0**。
+- [x] 审计全绿：`I18N-AUDIT PASS`（used=219 zh=234 en=234，四种差集全空）、`AUDIT-HARDCODED PASS`、`AUDIT-SHORTCUTS PASS`（labels=10）、`UISTALE PASS`（drift=0）、`PS1-BOM PASS`（bad=0）、`audit-buttons unwired=none`。
+- [x] `work/qa-viewer-apps.ps1` 安装态断言加 `bodyEn -match 'Restore session'`。
+- [x] `work/push-source8.ps1` 修两处真缺陷：改用文件重定向（`Select-Object -Last` 截断会提前杀掉 node 且报的是 Select-Object 的退出码）；退出码改取 node 自己的 `$LASTEXITCODE`。
+- [x] 死承诺清理：审计新增 `UNUSED` 清单，删掉 9 个两语言都存在但无人引用的键（`home.newTab`、`playzone.pick/play/pause/volume/switched`、`toast.devOpened`、`toast.searchSent`、`toast.notImplemented`），各语言各删 9 行；审计改为只允许 `dl.status.*` 前缀，否则输出 `DEAD-PROMISE` 并 FAIL。
+- [x] 因 i18n 清理落在打包拷贝步骤之后，中止了第一次第十三次打包（job `pwsh-5f156137e2af4a6e`），改从定稿树重打（job `pwsh-d139d109e94d43f4`）。
+- [x] 契约第 27 节扩到 13 条 → **SELFTEST PASS pass=192 fail=0**；`UISTALE PASS`（drift=0）确认重建后的产物与源码一致。
+- [x] 第十三次重打包（job `pwsh-d139d109e94d43f4` exit 0，freeMB=1519 开跑）：InfinityCloud **84,189,160 B / `1724c7fcfdb10aeba4976e1ddab66c982649e2b976886dd42c4961f804a5b3c3`**、InfinityPackageManager **84,423,392 B / `da1a60f9e3da90416dc58a0b5434f9244b5c10ab298bca53b8ed88264368cc56`**、InfinityToolbox **84,442,240 B / `4403b418695df115547137a49da37160fd9e712209c2cc75ed1fed1d873fd60c`**，三包 attempt=1 Valid。
+- [x] 重发（job `pwsh-713301682cd8451d` exit 0）：删 747617195 / 747617948 / 747618530，上传 **747721639 / 747722341 / 747723076**，digest 与本地一致；部署（job `pwsh-7b6e650cef7043e6`）deployment `9ca77a05`，`/api/components` 回读 84,189,160 `1724c7fcfdb1` 2 / 84,423,392 `da1a60f9e3da` 2 / 84,442,240 `4403b418695d` 2。
+- [x] 安装态复验（job `pwsh-7924c892a2bc493a` exit 0，`work/qa-viewer-apps13.log`）→ **VIEWER-APPS PASS**：`about version=v1.0.0 host=bridge apps=INC shell=Electron · HTML/CSS/JS`、`exit body=将保存当前标签页；「启动时恢复会话」已关闭，下次启动不会自动恢复。`、`sidebarOff=3`、Ctrl+J/Ctrl+H 实测、install/uninstall exit=0。
+
+## 2026-11-14 关于对话框 / 退出承诺 / 侧栏可用性求真（用户「真正实现所有功能」+「继续！」）
+- [x] 真缺陷：关于对话框静态写 `v0.1.0`、外壳行写 `work/edge-ui`（被 ghsync 排除的 scratch 副本）、宿主行把 `window.__INFINITY_HOST__.postMessage` 印给用户、应用清单写死含已退役 IFM。
+- [x] 修法：静态版本 `v1.0.0`；外壳行改两语言键 `about.shellValue`（Electron · HTML/CSS/JS）；宿主行只印 `host.kind`、内部名进 `title`；新增 `installedAppCodes()` 让 `#aboutApps` 只列宿主报 `installed` 的产品。
+- [x] 时序坑：三行只在 `applyI18n()` 写一次，`host.apps` 回包晚于启动 → 首次打开看到退回值（把未装的 IFM 也列出）。抽出 `renderAboutRows()`，`openDialog("about")` 时再刷 → 探针复测 `apps=INC · ITB · IIM`。
+- [x] 真缺陷：退出对话框静态承诺「下次启动自动恢复」，而 `settings.restoreSession=false` 时 `shell.js:2589` 根本不读会话快照 → 按设置选文案（新键 `exit.bodyNoRestore`），`openDialog("exit")` 时刷新 `#exitBody`。
+- [x] 真缺陷：`renderSidebar()`（`shell.js:1203`）无条件把四个产品都画成可启动，退役的 IFM 点下去只会「启动失败」→ 未安装的加 `.off` + 透明度 0.55 + 提示「未安装」。
+- [x] 探针加 `INFINITY_SHELL_PROBE_ABOUT=1` / `INFINITY_SHELL_PROBE_EXIT=1`：点菜单「关于」读五行；把 `restoreSession` 置 false 后点 `#cap-close` 读退出文案 → **CHROME-TRUTH PASS 18 条**（`about-version=v1.0.0`、`about-host-not-bridge=bridge`、`about-shell-names-runtime=Electron · HTML/CSS/JS`、`about-apps-installed=INC · ITB · IIM`、`exit-honest-when-restore-off`、`sidebar-marks-uninstalled off=1`）。
+- [x] 坑：`work/probe-chrome-truth.ps1` 新增中文断言恒 FAIL——脚本无 BOM，PowerShell 5.1 按 ANSI 读，中文字面量成乱码。补 UTF-8 BOM 后 PASS。
+- [x] 契约第 25 节 9 条 + 第 26 节 5 条 → **SELFTEST PASS pass=179 fail=0**；`I18N-AUDIT PASS`（used=201 zh=235 en=235）、`AUDIT-HARDCODED PASS`、`AUDIT-SHORTCUTS PASS`、`UISTALE PASS`（drift=0）。
+- [x] 第十一次重打包（job `pwsh-83601c15b4a045b6`）：84,175,648 / 84,438,080 / 84,431,424，已重发（资产 747573* 系列）但**未部署**——同轮发现退出对话框缺陷，直接进入第十二次。
+- [x] 第十二次重打包（job `pwsh-08c0304c7f1c4212` exit 0）：InfinityCloud **84,197,896 B / `98f26844b0d6eb41d8bb0ecd1b2c957a4227ddb98056bc4052f7bc2604acda15`**、InfinityPackageManager **84,493,896 B / `38966fa520e21b8ced1c4193378869dc13fbb42516dd0a7ed0ab712b3ec99aa8`**、InfinityToolbox **84,443,656 B / `cfc558add66830675b33318cc5085a7b75f792ae79b1c25aceb72c63b5987595`**，三包 attempt=1 Valid。
+- [x] 重发（job `pwsh-a7432b9f8c2e4094` exit 0）：上传 **747617195 / 747617948 / 747618530**，digest 与本地一致；部署（job `pwsh-bb3133c4ac054d31`）deployment `72b267fc`，`/api/components` 回读 84,197,896 `98f26844b0d6` 2 / 84,493,896 `38966fa520e2` 2 / 84,443,656 `cfc558add668` 2。
+- [x] `docs/DOWNLOADS-v1.0pre8.md` 新增「四·C-11、关于对话框说的每一句都得是真的」与「四·C-12、退出时的承诺与侧栏的可用性也要是真的」，组件表换第十二次数字。
+
 ## 2026-11-14 「在宿主中打开」真的打开了，且不再谎报（用户「真正实现所有功能」）
 - [x] 真缺陷：`buildInterstitial()`（`shell.js:859-862`）的按钮发 `shell.search` / `shell.open`，宿主无这两个分支 → 落 `default: replyShell('host.ack')`，什么都不做。
 - [x] 真缺陷：同段紧跟 `toast(isSearch ? toast.searchSent : toast.favAdded)`——打开网页会弹「已添加到收藏夹」。

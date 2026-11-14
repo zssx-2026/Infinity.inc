@@ -1033,6 +1033,12 @@ async function boot() {
        * visit shows up in it: the store is written on navigation, so opening the
        * page and counting rows proves the wiring end to end. */
       const probeHist = process.env.INFINITY_SHELL_PROBE_HISTORY ? '1' : '0';
+      /* The About dialog is the page's own self-description; reading it from a
+       * real window is the only way to catch a stale path or version. */
+      const probeAbout = process.env.INFINITY_SHELL_PROBE_ABOUT ? '1' : '0';
+      /* The exit dialog promises a restore; that promise is only true while the
+       * setting is on, so the probe turns it off and reads what it says. */
+      const probeExit = process.env.INFINITY_SHELL_PROBE_EXIT ? '1' : '0';
       win.webContents.executeJavaScript(
         /* The inventory comes back over the bridge, so the snapshot waits for
          * it instead of racing the host and reporting an empty object. */
@@ -1066,6 +1072,37 @@ async function boot() {
         'histProbe.count=((document.querySelector(".internal-count")||{}).textContent||"");' +
         'histProbe.empty=!!document.querySelector(".internal-empty");' +
         '}' +
+        'var aboutProbe={};' +
+        'if ("' + probeAbout + '" === "1") {' +
+        'try{var ab=document.querySelector("[data-action=\\"about\\"]");if(ab){ab.click();}}catch(e){}' +
+        'await new Promise(function(r){setTimeout(r,300);});' +
+        'function _q(s){var n=document.querySelector(s);return n?n:{};}' +
+        'aboutProbe.version=(_q("#aboutVersion").textContent||"");' +
+        'aboutProbe.host=(_q("#aboutHost").textContent||"");' +
+        'aboutProbe.hostTitle=(_q("#aboutHost").title||"");' +
+        'aboutProbe.apps=(_q("#aboutApps").textContent||"");' +
+        'aboutProbe.shell=(_q("#dialog-about [data-i18n=\\"about.shellValue\\"]").textContent||"");' +
+        'aboutProbe.visible=(_q("#dialog-about").hidden===false);' +
+        '}' +
+        'var exitProbe={};' +
+        'if ("' + probeExit + '" === "1") {' +
+        'exitProbe.sidebarOff=document.querySelectorAll(".sb-app.off").length;' +
+        'try{window.__InfinityShell.settings.restoreSession=false;}catch(e){}' +
+        'try{var exb=document.querySelector("#cap-close");if(exb){exb.click();}}catch(e){}' +
+        'await new Promise(function(r){setTimeout(r,250);});' +
+        'exitProbe.visible=(_q("#dialog-exit").hidden===false);' +
+        'exitProbe.body=(_q("#exitBody").textContent||"");' +
+        /* The same sentence must exist in the other locale, or an English user
+           reads the raw key "exit.bodyNoRestore" instead of a sentence. */
+        'try{window.__InfinityShell.setLocale("en-US");}catch(e){}' +
+        'try{var exb2=document.querySelector("#cap-close");if(exb2){exb2.click();}}catch(e){}' +
+        'await new Promise(function(r){setTimeout(r,250);});' +
+        'exitProbe.bodyEn=(_q("#exitBody").textContent||"");' +
+        'exitProbe.localeEn=(document.documentElement.lang||"");' +
+        'try{window.__InfinityShell.setLocale("zh-CN");}catch(e){}' +
+        'try{var cx=document.querySelector("#dialog-exit [data-close-dialog]");if(cx){cx.click();}}catch(e){}' +
+        'try{window.__InfinityShell.settings.restoreSession=true;}catch(e){}' +
+        '}' +
         'return ' +
         '({dpr:window.devicePixelRatio,cssW:window.innerWidth,cssH:window.innerHeight,' +
         'screenW:screen.width,screenH:screen.height,availH:screen.availHeight,' +
@@ -1091,6 +1128,8 @@ async function boot() {
         'viewClasses:[].map.call(document.querySelectorAll("#views > *"),function(e){return e.className;}).join("|"),' +
         'keyProbe:keyProbe,' +
         'histProbe:histProbe,' +
+        'aboutProbe:aboutProbe,' +
+        'exitProbe:exitProbe,' +
         'bodyText:(document.body.innerText||"").slice(0,80)});})()'
       ).catch(function (err) {
         /* A probe that throws must still end: a hung hidden window is worse
