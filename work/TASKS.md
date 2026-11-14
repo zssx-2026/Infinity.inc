@@ -1,5 +1,17 @@
 # Infinity.Inc 任务清单（队列：先到先做，用户新需求排最后）
 
+## 2026-11-14 开发者工具交给宿主（用户「真正实现所有功能」）
+- [x] 动机：菜单与 F12 的「开发者工具」只打开页面自绘的协议日志面板，看着像 DevTools 却什么也检查不了。
+- [x] `shell/main.js` 加 `function openDevtools(open, which)`：优先 `webContents.getAllWebContents()` 里 `getType() === 'webview'` 的 guest 的 `openDevTools({mode:'detach'})`，否则开外壳自己的；返回 `{open, target, error}`；`shellFrame` 加 `case 'shell.devtools'`。
+- [x] `shell.js`：菜单 devtools 改发 `shell.devtools`，协议日志面板保留在 protocol 项；F12 / Ctrl+Shift+I 变成 `{open: !state.devtoolsHostOpen}` 切换；`handleHostMessage` 加 `host.devtools`；i18n 两语言加 `toast.devtoolsFailed`。
+- [x] 探针只发 `{open:false}`（detached 检查器是真窗口，自动化不许弹窗），`work/probe-devtools.ps1` → **DEVTOOLS-BRIDGE PASS**（`open=False target=webview error=`）。
+- [x] 契约第 13 节 10 条 → **SELFTEST PASS pass=114 fail=0**（追加时先用 node 脚本插入得到一行 `undefined`，已用 edit 修好）。
+- [x] 三个组件第七次重打包（job `pwsh-057a108fa9be4045` exit 0，attempt=1 即 Valid）：InfinityCloud **84,258,520 B / `7bd16a812b1a…7eb4`**、InfinityPackageManager **83,967,968 B / `3b7858886ab1…76d8`**、InfinityToolbox **84,022,320 B / `59c2659183f4…ab55`**。
+- [x] 重发（job `pwsh-ed85b224664648b1` exit 0）：删旧资产 746486965 / 746487496 / 746487996，上传 **746574384 / 746574921 / 746575753**，digest 与本地一致；COMPONENTS 更新后部署 `d73c31c8`。
+- [x] 装出来的组件复验（`work/qa-viewer-devtools.ps1`）→ **VIEWER-DEVTOOLS PASS**：静默装 Infinity Cloud → 装好的 `inc_window.exe` 跑 devtools 探针 `open=False target=webview` → `/S` 卸载 exit 0、目录消失。
+- [x] `docs/DOWNLOADS-v1.0pre8.md` 新增「四·C-5」并把组件表换成第七次重打包数字。
+- [x] 已核实 `.pz-music` 死 CSS 与 i18n 音乐键在前轮删除（grep 零命中），该待办关闭。
+
 ## 2026-11-14 应用卡片打开真产品（用户「真正实现所有功能」）
 - [x] 动机：NTP/侧栏应用卡片打开的是 `work/webview2/ui/apps/*.html` 静态样张，样张自己写着「演示内容」——占位当交付。
 - [x] 宿主 `shell/main.js`：`PRODUCTS`（inc 7621 / ipm 7632 / int 7653 / ifm 7623 与安装目录名）、`productCliCandidates`（同目录 → `..` → `%LOCALAPPDATA%\Programs\Infinity.Inc\<Product>\` → `cpp/out/<prefix>/`）、`ensureProduct(prefix)`（`spawn(exe,['--serve-ui','--port=…'],{stdio:'ignore',windowsHide:true})` + `waitForPort` 20 s，返回 `{url}`/`{error}`，不抛）、`shellFrame` 增 `viewer.app`/`viewer.apps`、`shutdown()` 杀掉所有子产品进程。

@@ -242,6 +242,22 @@ ok(main.indexOf('INFINITY_SHELL_PROBE_APPS') >= 0, 'the app launch can be proven
 ok(read('work/probe-apps.ps1').indexOf('APPS-LAUNCH PASS') >= 0, 'the app probe prints its verdict');
 ok((i18n.match(/"app\.failed"/g) || []).length >= 2, 'both locales can report a product that will not start');
 
+/* --- 13. F12 opens the host's real inspector ---
+ * The page used to answer "开发者工具" by showing its own protocol log, which
+ * looks like DevTools but cannot inspect anything. The host now opens the
+ * real inspector for whichever layer is in front, and the probe proves the
+ * bridge answers without ever opening a window on the user's screen. */
+ok(main.indexOf("case 'shell.devtools'") >= 0, 'the host answers the devtools request');
+ok(main.indexOf('function openDevtools') >= 0, 'the host can open and close a real inspector');
+ok(main.indexOf("getType() === 'webview'") >= 0, 'the inspector follows the webview in front, not the chrome');
+ok(uiJs.indexOf('send("shell.devtools"') >= 0, 'the page asks the host instead of drawing a fake panel');
+ok(uiJs.indexOf('case "host.devtools"') >= 0, 'the page records the host answer');
+ok(uiJs.indexOf('state.devtoolsHostOpen') >= 0, 'F12 toggles the host inspector');
+ok((i18n.match(/"toast\.devtoolsFailed"/g) || []).length >= 2, 'both locales can report an inspector that will not open');
+ok(main.indexOf('INFINITY_SHELL_PROBE_DEVTOOLS') >= 0, 'the devtools bridge can be proven headlessly');
+ok(read('work/probe-devtools.ps1').indexOf('DEVTOOLS-BRIDGE PASS') >= 0, 'the devtools probe prints its verdict');
+ok(main.indexOf('openDevtools(p.open !== false') >= 0, 'the request is answered by the real function, not a stub');
+
 console.log('');
 console.log((fail === 0 ? 'SELFTEST PASS' : 'SELFTEST FAIL') + '  pass=' + pass + ' fail=' + fail);
 process.exit(fail === 0 ? 0 : 1);

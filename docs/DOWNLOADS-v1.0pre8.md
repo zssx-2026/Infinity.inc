@@ -92,11 +92,11 @@ Studio 的「在线安装」页不经过浏览器验证：桌面程序直接读�
 
 | 资产 | 名称 | 字节 | sha256 |
 |---|---|---|---|
-| `InfinityCloud-setup` | Infinity Cloud | 84,188,232 | `25518f9059da…051e` |
-| `InfinityPackageManager-setup` | Infinity Package Manager | 83,950,168 | `2fff3419d0e2…f443` |
-| `InfinityToolbox-setup` | Infinity Toolbox | 83,959,656 | `497e7339d6cc…e7dc` |
+| `InfinityCloud-setup` | Infinity Cloud | 84,258,520 | `7bd16a812b1a…7eb4` |
+| `InfinityPackageManager-setup` | Infinity Package Manager | 83,967,968 | `3b7858886ab1…76d8` |
+| `InfinityToolbox-setup` | Infinity Toolbox | 84,022,320 | `59c2659183f4…ab55` |
 
-上表是 2026-11-14 **第六次**重打包（应用卡片改为拉起真产品，见四·C-4）：资产 id 746486965 / 746487496 / 746487996，digest 与本地 sha256 逐字符一致，部署 7b08668f；前五版（84,194,352 / 84,004,072 / 83,946,304、84,202,296 / 83,957,264 / 83,963,224、84,199,784 / 83,989,016 / 83,943,776、84,184,120 / 83,960,840 / 83,960,576、84,194,040 / 83,940,752 / 83,953,688）已被同名替换。
+上表是 2026-11-14 **第七次**重打包（开发者工具交给宿主，见四·C-5）：三包 attempt=1 即 Valid；前六版（84,194,352 / 84,004,072 / 83,946,304、84,202,296 / 83,957,264 / 83,963,224、84,199,784 / 83,989,016 / 83,943,776、84,184,120 / 83,960,840 / 83,960,576、84,194,040 / 83,940,752 / 83,953,688、84,188,232 / 83,950,168 / 83,959,656）已被同名替换。
 
 - 重打包的理由：pre8 的三个 C++ 安装包是 InfinityViewer 更名（无框窗口 + 内置下载管理器）**之前**打的，直接拿来发等于把旧外壳塞给用户。重打包只换外壳载荷，命令行二进制不变；
 - 客户端不用重编就能看到新组件：`fetchCatalog` 拉完公开目录后再拉 `/api/components` 合并，读不到组件门也不算失败（旧门照常只给两个 setup）；
@@ -208,6 +208,16 @@ extensions_page rows=6 title=扩展
 契约补第 11 节 8 条（路由正则、buildProfile、builtinFeatures、写 settings、两个语言都有 `pf.local`/`ext.note`、探针写名字、样式），并把第 10 节里已失效的「未实现就直说」断言换成「菜单两个 case 打开真页面」→ **SELFTEST PASS pass=92 fail=0**。
 
 装出来的组件复验（第五次重打包）→ **VIEWER-INTERNAL PASS**：Infinity Cloud 97 文件 / 292,512,317 B，staged `main.js` 42,275 B、`shell.js` 112,538 B；装好的 `inc_window.exe` 跑探针得 `history=2 / fav=4->5 / collections=1 / profile facts=5 saved=Probe User / extensions rows=6` → `/S` 卸载 exit 0、目录消失。
+
+### 四·C-5、开发者工具交给宿主（2026-11-14）
+
+菜单里的「开发者工具」与 F12 以前只打开页面自绘的协议日志面板——长得像 DevTools，但什么也检查不了。现在请求过桥交给宿主：
+
+- 宿主 `openDevtools(open, which)` 先看 `webContents.getAllWebContents()` 里有没有 `getType() === 'webview'` 的 guest：有就开 guest 的 `openDevTools({mode:'detach'})`（检查的是真实网页），没有就开外壳自己的。返回 `{open, target, error}`，页面记进 `state.devtoolsHost`，只有出错才 toast。
+- `shell.devtools` 是新增的桥动作，F12 / Ctrl+Shift+I 变成 `{open: !state.devtoolsHostOpen}` 切换；原来那张本地协议日志面板保留在「协议日志」菜单项里，两者不再混为一谈。
+- 探针 `INFINITY_SHELL_PROBE_DEVTOOLS` **只发 `{open:false}`**：detached 检查器是真窗口，自动化不许弹窗，所以探针验证的是「请求过桥并被真函数应答」，不是「窗口出现」。`work/probe-devtools.ps1` → **DEVTOOLS-BRIDGE PASS**：`devtools open=False target=webview error=`（当时前台有 guest，所以目标正是网页）。
+- 契约补第 13 节 10 条 → **SELFTEST PASS pass=114 fail=0**。
+- 装出来的组件复验（`work/qa-viewer-devtools.ps1`）→ **VIEWER-DEVTOOLS PASS**：静默装 Infinity Cloud，用装好的 `inc_window.exe` 跑同一探针，`open=False / target` 合法，`/S` 卸载 exit 0、目录消失。
 
 ## 五、无窗口验收（硬约束）
 

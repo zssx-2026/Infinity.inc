@@ -21,7 +21,7 @@
  * installer lays the directory out. The window itself is always called
  * InfinityViewer: the product inside it is a tab, not the browser.
  */
-const { app, BrowserWindow, Menu, ipcMain, shell, screen, protocol, session } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, shell, screen, protocol, session, webContents } = require('electron');
 const { DownloadManager } = require('./downloads');
 const path = require('node:path');
 const fs = require('node:fs');
@@ -466,6 +466,10 @@ function shellFrame(frame) {
       replyShell('host.apps', { apps: known });
       break;
     }
+    case 'shell.devtools': {
+      replyShell('host.devtools', openDevtools(p.open !== false, String(p.tab || '')));
+      break;
+    }
     case 'shell.content-rect':
       /* The page renders the application in its own iframe, so no native
        * content region has to be positioned for it. */
@@ -473,6 +477,30 @@ function shellFrame(frame) {
     default:
       replyShell('host.ack', { of: frame.type });
       break;
+  }
+}
+
+/* F12 has to inspect the page the user is actually looking at. When the active
+ * tab is a webview that is the guest's own devtools; otherwise it is the chrome
+ * page's. Electron can open both, so the host opens the real inspector instead
+ * of drawing a fake log panel. */
+function openDevtools(open, which) {
+  if (!win || win.isDestroyed()) return { open: false, target: 'none' };
+  let target = null;
+  let kind = 'shell';
+  try {
+    const guests = webContents.getAllWebContents().filter(function (c) {
+      return c.getType() === 'webview' && !c.isDestroyed();
+    });
+    if (guests.length && which !== 'protocol') { target = guests[0]; kind = 'webview'; }
+  } catch (e) { }
+  if (!target) target = win.webContents;
+  try {
+    if (open) target.openDevTools({ mode: 'detach' });
+    else target.closeDevTools();
+    return { open: !!open, target: kind };
+  } catch (e) {
+    return { open: false, target: kind, error: String((e && e.message) || e) };
   }
 }
 
@@ -696,6 +724,30 @@ function probeApps(done) {
     };
     step();
   }).catch(function (e) { done({ error: String((e && e.message) || e) }); });
+}
+
+/* INFINITY_SHELL_PROBE_DEVTOOLS sends the real bridge message the F12 key
+ * sends and waits for the host's answer, so "开发者工具" is proven wired rather
+ * than assumed. It asks the host to close, not open. */
+function probeDevtools(done) {
+  const run = function (js) { return win.webContents.executeJavaScript(js); };
+  const started = Date.now();
+  run('window.__InfinityShell.send("shell.devtools",{open:false,tab:"shell"}); true')
+    .then(function () {
+      const poll = function () {
+        return run('JSON.stringify(window.__InfinityShell.state.devtoolsHost || null)').then(function (raw) {
+          let parsed = null;
+          try { parsed = raw ? JSON.parse(raw) : null; } catch (e) { parsed = null; }
+          if (parsed || Date.now() - started > 6000) {
+            done({ reply: parsed, open: !!((parsed || {}).open), target: (parsed || {}).target || '', error: (parsed || {}).error || '' });
+            return;
+          }
+          return new Promise(function (r) { setTimeout(r, 250); }).then(poll);
+        });
+      };
+      return poll();
+    })
+    .catch(function (e) { done({ error: String((e && e.message) || e) }); });
 }
 
 /* INFINITY_SHELL_PROBE_INTERNAL checks the three internal pages that used to be
@@ -1020,6 +1072,19 @@ async function boot() {
         if (process.env.INFINITY_SHELL_PROBE_APPS) {
           probeApps(function (state) {
             info.apps = state;
+            writeProbe();
+            finishProbe();
+          });
+          return;
+        }
+
+        /* The devtools probe only closes, never opens: a detached inspector is
+         * a real window, and the one rule that never bends is that automation
+         * must not put windows on the user's screen. Closing still crosses the
+         * whole bridge, so it proves the wiring. */
+        if (process.env.INFINITY_SHELL_PROBE_DEVTOOLS) {
+          probeDevtools(function (state) {
+            info.devtools = state;
             writeProbe();
             finishProbe();
           });
