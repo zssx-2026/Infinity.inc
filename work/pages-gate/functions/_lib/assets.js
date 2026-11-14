@@ -10,8 +10,8 @@ export const ASSETS = {
     name: 'Infinity Studio',
     repo: 'Infinity-Studio',
     file: 'InfinityStudio_1.0.0-pre8_win64_setup.exe',
-    size: 83752488,
-    sha256: 'ef08da02d2edd1dd498f8ff63f7abbd656ce9b985e9450d5ba40b73ee3120ff6'
+    size: 83807192,
+    sha256: 'd5dd3415968f1dc121abce519fb3b656fbd4c334dd87eff27c5772a124798b03'
   },
   'InfinityServer-setup': {
     id: 'server',

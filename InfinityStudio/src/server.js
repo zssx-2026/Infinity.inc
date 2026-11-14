@@ -24,6 +24,7 @@ import { planAssociations, applyAssociations } from './associate.js';
 import { renderPage } from './page.js';
 import { list as listApps, call as callApp, load as loadApp } from './apps/index.js';
 import { fetchCatalog, createRemoteInstaller, downloadDir, dlBase } from './remote.js';
+import { listInstalled, uninstallProduct } from './uninstall.js';
 import os from 'node:os';
 
 export function studioHome() {
@@ -226,7 +227,16 @@ export function createStudio(root, target) {
           try { catalog = await fetchCatalog(); catalogError = null; }
           catch (error) { catalogError = String((error && error.message) || error); }
         }
-        return send(res, 200, { base: dlBase(), dir: downloadDir(), catalog: catalog, error: catalogError, state: remote.snapshot() });
+        return send(res, 200, {
+          base: dlBase(),
+          dir: downloadDir(),
+          catalog: catalog,
+          error: catalogError,
+          /* What is already on this machine, so the table can offer 卸载 instead
+           * of pretending every row is a fresh install. */
+          installed: listInstalled((catalog && catalog.products) || []),
+          state: remote.snapshot()
+        });
       }
       if (p === '/v1/remote/refresh' && method === 'POST') {
         try { catalog = await fetchCatalog(json.base || undefined); catalogError = null; }
@@ -244,6 +254,23 @@ export function createStudio(root, target) {
         if (!chosen.length) return send(res, 409, { error: 'no matching product in catalog', ids: ids, catalogError: catalogError });
         const started = remote.start(chosen);
         return send(res, started.ok ? 202 : 409, Object.assign({ chosen: chosen.map((x) => x.asset) }, started));
+      }
+      if (p === '/v1/remote/uninstall' && method === 'POST') {
+        const ids = Array.isArray(json.ids) ? json.ids.map(String) : [];
+        if (!ids.length) return send(res, 400, { error: 'ids is required' });
+        if (!catalog) {
+          try { catalog = await fetchCatalog(); catalogError = null; }
+          catch (error) { catalogError = String((error && error.message) || error); }
+        }
+        const known = (catalog && catalog.products) || [];
+        /* 用户/脚本可能按 id（inc）、资产名（InfinityCloud-setup）或显示名
+         * （Infinity Cloud）来指同一个产品，三者都认。 */
+        const chosen = known.filter((x) => ids.indexOf(x.id) >= 0 || ids.indexOf(x.asset) >= 0 || ids.indexOf(x.name) >= 0);
+        if (!chosen.length) return send(res, 409, { error: 'no matching product in catalog', ids: ids, results: [], catalogError: catalogError });
+        const results = [];
+        for (const product of chosen) results.push(await uninstallProduct(product));
+        const ok = results.every((r) => r.ok);
+        return send(res, ok ? 200 : 409, { ok: ok, results: results });
       }
       if (p === '/v1/remote/state' && method === 'GET') {
         return send(res, 200, remote.snapshot());

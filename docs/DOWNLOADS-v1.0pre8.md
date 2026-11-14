@@ -99,6 +99,12 @@ Studio 的「在线安装」页不经过浏览器验证：桌面程序直接读�
 - 重打包的理由：pre8 的三个 C++ 安装包是 InfinityViewer 更名（无框窗口 + 内置下载管理器）**之前**打的，直接拿来发等于把旧外壳塞给用户。重打包只换外壳载荷，命令行二进制不变；
 - 客户端不用重编就能看到新组件：`fetchCatalog` 拉完公开目录后再拉 `/api/components` 合并，读不到组件门也不算失败（旧门照常只给两个 setup）；
 - 「安装全部」按钮会把 5 个包一起装（Studio 自身除外），单个组件也可以只点自己那一行。
+- 镜像也认组件：`/cdn/<asset>` 先查 `ASSETS` 再查 `COMPONENTS`，所以 Studio 在发布主机和公共代理都不可用时还有自己的一条路；但 **`/dl` 只认 `ASSETS`**，`GET /dl/InfinityCloud-setup` 实测仍回 404 `unknown_asset`——组件不可能从公开门被领走，只有已经知道资产名的 Studio 能取字节（实测 `/cdn/InfinityCloud-setup` HEAD → 200 / 84,202,296 B / `accept-ranges: bytes`）。
+- **卸载也在同一条路上**：`InfinityStudio/src/uninstall.js` 按产品名（去空格、忽略大小写）在 `%LOCALAPPDATA%\Programs\Infinity.Inc\*` 里找目录，跑该目录的 `Uninstall.exe /S _?=<dir>`（`_?=` 让 NSIS 不再把自己复制到 %TEMP%，退出码才代表"卸完了"），然后以**目录真的消失**作为成功判据，不只看退出码。`POST /v1/remote/uninstall {ids:["cloud"]}` 返回 `{ok, results:[{asset,dir,code,removed}]}`；空 id 列表回 400，卸载正在运行的安装器本身被拒绝（`refusing to uninstall the running installer`）。`GET /v1/remote` 现在多一个 `installed` 数组，页面据此把行标成「已安装」并给「卸载」按钮。
+
+最终发布的 Studio 为 **83,807,192 B / sha256 `d5dd3415968f1dc121abce519fb3b656fbd4c334dd87eff27c5772a124798b03`**（sig=Valid，`/api/catalog` 同步，部署 18c68e6f），卸载通道就是在这一版上复跑的。
+
+卸载通道的端到端实测（`work/qa-studio-uninstall.ps1` + `.mjs`）→ **STUDIO-UNINSTALL PASS 11/11 / STUDIO-UNINSTALL-CHANNEL PASS**：静默装 Studio → 起 `cli.js 7801` → 基线 `installed` 只有 `studio`（安装器自己就在这个目录里）→ `POST /v1/remote/install {ids:["InfinityCloud-setup"]}` → `phase=done`、`installed` 变 `["studio","inc"]` 并带出目录 → 拒绝卸载运行中的安装器 → 空 ids 回 400 → `POST /v1/remote/uninstall {ids:["InfinityCloud-setup"]}` 回 200 `{code:0, removed:true}` → 目录真的消失、`installed` 回到 `["studio"]`；最后 Studio 自身 `Uninstall.exe /S` exit 0、`dirs_left=False`。产品 id 是 `inc`/`ipm`/`int`，资产名是 `InfinityCloud-setup` 这类，路由现在三者（id、资产名、显示名）都接受。
 
 无窗口端到端（`work/qa-studio-component.ps1`，job `pwsh-61028a568856414a`）→ **STUDIO-COMPONENT PASS**：装好的 Studio `GET /v1/remote` 列出 **5 个产品**（Studio 83,752,488 / Server 83,716,680 / 三个组件），`POST /v1/remote/install {ids:['InfinityCloud-setup']}` → 下载 84 s（84,202,296 B，sha256 与目录一致）→ 安装 → `phase=done ok=true`，全程 **118 s**；装上的 Infinity Cloud 为 **97 文件 / 292,469,926 B**，`inc_cli.exe`、`inc_shell\inc_window.exe`、`inc_shell\resources\app\main.js`（27,993 B，含 `InfinityViewer`）与 `downloads.js` 全在位，两个卸载器 `/S` exit 0、目录清空。首轮该脚本打印 FAIL 是脚本自己的错（PASS 条件在卸载后才求值），不是产品问题。
 

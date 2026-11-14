@@ -253,6 +253,16 @@ function show(id, value) {
   if (!node) return;
   node.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
 }
+/* 干净机器上没有工作区构建产物时，本地安装会回 required artefact missing。
+   把这句话直接甩给用户等于没说话，翻译成他下一步该做的事。 */
+function installNote(d) {
+  if (d && d.error === "required artefact missing") {
+    return "本机没有构建产物，无法就地安装。请切到「在线安装」，从发布服务器安装已签名的安装包。";
+  }
+  if (d && d.error) return "失败：" + d.error;
+  return d;
+}
+
 function api(method, url, body) {
   var init = { method: method, headers: {} };
   if (body !== undefined) { init.headers["content-type"] = "application/json"; init.body = JSON.stringify(body); }
@@ -490,12 +500,18 @@ function renderRemote(data) {
     list.innerHTML = "<div class='card'><p class='hint'>" + esc((data && data.error) || "目录为空：发布服务器还没有上架安装包。") + "</p></div>";
     return;
   }
+  var installed = (data && data.installed) || [];
+  var here = {};
+  for (var n = 0; n < installed.length; n++) if (installed[n] && installed[n].id) here[installed[n].id] = true;
   var html = "<table><thead><tr><th>产品</th><th>安装包</th><th>大小</th><th>SHA256</th><th>操作</th></tr></thead><tbody>";
   for (var i = 0; i < products.length; i++) {
     var p = products[i];
-    html += "<tr><td>" + esc(p.name || p.id) + (p.component ? " <span class='chip'>组件</span>" : "") + "</td><td><code class='chip'>" + esc(p.asset) + "</code></td>";
+    var isHere = !!here[p.id];
+    html += "<tr><td>" + esc(p.name || p.id) + (p.component ? " <span class='chip'>组件</span>" : "") + (isHere ? " <span class='chip host'>已安装</span>" : "") + "</td><td><code class='chip'>" + esc(p.asset) + "</code></td>";
     html += "<td>" + esc(humanBytes(p.size)) + "</td><td><code class='chip'>" + esc(String(p.sha256 || "").slice(0, 12)) + "</code></td>";
-    html += "<td><button class='ghost' data-rid='" + esc(p.id || p.asset) + "'>安装</button></td></tr>";
+    html += "<td><button class='ghost' data-rid='" + esc(p.id || p.asset) + "'>" + (isHere ? "重新安装" : "安装") + "</button>";
+    if (isHere) html += " <button class='ghost' data-unrid='" + esc(p.id || p.asset) + "'>卸载</button>";
+    html += "</td></tr>";
   }
   html += "</tbody></table>";
   if (data && data.error) html += "<p class='hint'>目录错误：" + esc(data.error) + "</p>";
@@ -503,6 +519,26 @@ function renderRemote(data) {
   var buttons = list.querySelectorAll("[data-rid]");
   Array.prototype.forEach.call(buttons, function (btn) {
     btn.addEventListener("click", function () { installRemote([btn.getAttribute("data-rid")]); });
+  });
+  var unbuttons = list.querySelectorAll("[data-unrid]");
+  Array.prototype.forEach.call(unbuttons, function (btn) {
+    btn.addEventListener("click", function () { uninstallRemote([btn.getAttribute("data-unrid")]); });
+  });
+}
+
+/* 卸载走和安装同一条路：只认目录里的 Uninstall.exe，/S 静默，结果看目录是否真的消失。 */
+function uninstallRemote(ids) {
+  var log = el("remoteLog");
+  if (log) log.textContent = "正在卸载 " + (ids || []).join(", ") + " …";
+  api("POST", "/v1/remote/uninstall", { ids: ids || [] }).then(function (data) {
+    var rows = (data && data.results) || [];
+    var text = rows.map(function (r) {
+      return (r.ok ? "已卸载 " : "卸载失败 ") + (r.asset || "") + (r.ok ? "" : "：" + (r.error || r.code));
+    }).join("\n");
+    if (log) log.textContent = text || (data && data.error) || "没有可卸载的产品";
+    loadRemote();
+  }).catch(function (err) {
+    if (log) log.textContent = "卸载失败：" + (err && err.message ? err.message : err);
   });
 }
 
@@ -582,7 +618,7 @@ function boot() {
       var install = button.getAttribute("data-install");
       var remove = button.getAttribute("data-remove");
       var enter = button.getAttribute("data-enter");
-      if (install) api("POST", "/v1/suite/install", { id: install }).then(function (d) { show("suiteMsg", d); });
+      if (install) api("POST", "/v1/suite/install", { id: install }).then(function (d) { show("suiteMsg", installNote(d)); });
       if (remove) api("POST", "/v1/suite/remove", { id: remove }).then(function (d) { show("suiteMsg", d); });
       if (enter) { state.pendingApp = enter; setView("apps"); }
     });

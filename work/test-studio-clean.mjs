@@ -50,6 +50,15 @@ try {
   ok('apps registry answers', Array.isArray(apps.apps) && apps.apps.length > 0, String(apps.apps && apps.apps.length));
   const health = await getJson('/v1/health');
   ok('health ok', health.ok === true, JSON.stringify(health).slice(0, 80));
+
+  /* 干净机器上本地安装必然失败，页面必须把 required artefact missing 翻成人话并指向在线安装。 */
+  const pageHtml = await fetch(base + '/').then((r) => r.text());
+  ok('page carries the clean-machine hint', pageHtml.includes('本机没有构建产物') && pageHtml.includes('在线安装'), String(pageHtml.length));
+  ok('hint maps the 409 error', pageHtml.includes('required artefact missing'), 'missing error mapping');
+
+  /* 卸载通道存在，且空 id 列表在碰目录之前就被挡掉。 */
+  const emptyUninstall = await post('/v1/remote/uninstall', { ids: [] });
+  ok('uninstall route refuses an empty id list', emptyUninstall.status === 400, emptyUninstall.status);
 } finally {
   await close();
   fs.rmSync(empty, { recursive: true, force: true });

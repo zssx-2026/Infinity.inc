@@ -11,7 +11,16 @@
  * that is what lets it pull the mirror with eight connections when the release
  * host is unreachable, instead of falling back to one slow stream. */
 
-import { ASSETS, sourceUrl } from '../_lib/assets.js';
+import { ASSETS, COMPONENTS, sourceUrl } from '../_lib/assets.js';
+
+/* Components are mirrored here too, so Studio has an own route when both the
+ * release host and the public proxy are unusable. They are not reachable
+ * through /dl: that door only knows ASSETS, so a component can never be handed
+ * out as a public download -- only a caller who already knows the asset name
+ * (Studio, reading /api/components) can ask for the bytes. */
+function itemOf(asset) {
+  return ASSETS[asset] || COMPONENTS[asset] || null;
+}
 
 const CACHE_SECONDS = 31536000;
 
@@ -36,14 +45,14 @@ function head(item, asset) {
 }
 
 export function onRequestHead(context) {
-  const item = ASSETS[context.params.asset];
+  const item = itemOf(context.params.asset);
   if (!item) return json({ error: 'unknown_asset', asset: context.params.asset }, 404);
   return head(item, context.params.asset);
 }
 
 export async function onRequestGet(context) {
   const asset = context.params.asset;
-  const item = ASSETS[asset];
+  const item = itemOf(asset);
   if (!item) return json({ error: 'unknown_asset', asset: asset }, 404);
 
   const request = context.request;
