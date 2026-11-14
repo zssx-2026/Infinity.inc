@@ -17,7 +17,7 @@ foreach ($a in $apps) {
   "== $($a.product) =="
   if (-not (Test-Path $setup)) { "  FAIL no setup: $setup"; $fail++; continue }
   "  setup  " + (Get-Item $setup).Length + ' B'
-  $p = Start-Process -FilePath $setup -ArgumentList '/S' -PassThru -Wait
+  $p = Start-Process -WindowStyle Hidden -FilePath $setup -ArgumentList '/S' -PassThru -Wait
   "  install exit=" + $p.ExitCode
   $dir = Join-Path $env:LOCALAPPDATA ('Programs\Infinity.Inc\' + $a.product)
   $shell = Join-Path $dir ($a.prefix + '_shell')
@@ -34,7 +34,7 @@ foreach ($a in $apps) {
   $env:INFINITY_SHELL_PROBE = '1'
   $env:INFINITY_SHELL_PROBE_FILE = $json
   $env:INFINITY_SHELL_PROBE_PNG = $png
-  $w = Start-Process -FilePath $win -PassThru
+  $w = Start-Process -WindowStyle Hidden -FilePath $win -PassThru
   $w.WaitForExit(90000) | Out-Null
   Remove-Item Env:INFINITY_SHELL_PROBE, Env:INFINITY_SHELL_PROBE_FILE, Env:INFINITY_SHELL_PROBE_PNG -ErrorAction SilentlyContinue
   if (Test-Path $json) {
@@ -47,7 +47,7 @@ foreach ($a in $apps) {
 
   $un = Join-Path $dir 'Uninstall.exe'
   if (Test-Path $un) {
-    $u = Start-Process -FilePath $un -ArgumentList '/S' -PassThru -Wait
+    $u = Start-Process -WindowStyle Hidden -FilePath $un -ArgumentList '/S' -PassThru -Wait
     "  uninstall exit=" + $u.ExitCode + '  gone=' + (-not (Test-Path $dir))
   } else { "  WARN no uninstaller" }
   ""

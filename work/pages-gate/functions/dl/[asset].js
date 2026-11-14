@@ -7,11 +7,7 @@
  * the asset, so a copied link is worthless after two minutes. */
 
 import { read, secretOf } from '../_lib/ticket.js';
-
-const ASSETS = {
-  'InfinityStudio-setup': 'https://github.com/zssx-2026/Infinity-Studio/releases/download/v1.0.0-pre8/InfinityStudio_1.0.0-pre8_win64_setup.exe',
-  'InfinityServer-setup': 'https://github.com/zssx-2026/Infinity-Server/releases/download/v1.0.0-pre8/InfinityServer_1.0.0-pre8_win64_setup.exe'
-};
+import { ASSETS, mirrorUrl } from '../_lib/assets.js';
 
 const VERIFY_PAGE = 'https://infinity-verify.pages.dev/';
 
@@ -67,10 +63,13 @@ async function verifyTurnstile(secret, token, ip) {
 
 export async function onRequestGet(context) {
   const asset = context.params.asset;
-  const target = ASSETS[asset];
-  if (!target) return json({ error: 'unknown_asset', asset: asset }, 404);
+  if (!ASSETS[asset]) return json({ error: 'unknown_asset', asset: asset }, 404);
 
   const url = new URL(context.request.url);
+  /* The redirect points at this deployment's mirror rather than at GitHub: the
+   * browser still gets a 302 from Cloudflare, but the bytes come from an edge
+   * cache instead of a 60 KB/s origin. */
+  const target = mirrorUrl(url.origin, asset);
   const accept = context.request.headers.get('accept') || '';
   const wantsHtml = accept.indexOf('text/html') >= 0;
 

@@ -7,7 +7,7 @@ $out = 'D:\dev\DeepSeekHarnessWorkspace\Infinity.inc\work\shell-probe.json'
 Remove-Item -Force $out -ErrorAction SilentlyContinue
 $env:INFINITY_SHELL_PROBE='1'
 $env:INFINITY_SHELL_PROBE_FILE=$out
-$p = Start-Process -FilePath (Join-Path $dir 'inc_gui.exe') -PassThru
+$p = Start-Process -WindowStyle Hidden -FilePath (Join-Path $dir 'inc_gui.exe') -PassThru
 'pid=' + $p.Id
 $p.WaitForExit(60000) | Out-Null
 'exited=' + $p.HasExited

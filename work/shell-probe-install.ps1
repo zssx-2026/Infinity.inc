@@ -1,7 +1,7 @@
 $ErrorActionPreference='Continue'
 $setup='D:\dev\DeepSeekHarnessWorkspace\Infinity.inc\cpp\release\v1.0pre5-shell\InfinityCloud_1.0.0-pre5_win64_setup.exe'
 $root=Join-Path $env:LOCALAPPDATA 'Programs\Infinity.Inc\Infinity Cloud'
-Start-Process -FilePath $setup -ArgumentList '/S' -Wait
+Start-Process -WindowStyle Hidden -FilePath $setup -ArgumentList '/S' -Wait
 Start-Sleep -Milliseconds 1200
 'INSTALLED=' + (Test-Path $root)
 if (Test-Path $root) { Get-ChildItem $root -Recurse -File | ForEach-Object { '  ' + $_.FullName.Substring($root.Length+1) + ' ' + $_.Length } }
@@ -18,7 +18,7 @@ Pop-Location
 Start-Sleep -Milliseconds 600
 'ORPHAN=' + (@(Get-Process inc_gui -ErrorAction SilentlyContinue).Count)
 $u=Join-Path $root 'Uninstall.exe'
-Start-Process -FilePath $u -ArgumentList '/S' -Wait
+Start-Process -WindowStyle Hidden -FilePath $u -ArgumentList '/S' -Wait
 Start-Sleep -Milliseconds 1500
 'AFTER-UNINSTALL-EXISTS=' + (Test-Path $root)
 'SHORTCUT-GONE=' + (-not (Test-Path $lnk))

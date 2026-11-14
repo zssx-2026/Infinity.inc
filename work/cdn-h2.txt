@@ -1,0 +1,15 @@
+HTTP/1.1 200 OK
+Date: Fri, 13 Nov 2026 12:04:11 GMT
+Content-Type: application/octet-stream
+Content-Length: 83716680
+Connection: keep-alive
+Accept-Ranges: none
+Cache-Control: public, max-age=31536000, immutable
+x-infinity-asset: InfinityServer-setup
+x-infinity-cache: miss
+Report-To: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=zJ3nSld4SvagAEsvpsb8fXqrTxZ6rS%2FI0LRiebfEGWtcZperM7Os7I8sQBrdX%2FoB5pUuaVvXucEoHXBtqMxdDm6cKUnsALt467lPbTfME4oudic66xrrfC9f2HIdh5%2F1hK6gOdJ3YcbmdrHCRCWg4imPjv03ayL5NsrH"}]}
+Nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+Server: cloudflare
+CF-RAY: a59da3344d51fc03-LAX
+alt-svc: h3=":443"; ma=86400
+

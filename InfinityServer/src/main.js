@@ -13,9 +13,26 @@
 
 import { app, BrowserWindow } from 'electron';
 import net from 'node:net';
+import fs from 'node:fs';
+import path from 'node:path';
 import { start } from './server.js';
 
 const PORT_BASE = 7711;
+
+/* A thrown error must never become a native dialog. Electron's default handler
+ * for an uncaught exception or an unhandled rejection is a modal error box, and
+ * a window that pops up to say the program failed is worse than a silent line
+ * in a log: nobody is at the machine, and the dialog blocks the process. */
+function logCrash(what, detail) {
+  try {
+    const dir = app.getPath('userData');
+    fs.mkdirSync(dir, { recursive: true });
+    const text = (detail && (detail.stack || detail.message)) || String(detail || '');
+    fs.appendFileSync(path.join(dir, 'crash.log'), new Date().toISOString() + ' ' + what + ' ' + text + '\n');
+  } catch (ignored) { }
+}
+process.on('uncaughtException', (error) => logCrash('uncaughtException', error));
+process.on('unhandledRejection', (error) => logCrash('unhandledRejection', error));
 let held = null;
 let win = null;
 

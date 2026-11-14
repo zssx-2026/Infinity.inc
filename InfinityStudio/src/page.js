@@ -493,7 +493,7 @@ function renderRemote(data) {
   var html = "<table><thead><tr><th>产品</th><th>安装包</th><th>大小</th><th>SHA256</th><th>操作</th></tr></thead><tbody>";
   for (var i = 0; i < products.length; i++) {
     var p = products[i];
-    html += "<tr><td>" + esc(p.name || p.id) + "</td><td><code class='chip'>" + esc(p.asset) + "</code></td>";
+    html += "<tr><td>" + esc(p.name || p.id) + (p.component ? " <span class='chip'>组件</span>" : "") + "</td><td><code class='chip'>" + esc(p.asset) + "</code></td>";
     html += "<td>" + esc(humanBytes(p.size)) + "</td><td><code class='chip'>" + esc(String(p.sha256 || "").slice(0, 12)) + "</code></td>";
     html += "<td><button class='ghost' data-rid='" + esc(p.id || p.asset) + "'>安装</button></td></tr>";
   }

@@ -17,7 +17,7 @@ $env:INFINITY_SHELL_PROBE_FILE = $json
 $env:INFINITY_SHELL_PROBE_PNG = $png
 if ($Actions) { $env:INFINITY_SHELL_PROBE_ACTIONS = '1' }
 $exe = Join-Path $dir ($Prefix + '_gui.exe')
-$w = Start-Process -FilePath $exe -PassThru
+$w = Start-Process -WindowStyle Hidden -FilePath $exe -PassThru
 $w.WaitForExit(180000) | Out-Null
 Remove-Item Env:INFINITY_SHELL_PROBE, Env:INFINITY_SHELL_PROBE_FILE, Env:INFINITY_SHELL_PROBE_PNG, Env:INFINITY_SHELL_PROBE_ACTIONS -ErrorAction SilentlyContinue
 'png=' + $(if (Test-Path $png) { (Get-Item $png).Length } else { 'none' })

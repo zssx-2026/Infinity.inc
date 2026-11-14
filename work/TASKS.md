@@ -1,5 +1,65 @@
 # Infinity.Inc 任务清单（队列：先到先做，用户新需求排最后）
 
+## 2026-11-14 组件渠道（Studio 装自己的子产品，用户「真正实现所有功能」）
+- [x] **动机**：公开站按 m02647 只给 Studio / Server 两个入口，但 Studio 在干净机器上只能远程装 Server——一个叫 Installer 的程序装不了自己的子产品，等于半个下载页。
+- [x] 三个子产品用**当前 InfinityViewer 外壳**重打包（pre8 的三个 C++ 包是更名与无框窗口之前打的，直接发等于把旧外壳塞给用户）：`work/package-pre8-components.ps1`（只签这三个，避免误签已发布的 Studio/Server 包）→ InfinityCloud **84,202,296 B / `117227717b6b…3d65`**、InfinityPackageManager **83,957,264 B / `d10d48e6e57d…093a`**、InfinityToolbox **83,963,224 B / `ecac7213acb1…4874`**，三个 sig=Valid。
+- [x] 发布到 `zssx-2026/Infinity-Studio` 的 `v1.0.0-pre8` release（asset id 745885043 等），**不作为下载入口**，只作为 Studio 取字节的地方；`tools/publish-electron.mjs` 增加 inc/ipm/int 三个产品项。
+- [x] 门拆成两个：`/api/catalog`（公开，站点渲染，2 条）与 `/api/components`（组件，只有 Studio 读，3 条，带 `component: true` 与 `mirrors`）；表在 `_lib/assets.js` 的 `COMPONENTS`，由 `work/components-update.mjs` 按真实字节重写。
+- [x] Studio 侧 `InfinityStudio/src/remote.js`：抽出 `cleanProduct()`，`fetchCatalog` 拉完公开目录再 `fetchComponents(root)` 合并（读不到组件门不算失败）；`page.js` 表格给组件加「组件」标签。
+- [x] Studio 重建发布：**83,752,488 B / sha256 `ef08da02d2edd1dd498f8ff63f7abbd656ce9b985e9450d5ba40b73ee3120ff6`**，asset 745830063 删除后重传，部署 89055884；`/api/catalog` 实测 2 条、`/api/components` 实测 3 条（各带 2 个 mirrors）。
+- [x] 无窗口端到端（`work/qa-studio-component.ps1`）→ **STUDIO-COMPONENT PASS**：装好的 Studio `GET /v1/remote` 列出 **5 个产品**，`POST /v1/remote/install {ids:['InfinityCloud-setup']}` → 下载 84 s（84,202,296 B，sha256 `117227717b6b…3d65` 与目录一致）→ 安装 → `phase=done ok=true`，全程 **118 s**；**Infinity Cloud 真装上 97 文件 / 292,469,926 B**，`inc_cli.exe`、`inc_shell\inc_window.exe`、`resources\app\main.js`（27,993 B，含 `InfinityViewer`）、`downloads.js` 全在位；两个卸载器 `/S` exit 0、目录清空。
+- [x] 首轮该 QA 打印 FAIL 是**脚本缺陷**（PASS 条件在卸载后才求值，`Test-Path` 必然为假），修法是把断言布尔值在卸载前算好，再与「目录已清空」相与。
+
+## 2026-11-13 无窗口化 + 并行下载抗崩（用户硬约束，本轮）
+- [x] 用户指令 m03838「真正做到什么窗口都不要弹！CMD和报错窗口都不要弹！」→ 立规矩并落地守卫，见 `docs/NO-WINDOWS.md`。
+- [x] **崩溃根因**：并行下载中某片失败时 `Promise.all` 先 reject，其余 job 再 reject 成为 unhandledRejection，Electron 主进程默认弹原生错误框并退出（表现为下载到 454,730 B 后 7721 端口 ECONNREFUSED、日志全空）。
+- [x] `InfinityStudio/src/remote.js`：`downloadParallel` 首个失败即 `AbortController.abort()` 其余分片、每个 job 自己 catch、`Promise.all` 结束后再抛第一个错误；分片 signal 用 `AbortSignal.any([stop.signal, AbortSignal.timeout(120000)])`。
+- [x] `download()` 加 2 次尝试（每次重新 `probeRange`、失败删 `.part`、间隔 1500 ms）；sha256 不匹配不重试（错文件不是坏线路）。`work/test-remote-download.mjs` 仍 **PASS 13/13**。
+- [x] `InfinityStudio/src/main.js` 重写：`logLine` 写 `userData/studio.log`；`uncaughtException`/`unhandledRejection` 只记日志；`render-process-gone` 记 details。
+- [x] `InfinityServer/src/main.js`、`shell/main.js` 同样加崩溃日志守卫（`userData/crash.log`）。
+- [x] `InfinityStudio/src/apps/codecraft.js` 三处 `spawnSync`（`:118` probeCompiler、`:127` readVersion、`:174` compile）补 `windowsHide: true`。
+- [x] 守卫脚本 `work/check-hidden-windows.mjs`（JS 看 spawn 前后 30 行、.ps1 看 Start-Process 后 3 行）→ **HIDDEN-WINDOWS PASS files=149 problems=0**。
+- [x] 修补脚本 `work/patch-windowstyle.mjs`（argv 传清单，PowerShell 5.1 无 `<` 重定向），已给 19 个历史探针补 `-WindowStyle Hidden`。
+- [x] Studio 用最终代码重建：`node InfinityStudio/build.mjs` + `tools/pack-electron.mjs studio` → 未签名 83,788,329 B；签名后 **83,795,576 B / sha256 `8a3bcad8e1b379f7324d668590498a6a4607ae68fa5bdfcb0f238e894f3347a1`**，sig=Valid。
+- [x] 重传资产：删旧 742989515，上传 **id 743422200**，digest 与本地一致；`work/pages-gate/functions/api/catalog.js` 的 Studio size/sha256 更新并重部署（deployment 2ac91cb2）→ `/api/catalog` 实测 Studio 83,795,576 / `8a3bcad8…`，Server 83,716,680 / `b6963536…`。
+- [ ] 无窗口端到端：静默安装 Studio → `node resources/app/src/cli.js 7799` → `POST /v1/remote/install` 装 Server → 断言越过 454,730 B 且服务存活（job `pwsh-541863b55e724692`）。
+- [x] `docs/DOWNLOADS-v1.0pre8.md` 补「五、无窗口验收（硬约束）」并指向 `docs/NO-WINDOWS.md`；新增 `docs/NO-WINDOWS.md`。
+- [x] 无窗口端到端脚本 `work/qa-studio-headless.{ps1,mjs}`：静默安装（101 文件 / 281,540,790 B）→ `-WindowStyle Hidden node <abs cli.js> 7799`（`-ArgumentList` 里路径**必须自己加引号**，否则含空格被拆开 → ECONNREFUSED）→ 轮询 `/v1/remote/state`。
+- [x] 真实缺陷修复：分片硬超时 `AbortSignal.timeout(120000)` 把慢下载砍断（438 s 后 `error=terminated`）→ 改为 `STALL_MS = 90000` 停滞看门狗（5 s 心跳检查，连续 90 s 零字节才 abort）。
+
+## 2026-11-13 下载镜像 + 主机回退（本轮）
+- [x] 动机：GitHub 单流 60–73 KB/s，80 MB 要半小时；用户要求「真正实现所有功能」。
+- [x] 新增 `work/pages-gate/functions/_lib/assets.js`（唯一资产表 ASSETS + TAG `v1.0.0-pre8` + `sourceUrl`/`mirrorUrl`），catalog / dl / cdn 三处共用。
+- [x] 新增 `work/pages-gate/functions/cdn/[asset].js`：带 Range 时代理上游；无 Range 时 `caches.default` 读写 + `x-infinity-cache` 头。
+- [x] `api/catalog.js` 每项给 `url`（GitHub 直链）、`mirror`（`/cdn/<asset>`）、`dl`；`dl/[asset].js` 的 302 落点改为 `mirrorUrl(...)`。四函数 `node --check` exit 0，已部署（57c5666d、efa0b95b）。
+- [x] 镜像实测：`GET /cdn/InfinityServer-setup` → 200 / 83,716,680 B / 780.7 s（0.10 MiB/s），sha256 与目录一致；**重复请求仍 `x-infinity-cache: miss`** → `caches.default.put` 留不住 84 MB 对象，镜像只是代理。
+- [x] R2 路线受阻：`wrangler r2 bucket create` 回 `Please enable R2 through the Cloudflare Dashboard. [code: 10042]`，需面板开通，暂缓。
+- [x] 最终策略：`InfinityStudio/src/remote.js` 的 `download()` 用主机列表 `[product.url, product.mirror]`，每主机试 2 次，收到字节即停；单测仍 **PASS 13/13**。
+- [x] 用该策略重建/签名/上传（job `pwsh-390177a1eccb48b1` exit 0）：未签名 83,763,558 B → 签名 **83,770,800 B / sha256 `692832981c5337d8622692c141632e941ac4aded055904384ae0156ba0bf11f8`**，资产 id **743531525**；`_lib/assets.js` 已更新 size 83770800 / sha `692832981c53…`；部署 deployment b0e1d5ff；`/api/catalog` 实测两条产品 size/sha/url/mirror/dl 全对。
+- [x] 无窗口复核 Server 页面：新建 `work/test-server-page.mjs`（进程内 `start({port:0})`，读页面 + `/v1/health` + `/v1/cache/stats` + `/v1/verify`）→ **SERVER-PAGE PASS 11/11**：页面 27,640 B、`undefined` 0 命中、`coresPerNode=288`、`cores 2304 === 8*288`、缓存六层、哈希链 ok。
+- [x] **真实缺陷（本轮找到）**：`fetchCatalog` 的归一化只留 `url`、丢掉 `mirror`，于是本机 GitHub 被 `ECONNRESET` 时下载器只剩死路——无窗口 QA 实测 54 s / 0 字节 / `error=fetch failed`。修法：`InfinityStudio/src/remote.js` 的 map 增 `mirror: String(p.mirror || '')`；单测补两条（目录保留 mirror、死端口回落镜像）→ **REMOTE-DOWNLOAD-TEST PASS 17/17**。
+- [x] 新增 `work/test-studio-clean.mjs`（空 root 起服务）：**STUDIO-CLEAN PASS 13/13** —— inventory 四面全 0、desktop plan `files=10 missing=10 blocking=4 totalBytes=0`、`/v1/install` 回 **409 required artefact missing** 且不建 dest、suite 8 分支 / apps 10 个 / health ok。证明干净机器上「子产品」不会假装能装。
+- [x] 修 `work/qa-studio-headless.mjs` 的日志打印（`state.log` 元素是 `{at,text}` 对象，原来打印成 `[object Object]`）。
+- [x] 带修复重建发布（job `pwsh-a8e5e9193253492d` exit 0）：未签名 83,745,812 B → 签名 **83,753,056 B / sha256 `8973059ae182c3f7b859ae6730e2c1e806bb579554d51385fc976a55acfc9e10`**，删旧资产 743531525、上传 **id 743613817**；`_lib/assets.js` 已更新、部署 0ea577e9；`/api/catalog` 实测 Studio 83,753,056 / `8973059ae182` + mirror 字段。
+- [x] `work/pages-gate/functions/cdn/[asset].js` 增 `onRequestHead`（按资产表回 `content-length` + `accept-ranges: bytes`），GET 无 Range 时也声明 `accept-ranges: bytes`：让桌面端把镜像当成可并发主机，而不是只能单流的兜底。
+- [x] **下载主机升级为有序镜像列表**：`_lib/assets.js` 增 `GH_PROXY = 'https://gh-proxy.com/'` 与 `proxyUrl(item)`；`api/catalog.js` 每条产品给 `mirrors: [proxyUrl(item), mirrorUrl(origin, asset)]`（`mirror` 字段保留兼容）；`InfinityStudio/src/remote.js` 的 map 增 `mirrors`（去重保序），`download()` 用 `addHost()` 按 `url` → `mirrors` → `mirror` 去重后逐个试。理由：本机到 GitHub 直连 `ECONNRESET`、自建 `/cdn` 8 路只有 160 KB/s，而公共代理 `gh-proxy.com` 8 路 400 KB/s（实测同一 84 MB 资产）；代理不是唯一路径，且落地必过目录 sha256，错文件在哈希处失败。
+- [x] `work/test-remote-download.mjs` 扩到 **PASS 18/18**：新增「目录保留有序 mirrors（含去重）」与「只有 `mirrors` 没有 `mirror` 时，死主地址仍能从 mirrors 下载成功」两条。
+- [x] 带 mirrors 重建发布：**83,803,040 B / sha256 `15478764012a0dc06562f051470cfc0b9223bcba41fbba62daf46d44ecb17ada`**，删旧资产 743613817、上传 **id 743675234**；`assets.js` 同步、部署 e5c99fbd；`/api/catalog` 实测两条都带 `mirrors`（代理 + 自建）。已知：产物里的 `remote.js` 比源码少一行 mirrors 去重（构建早于该编辑），行为一致（`addHost` 已去重），下次重建自动带上。
+- [x] **真实缺陷（2026-11-14 定位）**：并行下载按「8 条等分 Range」切分，一条覆盖 10 MB 的 Range 一旦爬行就只能整条丢掉重来——实测最后 2.2 MB 只有 1.2 KB/s、每 15 s 来几十字节，看门狗（90 s 零字节）永不触发，安装从 6 分钟拖成 30 分钟。重写 `downloadParallel`：**2 MiB 段 + 8 条连接的队列**，段失败或速率低于地板（`SLOW_WINDOW_MS=20000` 窗口内 < `SLOW_BYTES_PER_SEC=6000`）就 abort 该段并重排队，最多重试 3 次；进度按段高水位计，重试不重复计数也不倒退。
+- [x] `work/test-remote-download.mjs` 扩到 **PASS 21/21**：新增「首轮只吐 5 KB/s 的段」用例，断言该段被丢弃、重取成功、整体没有被等满（< 180 s）；`test-studio-clean` 13/13、`test-server-page` 11/11、`check-hidden-windows` files=151 problems=0 全绿。
+- [x] 带分段下载器重建发布：**83,751,712 B / sha256 `d72433918d5b402f8ed03594866ea236336894e1e119c0295fd72916b6cb7a22`**，删旧资产 743675234、上传 **id 745830063**；`assets.js` 同步、部署 050b0173；`/api/catalog` 实测 Studio 83,751,712 / `d72433918d5b`。
+- [x] **无窗口端到端 STUDIO-HEADLESS PASS（2026-11-14）**：job `pwsh-ee96c6a1e0384b00` exit 0 —— 静默安装 Studio（101 文件 / 281,544,502 B）→ 起 `cli.js 7799` → `POST /v1/remote/install` 装 Server → **下载 78 s（83,716,680 B，sha256 `b6963536…a526` 校验通过）→ 安装 28 s → phase=done ok=true**，全程 **106 s**（旧代码同样一步要 30 分钟以上）；Server 装上 91 文件 / 281,229,603 B，两个卸载器 `/S` 均 exit 0、安装目录清空。
+- [ ] 部署镜像 HEAD 改动并实测 `probeRange(mirror)` → `ranges:true size:83716680`。
+
+
+## 2026-11-13 并行分片下载（Studio 在线安装提速，本轮）
+- [x] 动因：GitHub 资产单流在本机约 16 KiB/s（83 MB 要一个半小时），在线安装实际不可用；资产主机支持 Range，改为 8 路分片。
+- [x] `InfinityStudio/src/remote.js`：新增 `PARALLEL_MIN_BYTES = 8 * 1024 * 1024`、`PARALLEL_CONNECTIONS = 8`、`probeRange(url)`（HEAD 读 content-length / accept-ranges，20 s 超时）、`downloadParallel(url, part, size, onProgress)`（`fs.promises.open(part,'w')`，每片 `range: bytes=from-to` 要求 206，`handle.write(buffer,0,len,offset)` 定位写，末尾断言收满）、`downloadSingle(...)`（原单流抽成函数）；`download()` 先 probe，命中 Range 且 ≥ 8 MiB 走并行，任何异常删 `.part` 回落单流，最后仍做 sha256 校验再 rename。
+- [x] 单测 `work/test-remote-download.mjs`（本地 http server 12 MiB+12,345 B 随机体，三种主机行为）：**REMOTE-DOWNLOAD-TEST PASS 13/13**，覆盖 range 请求数 ≥ 4、有 Range 时零全量请求、进度单调且收尾等于 size、无 `.part` 残留、二次调用 `cached:true`、无 Range 主机回落单流、坏哈希抛 `sha256 mismatch` 并清理。
+- [x] 文档同步：`docs/DOWNLOADS-v1.0pre8.md` 第四节增并发下载说明、第五节限速条目改为「已用 8 路 Range 缓解但无镜像」、第六节列单测文件。
+- [ ] 用并行版重建 Studio → 签名 → 重传资产 → 更新 catalog size/sha256 并重部署 → 复验 `/api/catalog` 与 `GET /v1/remote`。
+- [ ] 真机验证并行下载对 GitHub 的实际吞吐；若仍不可用需考虑镜像。
+
 ## 2026-11-13 下载面收口：本地验证回退 + Studio 在线安装真跑通（本轮）
 - [x] 网络定性（决定架构）：Turnstile 的挑战 iframe 主机 `hagen.challenges.cloudflare.com` 本机不可达（直连与 `--resolve` 104.18.8.208/104.18.9.208 均 15 s 超时；浏览器 `net::ERR_ABORTED`），而 `challenges.cloudflare.com/turnstile/v0/api.js` 是 302 可达 → 只挂 Turnstile 会让受限网络**所有下载不可用**。
 - [x] 本地验证回退（Pages Functions，`work/pages-gate/functions/`）：`_lib/ticket.js`（b64url + HMAC-SHA256 + 定时安全比较 + `makeCode(5)`）、`_lib/captcha.js`（5x7 点阵 32 字形 + 手写 PNG 编码器 CRC32/IHDR/IDAT/IEND + CompressionStream）、`api/verify.js`（GET 发 `{challenge,image,expiresIn:180}`，challenge 只带 HMAC 不含明文；POST 比对后发绑定 asset 的 120 s 票据）、`dl/[asset].js`（先验 `?lt=` 再验 `?token=`，通过才 302；未知资产 404 `unknown_asset`）。

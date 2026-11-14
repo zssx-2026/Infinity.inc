@@ -239,6 +239,7 @@ export class InfinityServer {
       rack: {
         id: this.cfg.rackId,
         nodes: this.scheduler.pool.nodes,
+        coresPerNode: this.cfg.coresPerNode,
         dpus: this.cfg.dpus,
         cores: this.scheduler.pool.capacity(),
         uptimeSec: upSec

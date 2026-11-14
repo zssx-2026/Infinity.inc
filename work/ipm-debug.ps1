@@ -1,7 +1,7 @@
 $rel='D:\dev\DeepSeekHarnessWorkspace\Infinity.inc\cpp\release\v1.0pre5-shell'
 $setup=(Get-ChildItem $rel -Filter 'InfinityPackageManager*_setup.exe' | Select-Object -First 1).FullName
 'SETUP='+$setup
-$p=Start-Process -FilePath $setup -ArgumentList '/S' -Wait -PassThru
+$p=Start-Process -WindowStyle Hidden -FilePath $setup -ArgumentList '/S' -Wait -PassThru
 'EXIT='+$p.ExitCode
 Start-Sleep -Milliseconds 1500
 $base=Join-Path $env:LOCALAPPDATA 'Programs\Infinity.Inc'

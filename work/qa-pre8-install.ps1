@@ -39,7 +39,7 @@ foreach ($a in $apps) {
   $env:INFINITY_SHELL_PROBE = '1'
   $env:INFINITY_SHELL_PROBE_FILE = $json
   $env:INFINITY_SHELL_PROBE_PNG = $png
-  $w = Start-Process -FilePath $win -PassThru
+  $w = Start-Process -WindowStyle Hidden -FilePath $win -PassThru
   $w.WaitForExit(120000) | Out-Null
   Remove-Item Env:INFINITY_SHELL_PROBE, Env:INFINITY_SHELL_PROBE_FILE, Env:INFINITY_SHELL_PROBE_PNG -ErrorAction SilentlyContinue
   if (Test-Path $json) {

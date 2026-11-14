@@ -1,5 +1,5 @@
 $dir = 'D:\dev\DeepSeekHarnessWorkspace\Infinity.inc\shell\build\inc_gui-win32-x64'
-$p = Start-Process -FilePath (Join-Path $dir 'inc_gui.exe') -PassThru
+$p = Start-Process -WindowStyle Hidden -FilePath (Join-Path $dir 'inc_gui.exe') -PassThru
 Start-Sleep -Seconds 7
 $p.Refresh()
 'alive=' + (-not $p.HasExited)

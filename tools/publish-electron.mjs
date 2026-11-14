@@ -39,6 +39,49 @@ const PRODUCTS = {
       'without this file changing.'
     ].join('\n')
   },
+  /* The sub-products Studio installs for itself. Same repository as the studio
+   * so one release carries everything a studio needs, but never listed on the
+   * public page: the site reads /api/catalog, and these live on
+   * /api/components. */
+  inc: {
+    repo: 'Infinity-Studio',
+    product: 'Infinity Cloud',
+    file: 'cpp/release/v1.0pre8/InfinityCloud_1.0.0-pre8_win64_setup.exe',
+    tag: 'v1.0.0-pre8',
+    title: 'Infinity Cloud 1.0.0-pre8',
+    body: [
+      'Infinity Cloud - component installed by Infinity Studio.',
+      '',
+      '- Not offered as a standalone download; Studio installs it from here.',
+      '- Silent per-user install: no elevation, no second wizard.'
+    ].join('\n')
+  },
+  ipm: {
+    repo: 'Infinity-Studio',
+    product: 'Infinity Package Manager',
+    file: 'cpp/release/v1.0pre8/InfinityPackageManager_1.0.0-pre8_win64_setup.exe',
+    tag: 'v1.0.0-pre8',
+    title: 'Infinity Package Manager 1.0.0-pre8',
+    body: [
+      'Infinity Package Manager - component installed by Infinity Studio.',
+      '',
+      '- Not offered as a standalone download; Studio installs it from here.',
+      '- Silent per-user install: no elevation, no second wizard.'
+    ].join('\n')
+  },
+  int: {
+    repo: 'Infinity-Studio',
+    product: 'Infinity Toolbox',
+    file: 'cpp/release/v1.0pre8/InfinityToolbox_1.0.0-pre8_win64_setup.exe',
+    tag: 'v1.0.0-pre8',
+    title: 'Infinity Toolbox 1.0.0-pre8',
+    body: [
+      'Infinity Toolbox - component installed by Infinity Studio.',
+      '',
+      '- Not offered as a standalone download; Studio installs it from here.',
+      '- Silent per-user install: no elevation, no second wizard.'
+    ].join('\n')
+  },
   server: {
     repo: 'Infinity-Server',
     product: 'Infinity Server',
@@ -62,7 +105,7 @@ const dry = args.indexOf('--dry-run') >= 0;
 const tagArg = args.indexOf('--tag');
 const spec = PRODUCTS[which];
 if (!spec) {
-  console.log('usage: node tools/publish-electron.mjs studio|server [--tag <tag>] [--dry-run]');
+  console.log('usage: node tools/publish-electron.mjs studio|server|inc|ipm|int [--tag <tag>] [--dry-run]');
   process.exit(2);
 }
 const tag = tagArg > 0 ? args[tagArg + 1] : spec.tag;

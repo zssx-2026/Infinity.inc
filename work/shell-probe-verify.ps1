@@ -5,7 +5,7 @@ foreach($a in $apps){
   $setup=Get-ChildItem $rel -Filter ('*_1.0.0-pre5_win64_setup.exe') | Where-Object { $_.Name -like (($a.p -replace ' ','')+'*') } | Select-Object -First 1
   if(-not $setup){ 'MISSING-SETUP ' + $a.d; continue }
   $root=Join-Path $env:LOCALAPPDATA ('Programs\Infinity.Inc\'+$a.p)
-  Start-Process -FilePath $setup.FullName -ArgumentList '/S' -Wait
+  Start-Process -WindowStyle Hidden -FilePath $setup.FullName -ArgumentList '/S' -Wait
   Start-Sleep -Milliseconds 1000
   $win=Join-Path $root ($a.d+'_window.exe')
   $ui=Join-Path $root 'ui'
@@ -18,7 +18,7 @@ foreach($a in $apps){
   if(Test-Path $lnk){ $s=$w.CreateShortcut($lnk); $t=$s.TargetPath; $ar=$s.Arguments }
   ('RESULT '+$a.d+' setup='+$size+' window='+(Test-Path $win)+' loader='+(Test-Path $loader)+' ui='+$uicount+' target='+($t -split '\\')[-1]+' args='+$ar)
   $u=Join-Path $root 'Uninstall.exe'
-  Start-Process -FilePath $u -ArgumentList '/S' -Wait
+  Start-Process -WindowStyle Hidden -FilePath $u -ArgumentList '/S' -Wait
   Start-Sleep -Milliseconds 1200
   ('CLEAN '+$a.d+' gone=' + (-not (Test-Path $root)) + ' lnk=' + (-not (Test-Path $lnk)))
 }

@@ -28,6 +28,19 @@ const fs = require('node:fs');
 const net = require('node:net');
 const { spawn } = require('node:child_process');
 
+/* Same rule as the other windows: no native error box, ever. Anything that
+ * escapes lands in the log next to the settings, and the window stays up. */
+function logCrash(what, detail) {
+  try {
+    const dir = app.getPath('userData');
+    fs.mkdirSync(dir, { recursive: true });
+    const text = (detail && (detail.stack || detail.message)) || String(detail || '');
+    fs.appendFileSync(path.join(dir, 'crash.log'), new Date().toISOString() + ' ' + what + ' ' + text + '\n');
+  } catch (ignored) { }
+}
+process.on('uncaughtException', (error) => logCrash('uncaughtException', error));
+process.on('unhandledRejection', (error) => logCrash('unhandledRejection', error));
+
 /* The chrome page is served from a scheme of its own, not from a loopback port.
  * A port is a fresh origin on every launch, so localStorage - the open tabs, the
  * theme, the playzone - would be thrown away each time the window started. A

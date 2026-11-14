@@ -26,6 +26,7 @@ Cloudflare 302 跳转、Studio 在应用内在线安装。
 ```
 
 - 下载地址从不写死在页面里：页面上只有 `/dl/<asset>`，真实资产地址由函数侧决定，换版本不用改页面。
+- 302 的落点现在指向本部署的镜像 `/cdn/<asset>`（不是 GitHub）：仍是 Cloudflare 302，但字节从 Cloudflare 边缘取，链路少一跳。
 - 票据一次性、短时效：Turnstile 票据 300 s，本地票据 120 s；换 asset 用同一张票会被拒（`local_ticket_invalid`）。
 - 没有票：`Accept: text/html` 得到验证页（200），JSON 客户端得到 `403 {"error":"turnstile_required"}`；票无效 `403 turnstile_failed`；未知资产 `404 unknown_asset`。
 
@@ -53,23 +54,81 @@ Cloudflare 302 跳转、Studio 在应用内在线安装。
 Studio 的「在线安装」页不经过浏览器验证：桌面程序直接读目录、直接下资产。
 
 - 目录：`GET /api/catalog`（Studio 侧 `InfinityStudio/src/remote.js` 的 `fetchCatalog`），**两个主机按序尝试**——`https://infinity-downloads.pages.dev` 优先，`https://infinity-account-auth-worker.zssx2026.workers.dev` 兜底（`*.workers.dev` 在部分网络被 SNI 阻断，单主机等于单点故障）；
-- 下载：按目录里的 `url` 直连 GitHub 资产，落 `%LOCALAPPDATA%\Infinity\Studio\downloads\`，**先算 sha256 与目录比对**，不一致就删掉重下；
+- 目录归一化必须保住 `mirror`：`fetchCatalog` 会把服务端目录映射成干净结构，早先这一层只留了 `url`，于是 GitHub 在本机被 reset 时下载器手里只有一条死路，两次尝试后直接 `fetch failed`（实测 54 s、0 字节、`peak_received=0`）。这条缺陷只在「主 host 真的不可用」时暴露，单测已补「死端口回落镜像」用例；
+- 下载：目录给 **一个主地址 + 有序镜像列表**——`url` 是 GitHub 资产直链（支持 Range，可并发），`mirrors` 依次是公共 GitHub 代理 `https://gh-proxy.com/<github url>` 与本部署的 `/cdn/<asset>` 镜像（`work/pages-gate/functions/cdn/[asset].js`，边车拉取后回传）。下载器按 `url` → `mirrors` 顺序去重后逐个试，**每个主机各试 2 次**；新增镜像只改 `_lib/assets.js` 与 `api/catalog.js`，客户端不用重编；落 `%LOCALAPPDATA%\Infinity\Studio\downloads\`，**算 sha256 与目录比对**，不一致就删掉重下（哈希不符不重试，那是错文件不是坏线路）；
+- 并发：资产主机支持 Range 时（`HEAD` 里 `accept-ranges: bytes` 且体积 ≥ 8 MiB），下载切成 **2 MiB 段**、最多 **8 条连接**写同一个 `.part` 文件（`handle.write(buffer,0,len,offset)` 定位写，每段断言收满）。分段的理由不是并发数，而是**可重试**：一条覆盖十分之一文件的 Range 一旦变慢，只能整条丢掉重来，而分段可以把坏的那 2 MiB 放回队列、其余连接继续跑。失败段最多重试 3 次，全失败才删 `.part` **回落单流**；主机不支持 Range 或返回不是 206 同样回落，安装不会因为分片策略失败。实测（2026-11-13，同一资产 8×1 MiB）：顺序 0.87 MiB/s，8 路并发 4.47 MiB/s（5.12×），单流最差时约 16 KiB/s，8 路并发是能不能用的分界；
 - 文件名取资产名（`InfinityStudio_1.0.0-pre8_win64_setup.exe`），必须是 `.exe`——`spawn()` 对没有扩展名的 PE 会报 `ENOENT`（曾真实踩到）；
+- 停滞判定：分片不再用固定 120 s 截止（80 MiB 的 1/8 是 10 MB，60 KB/s 下合法地要几分钟，硬截止把慢下载变成失败——实测 438 s 报 `terminated`）。改为 `STALL_MS = 90000` 的看门狗：**连续 90 s 没有任何字节**才 abort；
+- 慢段判定（2026-11-14 补，真实踩到）：**「还在动」不等于「在干活」**——一次真实下载的最后 2.2 MB 只有 1.2 KB/s，每 15 s 来几十字节，看门狗永远不响，6 分钟的安装变成 30 分钟。所以每段还有速率地板：`SLOW_WINDOW_MS = 20000` 窗口内平均低于 `SLOW_BYTES_PER_SEC = 6000` 就 abort 该段并重排队（重试 3 次）。单测 `work/test-remote-download.mjs` 里专门有一个「首轮只吐 5 KB/s 的段」用例，断言它被丢弃后重取成功、且整体没有被等满；
 - 安装：`/S` + `windowsHide`，串行一次一个，退出码 0 才算成功；页面 700 ms 轮询 `/v1/remote/state` 显示阶段、进度与日志。
 
-验收（2026-11-13）：装好的 Studio 起自己的服务后 `GET /v1/remote` 返回 `base=https://infinity-downloads.pages.dev`、两条产品（Studio 83,742,472 B / Server 83,745,744 B），点「安装」后 **Server 真装上**（91 文件 / 281,229,558 B，setup exit 0）。
+为什么还要第三方代理（2026-11-13 实测，同一 84 MB 资产，1 MiB Range）：
 
-## 五、已知问题
+| 主机 | 单连接 | 8 路并发 | 84 MB 预计 |
+|---|---|---|---|
+| GitHub 直链 | 0.62 MiB/s（可达时） | 4.47 MiB/s | 不到 1 分钟 |
+| `gh-proxy.com` | 96 KB/s | 400 KB/s | 约 3.5 分钟 |
+| 本部署 `/cdn` | 77 KB/s | 160 KB/s | 约 9 分钟 |
 
-- GitHub 资产下载在本机被限速（实测 10 s 内 0 字节、Node 侧约 16 KiB/s），80 MB 的安装包可能很久；页面与 Studio 都显示进度，但没有镜像。
+本机到 GitHub 的直连大多直接 `ECONNRESET`（curl 走系统代理才通），所以真正可用的是后两条。代理是别人的服务、随时可能消失，因此**永远不是唯一路径**，且落地后仍要过目录 sha256：代理返回错文件会在哈希处失败，不会被安装。
+
+镜像实测（2026-11-13）：`GET /cdn/InfinityServer-setup` → 200 / 83,716,680 B / 780.7 s（0.10 MiB/s），sha256 与目录逐字符一致（`b6963536…a526`）；响应头 `x-infinity-cache: miss`，**重复请求仍是 miss**——Pages Functions 的 `caches.default.put`（`context.waitUntil`）没有把 84 MB 对象留住，所以镜像目前是「代理」而不是「缓存」，只作为 GitHub 不可用时的兜底。
+
+镜像也要能并发（2026-11-13 补）：镜像原先把 `accept-ranges` 写成 `none`、也不答 `HEAD`，桌面端探到「这里只能单流」就退回单连接——等于把唯一的可用主机锁成 40 KB/s。现在 `cdn/[asset].js` 有 `onRequestHead`（按资产表回 `content-length` 与 `accept-ranges: bytes`，不碰上游），GET 无 Range 分支同样声明可切片。实测 `probeRange('https://infinity-downloads.pages.dev/cdn/InfinityServer-setup')` → `{ranges:true,size:83716680}`（1.2 s）；单条 1 MiB Range → 206 / 13.3 s（77 KB/s），4 路并发 1 MiB → 4×206 / wall 25.7 s（单连接 40–153 KB/s，合计约 160 KB/s）。结论：镜像并发只有约 **2×**（客户端到 Cloudflare 的单连接本身受限），不如 GitHub 直链的 5×，但比 40 KB/s 单流把 84 MB 从 35 分钟压到约 9 分钟。R2 是正解（`wrangler r2 bucket create` 回 `Please enable R2 through the Cloudflare Dashboard. [code: 10042]`，需在面板开通），开通后把 `cdn` 改成读 `env.BUCKET` 即可获得 Range + 边缘直出。
+
+验收（2026-11-14，带分段下载器与镜像列表的包）：装好的 Studio 起自己的服务后 `GET /v1/remote` 返回 `base=https://infinity-downloads.pages.dev`，目录里的 Studio 为 **83,751,712 B / `d72433918d5b…7a22`**、Server 为 **83,716,680 B / `b6963536…a526`**；点「安装」后 **Server 真装上**（91 文件 / 281,229,603 B，setup exit 0）。
+
+无窗口端到端实测（`work/qa-studio-headless.ps1`，job `pwsh-ee96c6a1e0384b00`）：静默安装 Studio（101 文件 / 281,544,502 B）→ 起 `cli.js 7799` → `POST /v1/remote/install` → 下载 78 s（83,716,680 B，sha256 与目录逐字符一致）→ 安装 28 s → `phase=done ok=true`，**全程 106 s**，最后两个卸载器 `/S` 均 exit 0、安装目录清空，打印 `STUDIO-HEADLESS PASS`。同一动作在分段下载器之前要 30 分钟以上（1.2 KB/s 的尾段），这就是分段 + 速率地板 + 镜像列表三件事合起来的收益。
+
+无窗口复核（同一轮）：`work/test-server-page.mjs` 直接在进程内 `start({port:0})` 起服务再读页面与 `/v1/health`，**SERVER-PAGE PASS 11/11**——页面 27,640 B、`undefined` 命中 0、`rack.coresPerNode=288` 且 `cores(2304) === nodes(8) * coresPerNode`、缓存六层齐全、哈希链 `ok`。该测试守的是「8 节点 x undefined 核」那类缺陷：`/v1/health` 少一个字段，页面就会画出 `undefined`，而不需要开窗口才能发现。
+
+## 四·B、组件渠道：Studio 装自己的子产品
+
+公开站只给两个下载入口（Studio、Server），但一个叫 Installer 的程序如果只能装它自己列表里的两个包，那它在干净机器上什么也装不了。所以子产品走**组件渠道**，不进公开目录：
+
+- 门有两个：`/api/catalog`（公开，两个产品，站点渲染它）与 `/api/components`（组件，只有 Studio 读）。两者结构相同，组件多一个 `component: true`，Studio 的表格里显示「组件」标签；
+- 组件资产发布在 **`zssx-2026/Infinity-Studio` 的 `v1.0.0-pre8` release** 里（不是下载入口，只是 Studio 取字节的地方），表在 `work/pages-gate/functions/_lib/assets.js` 的 `COMPONENTS`；
+- 三个组件（2026-11-14 用当前 InfinityViewer 外壳重打包并签名，`work/package-pre8-components.ps1`）：
+
+| 资产 | 名称 | 字节 | sha256 |
+|---|---|---|---|
+| `InfinityCloud-setup` | Infinity Cloud | 84,202,296 | `117227717b6b…3d65` |
+| `InfinityPackageManager-setup` | Infinity Package Manager | 83,957,264 | `d10d48e6e57d…093a` |
+| `InfinityToolbox-setup` | Infinity Toolbox | 83,963,224 | `ecac7213acb1…4874` |
+
+- 重打包的理由：pre8 的三个 C++ 安装包是 InfinityViewer 更名（无框窗口 + 内置下载管理器）**之前**打的，直接拿来发等于把旧外壳塞给用户。重打包只换外壳载荷，命令行二进制不变；
+- 客户端不用重编就能看到新组件：`fetchCatalog` 拉完公开目录后再拉 `/api/components` 合并，读不到组件门也不算失败（旧门照常只给两个 setup）；
+- 「安装全部」按钮会把 5 个包一起装（Studio 自身除外），单个组件也可以只点自己那一行。
+
+无窗口端到端（`work/qa-studio-component.ps1`，job `pwsh-61028a568856414a`）→ **STUDIO-COMPONENT PASS**：装好的 Studio `GET /v1/remote` 列出 **5 个产品**（Studio 83,752,488 / Server 83,716,680 / 三个组件），`POST /v1/remote/install {ids:['InfinityCloud-setup']}` → 下载 84 s（84,202,296 B，sha256 与目录一致）→ 安装 → `phase=done ok=true`，全程 **118 s**；装上的 Infinity Cloud 为 **97 文件 / 292,469,926 B**，`inc_cli.exe`、`inc_shell\inc_window.exe`、`inc_shell\resources\app\main.js`（27,993 B，含 `InfinityViewer`）与 `downloads.js` 全在位，两个卸载器 `/S` exit 0、目录清空。首轮该脚本打印 FAIL 是脚本自己的错（PASS 条件在卸载后才求值），不是产品问题。
+
+## 五、无窗口验收（硬约束）
+
+用户要求「什么窗口都不要弹，CMD 和报错窗口都不要弹」，因此**所有验收都不启动 GUI**：
+
+- 界面用无窗口服务面验证：`node <install>/resources/app/src/cli.js 7799` 起 Studio 服务，再走 HTTP；
+- 安装器 `/S` + `windowsHide`，`Start-Process` 一律 `-WindowStyle Hidden`；
+- 需要像素证据时用 `PrintWindow(PW_RENDERFULLCONTENT)` 抓**已存在**窗口，不新开、不抢焦点；
+- Electron 主进程装崩溃日志守卫（`uncaughtException` / `unhandledRejection` 只写 `userData/crash.log`，不弹原生框）；
+- 并行下载首个分片失败即 abort 其余分片，避免 `Promise.all` 之后仍有 rejection 逃逸成崩溃框。
+
+守卫与规矩见 `docs/NO-WINDOWS.md`，扫描脚本 `node work/check-hidden-windows.mjs`（当前 `HIDDEN-WINDOWS PASS files=149 problems=0`）。
+
+## 六、已知问题
+
+- GitHub 资产下载在本机被限速（实测单流 10 s 内 0 字节、Node 单流约 16 KiB/s），80 MB 的安装包可能很久；Studio 侧已用 8 路 Range 并发缓解，但仍没有镜像，链路本身仍在 GitHub。
 - 本地验证码可被点阵模板匹配破解（验收脚本自己就是这么过的）。
 - 落地页/验证页/下载门三个域名都在 Cloudflare 与 GitHub 免费层上，没有自定义域名。
 
-## 六、相关文件
+## 七、相关文件
 
 - `work/_org-pages/index.html`（落地页，publish.mjs 推 GitHub Pages）
 - `work/verify-gate/index.html`（验证页，部署到 infinity-verify）
-- `work/pages-gate/index.html` + `work/pages-gate/functions/{api/catalog.js,api/verify.js,dl/[asset].js,_lib/{ticket.js,captcha.js}}`（下载门）
+- 无窗口测试：`work/test-studio-clean.mjs`（空 root 起服务，断言 inventory 全 0、plan 全 missing 且 blocking、install 409 且不落盘、suite/apps/health 仍可用）→ **STUDIO-CLEAN PASS 13/13**；`work/test-remote-download.mjs` → **PASS 17/17**（含「目录保留 mirror」「死端口回落镜像」）；`work/test-server-page.mjs` → **SERVER-PAGE PASS 11/11**；`work/check-hidden-windows.mjs` → **PASS files=150 problems=0**；
+- `work/pages-gate/index.html` + `work/pages-gate/functions/{api/catalog.js,api/verify.js,dl/[asset].js,cdn/[asset].js,_lib/{ticket.js,captcha.js,assets.js}}`（下载门；`_lib/assets.js` 是唯一资产表，改版本只改这一处）
 - `InfinityStudio/src/remote.js`、`InfinityStudio/src/page.js`、`InfinityStudio/src/server.js`（Studio 侧目录/下载/安装）
 - `tools/publish-electron.mjs`（GitHub Release 上传，node:https 流式 + 显式 content-length）
 - `work/qa-local-gate.mjs`、`work/qa-studio-remote.{mjs,ps1}`、`work/qa-studio-probe.ps1`、`work/qa-studio-uninstall.ps1`（验收）
+- `work/test-remote-download.mjs`（并行分片下载单测：Range 主机 / 无 Range 回落 / 坏哈希，13 条断言）
+- `work/qa-studio-headless.{ps1,mjs}`（无窗口端到端：静默安装 → cli 服务 → 在线装 Server → 卸载）
+- `work/check-hidden-windows.mjs`、`work/patch-windowstyle.mjs`、`docs/NO-WINDOWS.md`（无窗口守卫）

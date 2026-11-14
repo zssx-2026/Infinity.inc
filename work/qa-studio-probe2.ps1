@@ -8,7 +8,7 @@ Remove-Item $pf,$png -Force -ErrorAction SilentlyContinue
 $env:INFINITY_SHELL_PROBE = '1'
 $env:INFINITY_SHELL_PROBE_FILE = $pf
 $env:INFINITY_SHELL_PROBE_PNG = $png
-$p = Start-Process -FilePath $exe -PassThru
+$p = Start-Process -WindowStyle Hidden -FilePath $exe -PassThru
 Write-Output ('pid=' + $p.Id)
 for ($i=0; $i -lt 30; $i++) { Start-Sleep -Seconds 1; if (Test-Path $pf) { Write-Output ('probe_after=' + $i + 's'); break } }
 Write-Output ('alive=' + [bool](Get-Process -Id $p.Id -ErrorAction SilentlyContinue))

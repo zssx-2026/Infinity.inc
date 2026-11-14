@@ -1,6 +1,6 @@
 $rel='D:\dev\DeepSeekHarnessWorkspace\Infinity.inc\cpp\release\v1.0pre5-shell'
 $setup=(Get-ChildItem $rel -Filter 'InfinityToolbox*_setup.exe' | Select-Object -First 1).FullName
-Start-Process -FilePath $setup -ArgumentList '/S' -Wait
+Start-Process -WindowStyle Hidden -FilePath $setup -ArgumentList '/S' -Wait
 Start-Sleep -Milliseconds 1200
 $root=Join-Path $env:LOCALAPPDATA 'Programs\Infinity.Inc\Infinity Toolbox'
 $req='protocol=https'+[string][char]10+'host=github.com'+[string][char]10+[string][char]10
@@ -13,7 +13,7 @@ Push-Location $root
 Pop-Location
 Start-Sleep -Milliseconds 600
 'ORPHAN=' + (@(Get-Process int_gui -ErrorAction SilentlyContinue).Count)
-Start-Process -FilePath (Join-Path $root 'Uninstall.exe') -ArgumentList '/S' -Wait
+Start-Process -WindowStyle Hidden -FilePath (Join-Path $root 'Uninstall.exe') -ArgumentList '/S' -Wait
 Start-Sleep -Milliseconds 1200
 'GONE=' + (-not (Test-Path $root))
 Remove-Item Env:EV_GH_TOKEN -ErrorAction SilentlyContinue

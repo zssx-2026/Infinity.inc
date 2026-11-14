@@ -115,7 +115,7 @@ export function languages() {
 
 function probeCompiler(compiler) {
   try {
-    const r = spawnSync(compiler, ['--version'], { encoding: 'utf8', timeout: 3000 });
+    const r = spawnSync(compiler, ['--version'], { encoding: 'utf8', timeout: 3000, windowsHide: true });
     return r.status === 0;
   } catch (err) {
     return false;
@@ -124,7 +124,7 @@ function probeCompiler(compiler) {
 
 function readVersion(compiler) {
   try {
-    const r = spawnSync(compiler, ['--version'], { encoding: 'utf8', timeout: 3000 });
+    const r = spawnSync(compiler, ['--version'], { encoding: 'utf8', timeout: 3000, windowsHide: true });
     const text = (r.stdout || '').trim() || (r.stderr || '').trim();
     return text.split(/\r?\n/)[0] || null;
   } catch (err) {
@@ -171,7 +171,7 @@ export function compile(input) {
   if (!cmd) { try { fs.unlinkSync(tmpSrc); } catch (_) {} return fail(act, 'UNSUPPORTED_LANGUAGE', '不支持编译该语言：' + opts.language); }
   let result;
   try {
-    result = spawnSync(cmd[0], cmd.slice(1), { encoding: 'utf8', timeout: 30000 });
+    result = spawnSync(cmd[0], cmd.slice(1), { encoding: 'utf8', timeout: 30000, windowsHide: true });
   } catch (err) {
     try { fs.unlinkSync(tmpSrc); } catch (_) {}
     return fail(act, 'COMPILER_SPAWN_FAILED', '无法启动编译器：' + err.message);

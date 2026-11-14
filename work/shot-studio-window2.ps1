@@ -13,7 +13,7 @@ Add-Type -TypeDefinition $src
 $exe = Join-Path $env:LOCALAPPDATA 'Programs\Infinity.Inc\Infinity Studio\InfinityStudio.exe'
 Get-Process -Name InfinityStudio -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Seconds 2
-$p = Start-Process -FilePath $exe -PassThru
+$p = Start-Process -WindowStyle Hidden -FilePath $exe -PassThru
 $h = [IntPtr]::Zero
 for ($i = 0; $i -lt 40; $i++) {
   Start-Sleep -Seconds 1

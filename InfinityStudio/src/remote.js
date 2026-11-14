@@ -104,17 +104,63 @@ export async function fetchCatalog(base) {
   }
   if (!data) throw lastError || new Error('catalog unavailable');
   const products = Array.isArray(data.products) ? data.products : [];
-  const clean = products
-    .filter((p) => p && typeof p.asset === 'string' && p.asset)
-    .map((p) => ({
-      id: String(p.id || ''),
-      name: String(p.name || p.asset),
-      asset: String(p.asset),
-      size: Number(p.size) || 0,
-      sha256: String(p.sha256 || ''),
-      url: String(p.url || '')
-    }));
-  return { ok: true, base: root, version: String(data.version || ''), updated: String(data.updated || ''), products: clean };
+  const clean = products.map((p) => cleanProduct(p, false)).filter(Boolean);
+  /* A studio that cannot install its own sub-products is a download page with a
+   * progress bar. The gate keeps them on a second door so the public site never
+   * lists them; an older gate without that door simply yields the two setups. */
+  const components = await fetchComponents(root);
+  return {
+    ok: true,
+    base: root,
+    version: String(data.version || ''),
+    updated: String(data.updated || ''),
+    products: clean.concat(components)
+  };
+}
+
+/* One catalog entry, normalised. Both doors (the public setups and Studio's own
+ * components) answer in the same shape, so the download and install code has a
+ * single input to reason about. */
+function cleanProduct(p, component) {
+  if (!p || typeof p.asset !== 'string' || !p.asset) return null;
+  return {
+    id: String(p.id || ''),
+    name: String(p.name || p.asset),
+    asset: String(p.asset),
+    size: Number(p.size) || 0,
+    sha256: String(p.sha256 || ''),
+    url: String(p.url || ''),
+    component: Boolean(component || p.component),
+    /* The mirror is the fallback host. Dropping it here is what turned a
+     * blocked GitHub into a failed install: the download loop only had the
+     * release URL to try, so it gave up after two attempts instead of moving
+     * to the host that actually answers on this network. */
+    mirror: String(p.mirror || ''),
+    /* Extra hosts the catalog wants tried, in order. The gate publishes more
+     * than one mirror (an own edge proxy and a public GitHub proxy that is
+     * faster from this network), and the downloader should not need a rebuild
+     * to learn about a new one. */
+    mirrors: (Array.isArray(p.mirrors) ? p.mirrors : [])
+      .map((m) => String(m || ''))
+      .filter((m, index, all) => m && all.indexOf(m) === index)
+  };
+}
+
+/* The components door. Not being able to read it is not an error: the studio
+ * still installs what the public catalog offers. */
+export async function fetchComponents(root) {
+  try {
+    const response = await fetch(root + '/api/components', {
+      headers: { accept: 'application/json' },
+      signal: AbortSignal.timeout(12000)
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    const list = Array.isArray(data.products) ? data.products : [];
+    return list.map((p) => cleanProduct(p, true)).filter(Boolean);
+  } catch (error) {
+    return [];
+  }
 }
 
 /* The name the file is written under. It has to end in .exe: spawn() on Windows
@@ -136,6 +182,167 @@ export function fileNameOf(product) {
   return /\.exe$/i.test(asset) ? asset : asset + '.exe';
 }
 
+/* One connection is the wrong shape for these files: the asset host throttles a
+ * single stream hard (measured on a 80 MiB setup: ~16 KiB/s single stream while
+ * the same host serves ranges fast), and an installer nobody can download in
+ * reasonable time is not shipped. So the download asks for ranges when the host
+ * says it has them, and writes them at explicit offsets into one .part file.
+ * Anything that goes wrong here (no Range support, a short or failed chunk)
+ * falls back to the plain single stream below instead of failing the install. */
+export const PARALLEL_MIN_BYTES = 8 * 1024 * 1024;
+export const PARALLEL_CONNECTIONS = 8;
+export const STALL_MS = 90000;
+/* Work is split into small segments rather than one range per connection: a
+ * single range covering a tenth of the file cannot be retried without throwing
+ * away everything it had already fetched, and one slow range holds the whole
+ * download open. With segments, a dead or crawling piece is dropped and queued
+ * again while the other connections keep moving. */
+export const SEGMENT_BYTES = 2 * 1024 * 1024;
+export const SEGMENT_RETRIES = 3;
+/* "Still moving" is not the same as "working": the last two megabytes of one
+ * real download arrived at 1.2 KB/s, which never trips a stall watchdog and
+ * turned a 6 minute install into a 30 minute one. A segment whose average rate
+ * over the last window is under SLOW_BYTES_PER_SEC is dropped like a failure. */
+export const SLOW_WINDOW_MS = 20000;
+export const SLOW_BYTES_PER_SEC = 6000;
+
+export async function probeRange(url) {
+  try {
+    const response = await fetch(url, {
+      method: 'HEAD',
+      headers: { accept: '*/*' },
+      signal: AbortSignal.timeout(20000)
+    });
+    if (!response.ok) return { ranges: false, size: 0 };
+    const size = Number(response.headers.get('content-length')) || 0;
+    const accepted = String(response.headers.get('accept-ranges') || '').toLowerCase().indexOf('bytes') >= 0;
+    return { ranges: accepted && size > 0, size: size };
+  } catch (error) {
+    return { ranges: false, size: 0 };
+  }
+}
+
+export async function downloadParallel(url, part, size, onProgress) {
+  const handle = await fs.promises.open(part, 'w');
+  const segments = [];
+  for (let from = 0; from < size; from += SEGMENT_BYTES) {
+    segments.push({ from: from, to: Math.min(size - 1, from + SEGMENT_BYTES - 1), tries: 0, written: 0 });
+  }
+
+  /* One dead connection must not leave the others running: the first fatal
+   * error aborts everything, every worker swallows its own rejection, and the
+   * error is rethrown only after all of them have stopped. Letting a job reject
+   * after Promise.all has already failed is an unhandled rejection, and in the
+   * Electron main process that is a crash dialog, not a log line. */
+  const stop = new AbortController();
+  let received = 0;
+  let fatal = null;
+  let lastByteAt = Date.now();
+  const watchdog = setInterval(() => {
+    if (!fatal && Date.now() - lastByteAt > STALL_MS) {
+      fatal = new Error('download stalled for ' + Math.round(STALL_MS / 1000) + 's');
+      stop.abort(fatal);
+    }
+  }, 5000);
+
+  const pull = async (segment) => {
+    const controller = new AbortController();
+    const forward = () => controller.abort(stop.signal.reason);
+    stop.signal.addEventListener('abort', forward, { once: true });
+    let offset = segment.from;
+    let windowStart = Date.now();
+    let windowBytes = 0;
+    const slow = setInterval(() => {
+      if (Date.now() - windowStart < SLOW_WINDOW_MS) return;
+      const rate = windowBytes / ((Date.now() - windowStart) / 1000);
+      windowStart = Date.now();
+      windowBytes = 0;
+      if (rate < SLOW_BYTES_PER_SEC) controller.abort(new Error('segment too slow: ' + Math.round(rate) + ' B/s'));
+    }, 5000);
+    try {
+      const response = await fetch(url, {
+        headers: { range: 'bytes=' + segment.from + '-' + segment.to, accept: '*/*' },
+        signal: controller.signal
+      });
+      if (response.status !== 206 || !response.body) throw new Error('range HTTP ' + response.status);
+      for await (const chunk of response.body) {
+        const buffer = Buffer.from(chunk);
+        await handle.write(buffer, 0, buffer.length, offset);
+        offset += buffer.length;
+        /* A retried segment re-reads bytes it may already have written; counting
+         * the high-water mark per segment keeps progress monotonic and never
+         * counts the same byte twice. */
+        const done = offset - segment.from;
+        if (done > segment.written) {
+          received += done - segment.written;
+          segment.written = done;
+          if (onProgress) onProgress(received, size);
+        }
+        windowBytes += buffer.length;
+        lastByteAt = Date.now();
+      }
+      if (offset !== segment.to + 1) throw new Error('range short: ' + (offset - segment.from) + '/' + (segment.to - segment.from + 1));
+    } finally {
+      clearInterval(slow);
+      stop.signal.removeEventListener('abort', forward);
+    }
+  };
+
+  const worker = async () => {
+    for (;;) {
+      if (fatal) return;
+      const segment = segments.shift();
+      if (!segment) return;
+      try {
+        await pull(segment);
+      } catch (error) {
+        if (fatal) return;
+        segment.tries += 1;
+        if (segment.tries >= SEGMENT_RETRIES) {
+          fatal = error;
+          stop.abort(error);
+          return;
+        }
+        segments.push(segment);
+      }
+    }
+  };
+
+  try {
+    const workers = [];
+    const count = Math.min(PARALLEL_CONNECTIONS, segments.length);
+    for (let i = 0; i < count; i++) workers.push(worker());
+    await Promise.all(workers);
+  } finally {
+    clearInterval(watchdog);
+    await handle.close();
+  }
+  if (fatal) throw fatal;
+  return received;
+}
+
+async function downloadSingle(url, part, product, onProgress) {
+  const response = await fetch(url, { headers: { accept: '*/*' } });
+  if (!response.ok || !response.body) throw new Error('download HTTP ' + response.status + ' for ' + product.asset);
+  const total = Number(response.headers.get('content-length')) || product.size || 0;
+  const out = fs.createWriteStream(part);
+  let received = 0;
+  try {
+    for await (const chunk of response.body) {
+      received += chunk.length;
+      if (!out.write(Buffer.from(chunk))) await once(out, 'drain');
+      if (onProgress) onProgress(received, total);
+    }
+    out.end();
+    await once(out, 'finish');
+  } catch (error) {
+    out.destroy();
+    fs.rmSync(part, { force: true });
+    throw error;
+  }
+  return received;
+}
+
 /* Download one asset. A file already on disk whose hash matches is reused, so a
  * retried install does not pull 80 MiB again. The hash of a fresh download is
  * checked against the catalog before the file is handed to anyone. */
@@ -150,26 +357,49 @@ export async function download(product, opts) {
     }
     fs.rmSync(target, { force: true });
   }
-  const url = product.url || dlBase() + '/dl/' + encodeURIComponent(product.asset);
-  const response = await fetch(url, { headers: { accept: '*/*' } });
-  if (!response.ok || !response.body) throw new Error('download HTTP ' + response.status + ' for ' + product.asset);
-  const total = Number(response.headers.get('content-length')) || product.size || 0;
   const part = target + '.part';
-  const out = fs.createWriteStream(part);
+  /* Two hosts, because either one can be the slow or unreachable one on a given
+   * day: the release URL (ranges, so it can be pulled in parallel) and the
+   * deployment's mirror. Each is tried twice; a hash mismatch is not retried --
+   * that is a wrong file, not a bad route. */
+  const hosts = [];
+  const seen = new Set();
+  const addHost = (value) => {
+    const url = String(value || '');
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    hosts.push(url);
+  };
+  addHost(product.url);
+  for (const mirror of product.mirrors || []) addHost(mirror);
+  addHost(product.mirror);
+  if (!hosts.length) addHost(dlBase() + '/dl/' + encodeURIComponent(product.asset));
+
   let received = 0;
-  try {
-    for await (const chunk of response.body) {
-      received += chunk.length;
-      if (!out.write(Buffer.from(chunk))) await once(out, 'drain');
-      if (o.onProgress) o.onProgress(received, total);
+  let lastError = null;
+  for (const url of hosts) {
+    for (let attempt = 0; attempt < 2 && !received; attempt++) {
+      try {
+        const probe = await probeRange(url);
+        if (probe.ranges && probe.size >= PARALLEL_MIN_BYTES) {
+          try {
+            received = await downloadParallel(url, part, probe.size, o.onProgress);
+          } catch (error) {
+            fs.rmSync(part, { force: true });
+            received = await downloadSingle(url, part, product, o.onProgress);
+          }
+        } else {
+          received = await downloadSingle(url, part, product, o.onProgress);
+        }
+      } catch (error) {
+        lastError = error;
+        fs.rmSync(part, { force: true });
+        if (attempt === 0) await new Promise((r) => setTimeout(r, 1500));
+      }
     }
-    out.end();
-    await once(out, 'finish');
-  } catch (error) {
-    out.destroy();
-    fs.rmSync(part, { force: true });
-    throw error;
+    if (received) break;
   }
+  if (!received) throw lastError || new Error('download failed for ' + product.asset);
   const sha = sha256File(part);
   if (product.sha256 && sha !== product.sha256) {
     fs.rmSync(part, { force: true });
