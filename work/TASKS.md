@@ -1,5 +1,17 @@
 # Infinity.Inc 任务清单（队列：先到先做，用户新需求排最后）
 
+## 2026-11-14 应用卡片打开真产品（用户「真正实现所有功能」）
+- [x] 动机：NTP/侧栏应用卡片打开的是 `work/webview2/ui/apps/*.html` 静态样张，样张自己写着「演示内容」——占位当交付。
+- [x] 宿主 `shell/main.js`：`PRODUCTS`（inc 7621 / ipm 7632 / int 7653 / ifm 7623 与安装目录名）、`productCliCandidates`（同目录 → `..` → `%LOCALAPPDATA%\Programs\Infinity.Inc\<Product>\` → `cpp/out/<prefix>/`）、`ensureProduct(prefix)`（`spawn(exe,['--serve-ui','--port=…'],{stdio:'ignore',windowsHide:true})` + `waitForPort` 20 s，返回 `{url}`/`{error}`，不抛）、`shellFrame` 增 `viewer.app`/`viewer.apps`、`shutdown()` 杀掉所有子产品进程。
+- [x] 页面 `shell.js`：`APPS` 每项加 `prefix` 并删 `page`；`resolveTarget` app 分支只给 `kind:"app"`；新增 `requestApp`/`buildAppView`（有地址→webview，无地址→启动卡片 + 重试）；`host.app` 把同 prefix 标签改成 `kind:"web"` 并指向 `http://127.0.0.1:<port>/`。
+- [x] 删除样张：`work/webview2/ui/apps/`（4 个 index.html）与 `assets/css/apps.css` 全部删除，UI 里不再有「演示内容」。
+- [x] 探针 `probeApps` + `INFINITY_SHELL_PROBE_APPS`（`work/probe-apps.ps1`）→ **APPS-LAUNCH PASS**：`app=int url=http://127.0.0.1:7653/ tabKind=web webviews=1 procAlive=True`。
+- [x] 契约第 12 节 12 条 → **SELFTEST PASS pass=104 fail=0**。
+- [x] 第六次重打包：InfinityCloud **84,188,232 B / `25518f9059da…051e`**、InfinityPackageManager **83,950,168 B / `2fff3419d0e2…f443`**、InfinityToolbox **83,959,656 B / `497e7339d6cc…e7dc`**（Toolbox 打包脚本没签，手工 `Set-AuthenticodeSignature` attempt=1 Valid）。
+- [x] 重发（job `pwsh-29cd7e722f6c46b8`）：删旧资产 746393499 / 746394372 / 746395021，上传 **746486965 / 746487496 / 746487996**；COMPONENTS 更新 → 部署 **7b08668f**，`/api/components` 实测三条新 size/sha。
+- [x] 安装态 QA（`work/qa-viewer-apps.ps1`，job `pwsh-e26fb0432fcd4335` exit 0）→ **VIEWER-APPS PASS**：装 Cloud + Toolbox 后，用装好的 `inc_window.exe` 打开 `inc://toolbox`，兄弟目录里的 Toolbox 被真拉起（`http://127.0.0.1:7653/`、webviews=1、procAlive=True），卸载后目录清空。
+- [x] `docs/DOWNLOADS-v1.0pre8.md` 新增「四·C-4」并换组件表为第六次重打包数字。
+
 ## 2026-11-14 个人资料 / 扩展从提示变成真页面（用户「真正实现所有功能」）
 - [x] 动机：工具栏最后两个按钮（`#btn-extensions` / `#btn-profile`）与菜单项只 toast「该功能尚未实现」，是最后一批假按钮。
 - [x] `DEFAULTS` 增 `profile: { name: "", color: "blue" }`（只写本机 localStorage，无账号后端）。

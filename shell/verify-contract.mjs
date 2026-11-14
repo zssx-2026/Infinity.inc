@@ -224,6 +224,24 @@ ok((i18n.match(/"pf\.local"/g) || []).length >= 2 && (i18n.match(/"ext\.note"/g)
 ok(main.indexOf('"Probe User"') >= 0, 'the probe types a profile name and reads it back from the store');
 ok(read('work/webview2/ui/assets/css/shell.css').indexOf('.profile-swatch') >= 0, 'the profile page has its own styling');
 
+/* --- 12. an app card starts the real product ---
+ * The cards used to open ui/apps/*.html samples that said "演示内容" in their own
+ * body. A sample is not a feature: the card must ask the host, the host must
+ * start that product's own UI service, and the tab must land on 127.0.0.1.
+ * The samples are gone, so a regression here cannot hide behind them. */
+ok(!fs.existsSync(path.join(HERE, '..', 'work', 'webview2', 'ui', 'apps')), 'the sample app pages are gone, not merely unreferenced');
+ok(uiJs.indexOf('"演示内容"') < 0, 'the UI no longer describes itself as demo content');
+ok(/prefix: "inc"/.test(uiJs) && /prefix: "int"/.test(uiJs), 'every app card names the product it opens');
+ok(uiJs.indexOf('function requestApp') >= 0 && uiJs.indexOf('send("viewer.app"') >= 0, 'the page asks the host to start the product');
+ok(uiJs.indexOf('case "host.app"') >= 0, 'the page takes the product address from the host');
+ok(uiJs.indexOf('function buildAppView') >= 0, 'an app tab renders the product, not a sample');
+ok(main.indexOf('async function ensureProduct') >= 0 && main.indexOf('function findProductCli') >= 0, 'the host can start a sibling product');
+ok(main.indexOf("'--serve-ui'") >= 0, 'the product is started through its real UI service');
+ok(main.indexOf('windowsHide: true') >= 0, 'starting a product never flashes a console window');
+ok(main.indexOf('INFINITY_SHELL_PROBE_APPS') >= 0, 'the app launch can be proven headlessly');
+ok(read('work/probe-apps.ps1').indexOf('APPS-LAUNCH PASS') >= 0, 'the app probe prints its verdict');
+ok((i18n.match(/"app\.failed"/g) || []).length >= 2, 'both locales can report a product that will not start');
+
 console.log('');
 console.log((fail === 0 ? 'SELFTEST PASS' : 'SELFTEST FAIL') + '  pass=' + pass + ' fail=' + fail);
 process.exit(fail === 0 ? 0 : 1);

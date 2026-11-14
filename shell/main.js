@@ -109,6 +109,87 @@ function findServer(prefix) {
   return null;
 }
 
+
+/* 其它子产品。外壳只自带自己那一个 CLI（安装包一个产品一份），但用户装了
+ * 整套时兄弟目录里还有别的产品。点应用卡片应该真的把那个产品跑起来，而不是
+ * 打开一张写着「演示内容」的静态页——静态页在浏览器里没有任何意义。 */
+const PRODUCTS = {
+  inc: { name: 'Infinity Cloud', port: 7621, dir: 'Infinity Cloud' },
+  ipm: { name: 'InfinityPackageManager', port: 7632, dir: 'InfinityPackageManager' },
+  int: { name: 'Infinity Toolbox', port: 7653, dir: 'Infinity Toolbox' },
+  ifm: { name: 'Infinity File Manager', port: 7623, dir: 'Infinity File Manager' }
+};
+
+const productProcs = {};
+const productUrls = {};
+
+/* 产品可能装在同目录（外壳自带的那一个）、兄弟产品目录（Studio 装出来的
+ * 布局），或者开发树里的 cpp/out。按这个顺序找，找到第一个就用。 */
+function productCliCandidates(prefix) {
+  const ext = process.platform === 'win32' ? '.exe' : '';
+  const here = path.dirname(process.execPath);
+  const name = prefix + '_cli' + ext;
+  const meta = PRODUCTS[prefix];
+  const out = [
+    path.join(here, name),
+    path.join(here, '..', name)
+  ];
+  const local = process.env.LOCALAPPDATA;
+  if (local) {
+    const root = path.join(local, 'Programs', 'Infinity.Inc');
+    if (meta) out.push(path.join(root, meta.dir, name));
+    out.push(path.join(root, name));
+  }
+  /* 开发树：shell/build/<p>_gui-win32-x64/resources/app → 仓库根。 */
+  out.push(path.join(here, '..', '..', '..', '..', 'cpp', 'out', prefix, name));
+  out.push(path.join(here, '..', '..', '..', 'cpp', 'out', prefix, name));
+  return out;
+}
+
+function findProductCli(prefix) {
+  for (const c of productCliCandidates(prefix)) {
+    try { if (fs.existsSync(c)) return c; } catch (e) { }
+  }
+  return null;
+}
+
+function productRunning(prefix) {
+  return !!(productProcs[prefix] && productUrls[prefix]);
+}
+
+/* 起一个子产品并等它监听。返回 {url} 或 {error}，从不抛：调用方是页面的
+ * 一次点击，失败要变成一张能读的卡片，而不是一个静默的空标签页。 */
+async function ensureProduct(prefix) {
+  if (!PRODUCTS[prefix]) return { error: 'unknown app: ' + prefix };
+  if (productRunning(prefix)) return { url: productUrls[prefix], port: appPort };
+  const exe = findProductCli(prefix);
+  if (!exe) return { error: 'not installed' };
+  const port = await pickPort(PRODUCTS[prefix].port);
+  let proc;
+  try {
+    proc = spawn(exe, ['--serve-ui', '--port=' + port], {
+      cwd: path.dirname(exe),
+      stdio: 'ignore',
+      windowsHide: true
+    });
+  } catch (e) {
+    return { error: String((e && e.message) || e) };
+  }
+  productProcs[prefix] = proc;
+  proc.on('exit', function () {
+    delete productProcs[prefix];
+    delete productUrls[prefix];
+  });
+  const up = await waitForPort(port, 20000, function () { return !!proc.exitCode === false; });
+  if (!up) {
+    try { proc.kill(); } catch (e) { }
+    delete productProcs[prefix];
+    return { error: 'server did not start' };
+  }
+  productUrls[prefix] = 'http://127.0.0.1:' + port + '/';
+  return { url: productUrls[prefix], port: port };
+}
+
 /* A free loopback port at or after `base`. The preferred port is what the
  * installer's firewall rules and the user's muscle memory expect, so it is
  * tried first and only stepped over when something else already holds it -
@@ -368,6 +449,23 @@ function shellFrame(frame) {
     case 'viewer.download':
       downloadCommand(p);
       break;
+    case 'viewer.app': {
+      const which = String(p.app || '');
+      ensureProduct(which).then(function (r) {
+        replyShell('host.app', { app: which, url: r.url || '', port: r.port || 0, error: r.error || '' });
+      }).catch(function (e) {
+        replyShell('host.app', { app: which, url: '', port: 0, error: String((e && e.message) || e) });
+      });
+      break;
+    }
+    case 'viewer.apps': {
+      const known = {};
+      for (const k of Object.keys(PRODUCTS)) {
+        known[k] = { name: PRODUCTS[k].name, url: productUrls[k] || '', installed: !!findProductCli(k) };
+      }
+      replyShell('host.apps', { apps: known });
+      break;
+    }
     case 'shell.content-rect':
       /* The page renders the application in its own iframe, so no native
        * content region has to be positioned for it. */
@@ -565,6 +663,39 @@ function probeGuestDownload(done) {
     }).catch(fail);
     }).catch(fail);
   });
+}
+
+/* INFINITY_SHELL_PROBE_APPS proves an app card opens the real product: the page
+ * asks the host for the product, the host starts that product's own UI service,
+ * and the tab ends up on http://127.0.0.1:<port>/ with a guest actually loading
+ * it. A static sample page would pass none of these. */
+function probeApps(done) {
+  const app = 'int';
+  const js = 'window.__InfinityShell.open("inc://toolbox","current"); true';
+  win.webContents.executeJavaScript(js).then(function () {
+    const deadline = Date.now() + 30000;
+    const step = function () {
+      const read = 'window.__InfinityShell.state.appUrls[' + JSON.stringify(app) + '] || ""';
+      win.webContents.executeJavaScript(read).then(function (url) {
+        if (!url && Date.now() < deadline) { setTimeout(step, 500); return; }
+        win.webContents.executeJavaScript(
+          '(function(){var s=window.__InfinityShell.state;' +
+          'var t=s.tabs.filter(function(x){return x.id===s.activeTab;})[0]||{};' +
+          'return {url:' + JSON.stringify(url) + ',' +
+          'tabUrl:t.url||"",tabKind:t.kind||"",' +
+          'pending:!!s.appPending[' + JSON.stringify(app) + '],' +
+          'error:s.appErrors[' + JSON.stringify(app) + ']||"",' +
+          'webviews:document.querySelectorAll("webview").length};})()'
+        ).then(function (state) {
+          state.app = app;
+          state.hostUrl = productUrls[app] || '';
+          state.procAlive = !!productProcs[app];
+          done(state);
+        }).catch(function (e) { done({ error: String((e && e.message) || e) }); });
+      }).catch(function (e) { done({ error: String((e && e.message) || e) }); });
+    };
+    step();
+  }).catch(function (e) { done({ error: String((e && e.message) || e) }); });
 }
 
 /* INFINITY_SHELL_PROBE_INTERNAL checks the three internal pages that used to be
@@ -886,6 +1017,15 @@ async function boot() {
          * it. The states are recorded after each command. */
         /* The download probe drives the real toolbar, so it also proves the
          * panel is wired to the host rather than only present in the markup. */
+        if (process.env.INFINITY_SHELL_PROBE_APPS) {
+          probeApps(function (state) {
+            info.apps = state;
+            writeProbe();
+            finishProbe();
+          });
+          return;
+        }
+
         if (process.env.INFINITY_SHELL_PROBE_INTERNAL) {
           probeInternal(function (state) {
             info.internal = state;
@@ -957,6 +1097,11 @@ async function boot() {
  * a closed window never leaves an orphaned _cli.exe holding a port. */
 function shutdown() {
   if (serverProc) { try { serverProc.kill(); } catch (e) { } serverProc = null; }
+  for (const k of Object.keys(productProcs)) {
+    try { productProcs[k].kill(); } catch (e) { }
+    delete productProcs[k];
+    delete productUrls[k];
+  }
 }
 
 app.on('window-all-closed', function () { shutdown(); app.quit(); });

@@ -92,11 +92,11 @@ Studio 的「在线安装」页不经过浏览器验证：桌面程序直接读�
 
 | 资产 | 名称 | 字节 | sha256 |
 |---|---|---|---|
-| `InfinityCloud-setup` | Infinity Cloud | 84,194,040 | `3b4302615706…abc5` |
-| `InfinityPackageManager-setup` | Infinity Package Manager | 83,940,752 | `823708d28605…2264` |
-| `InfinityToolbox-setup` | Infinity Toolbox | 83,953,688 | `c18485e9d75c…19a3` |
+| `InfinityCloud-setup` | Infinity Cloud | 84,188,232 | `25518f9059da…051e` |
+| `InfinityPackageManager-setup` | Infinity Package Manager | 83,950,168 | `2fff3419d0e2…f443` |
+| `InfinityToolbox-setup` | Infinity Toolbox | 83,959,656 | `497e7339d6cc…e7dc` |
 
-上表是 2026-11-14 **第五次**重打包（外壳加了「个人资料 / 扩展是真页面」，见四·C-3）：资产 id 746393499 / 746394372 / 746395021，digest 与本地 sha256 逐字符一致，部署 b9ec6e80；前四版（84,194,352 / 84,004,072 / 83,946,304、84,202,296 / 83,957,264 / 83,963,224、84,199,784 / 83,989,016 / 83,943,776、84,184,120 / 83,960,840 / 83,960,576）已被同名替换。
+上表是 2026-11-14 **第六次**重打包（应用卡片改为拉起真产品，见四·C-4）：资产 id 746486965 / 746487496 / 746487996，digest 与本地 sha256 逐字符一致，部署 7b08668f；前五版（84,194,352 / 84,004,072 / 83,946,304、84,202,296 / 83,957,264 / 83,963,224、84,199,784 / 83,989,016 / 83,943,776、84,184,120 / 83,960,840 / 83,960,576、84,194,040 / 83,940,752 / 83,953,688）已被同名替换。
 
 - 重打包的理由：pre8 的三个 C++ 安装包是 InfinityViewer 更名（无框窗口 + 内置下载管理器）**之前**打的，直接拿来发等于把旧外壳塞给用户。重打包只换外壳载荷，命令行二进制不变；
 - 客户端不用重编就能看到新组件：`fetchCatalog` 拉完公开目录后再拉 `/api/components` 合并，读不到组件门也不算失败（旧门照常只给两个 setup）；
@@ -170,6 +170,23 @@ favorites_page rows=5   collections_page rows=1
 契约自检补第 10 节 11 条（两个独立存储键、recordHistory、三条 about: 路由、buildInternal、集锦保存与恢复、printActive、未实现提示、探针与样式）→ **SELFTEST PASS pass=84 fail=0**。
 
 装出来的组件复验（`work/qa-viewer-internal.ps1`）→ **VIEWER-INTERNAL PASS**：静默装 Infinity Cloud（97 文件 / 292,500,742 B，staged `main.js` 39,995 B 含 `INFINITY_SHELL_PROBE_INTERNAL`，`ui\assets\js\shell.js` 106,550 B 含 `function buildInternal` 与 `about:history`）→ 用装好的 `inc_window.exe` 跑同一探针 → `history=2 / fav=4->5 / collections=1 / pages 2-5-1` → `/S` 卸载 exit 0、目录消失。
+
+### 四·C-4、应用卡片打开的是真产品（2026-11-14）
+
+以前点 NTP 里的应用卡片，打开的是 `ui/apps/*.html` 里的静态样张，样张自己写着「演示内容 · 由 InfinityViewer 通过 iframe 加载」。那是把占位当交付。现在：
+
+- **卡片指向真实产品**：`APPS` 每项带 `prefix`（`inc` / `int` / `ipm` / `ifm`），点开走 `inc://<name>` → 页面发 `viewer.app` → 宿主 `ensureProduct()` 找到该产品的 `<prefix>_cli.exe`（同目录、`%LOCALAPPDATA%\Programs\Infinity.Inc\<Product>\`、开发树 `cpp/out/<prefix>/` 依次找）→ 用 `--serve-ui --port=<空闲端口>` 起它 → 回 `host.app {url}` → 标签页落到 `http://127.0.0.1:<port>/`，用 `<webview>` 真正加载。
+- **起不来就说清楚**：没装或启动失败时卡片写「启动失败：not installed / server did not start」并给「重试」，不再假装成功。
+- **删掉样张**：`work/webview2/ui/apps/` 与 `assets/css/apps.css` 一并删除（没有任何代码再引用它们），UI 里也不再出现「演示内容」。
+- 宿主退出时 `shutdown()` 会杀掉自己起的所有子产品进程，不留孤儿 `_cli.exe` 占端口。
+
+无窗口取证 `work/probe-apps.ps1` → **APPS-LAUNCH PASS**：
+
+```
+app=int url=http://127.0.0.1:7653/ tabKind=web webviews=1 procAlive=True error=
+```
+
+契约补第 12 节 12 条（样张已删、无「演示内容」、卡片带 prefix、viewer.app/host.app、ensureProduct、`--serve-ui`、`windowsHide`、探针）→ **SELFTEST PASS pass=104 fail=0**。
 
 ### 四·C-3、个人资料与扩展也是真页面（2026-11-14）
 
