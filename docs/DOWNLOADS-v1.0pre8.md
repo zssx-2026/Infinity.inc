@@ -92,11 +92,11 @@ Studio 的「在线安装」页不经过浏览器验证：桌面程序直接读�
 
 | 资产 | 名称 | 字节 | sha256 |
 |---|---|---|---|
-| `InfinityCloud-setup` | Infinity Cloud | 84,240,824 | `af870f039885…48e8` |
-| `InfinityPackageManager-setup` | Infinity Package Manager | 83,992,880 | `601ca886f229…4883` |
-| `InfinityToolbox-setup` | Infinity Toolbox | 83,990,216 | `798a53b60b33…9b1b` |
+| `InfinityCloud-setup` | Infinity Cloud | 84,188,040 | `5e035cf6fbcd…70a4` |
+| `InfinityPackageManager-setup` | Infinity Package Manager | 84,440,992 | `068a1ca5240a…ac55` |
+| `InfinityToolbox-setup` | Infinity Toolbox | 84,416,216 | `87995fa9649f…31fa` |
 
-上表是 2026-11-14 **第八次**重打包（产品清单与翻译按钮，见四·C-6）：三包 attempt=1 即 Valid，重发资产 id **746635563 / 746636620 / 746637327**，部署 `1df2975f`，`/api/components` 回读三条 size/sha 各 2 个镜像；前七版（84,258,520 / 83,967,968 / 84,022,320 及更早六组）已被同名替换。
+上表是 2026-11-14 **第九次**重打包（快捷键与硬编码文本审计，见四·C-9）：三包 attempt=1 即 Valid，重发资产 id **746977455 / 746978254 / 746978794**，部署 `976d8548`，`/api/components` 回读三条 size/sha 各 2 个镜像；安装态 `work/qa-viewer-apps.ps1` 复验 **VIEWER-APPS PASS**（含 Ctrl+J/Ctrl+H 实测）。前八版（84,240,824 / 83,992,880 / 83,990,216 及更早七组）已被同名替换。
 
 - 重打包的理由：pre8 的三个 C++ 安装包是 InfinityViewer 更名（无框窗口 + 内置下载管理器）**之前**打的，直接拿来发等于把旧外壳塞给用户。重打包只换外壳载荷，命令行二进制不变；
 - 客户端不用重编就能看到新组件：`fetchCatalog` 拉完公开目录后再拉 `/api/components` 合并，读不到组件门也不算失败（旧门照常只给两个 setup）；
@@ -228,6 +228,64 @@ extensions_page rows=6 title=扩展
 - 探针原先同步取快照，清单过桥是异步的，于是读到空对象报 FAIL；改成 `async` 等 1.5 s 再取，并加 `apps` 字段。`work/probe-apps-inventory.ps1` → **APPS-INVENTORY PASS**：`apps=inc,ipm,int,ifm`，inc/ipm/int 装、ifm 未装。
 - 契约第 14 节 7 条 → **SELFTEST PASS pass=121 fail=0**。
 - 装出来的组件复验（`work/qa-viewer-apps.ps1`）→ **VIEWER-APPS PASS**：静默装 Infinity Cloud，装好的 `inc_window.exe` 探针回 `apps=inc,ipm,int,ifm`（此时只有 inc 装），`/S` 卸载 exit 0、目录消失。
+
+### 四·C-7、降级宿主不再沉默（2026-11-14）
+
+pre8 的三个安装包走的是 Electron 外壳（`work/package-pre8-components.ps1` 里 `INC_SHELL='electron'`），`cpp/hosts/webview2/main.c` 是**未随包发布**的降级/开发宿主（`cpp/tools/package.mjs` 只在 `INC_SHELL=webview2` 时打 `<prefix>_window.exe` + `WebView2Loader.dll` + `ui/`）。它跑的是同一个页面，却只应答 `shell.ready` 与 `shell.window` 两条消息——页面发的 `viewer.apps`、`shell.devtools` 掉进真空，按钮看着没反应。
+
+- 新增 `jsonBool` / `dirExistsW` / `appsJson`：查 `%LOCALAPPDATA%\\Programs\\Infinity.Inc\\` 下 Infinity Cloud / InfinityPackageManager / InfinityToolbox / InfinityFileManager 四个目录，回 `host.apps`，形状与 Electron 侧一致（`{inc:{installed:true},…}`）。
+- `shell.devtools` 改由 `OpenDevToolsWindow()` 处理并回 `host.devtools {open,target:"webview",error}`；`open=false` 时 error 写 `close is not scriptable in the WebView2 host`——这个宿主关不掉检查器窗口，就直说，不假装关成功。
+- 消息链末尾加 `else if (g.webview)` 兜底回 `host.unsupported {type,host:"webview2"}`：**做不到的事也要有应答**。页面新增 `case "host.unsupported"` → toast「当前宿主不支持 {what}」，两语言各一条。产品启动（`viewer.app` 要起本地服务）、下载（`viewer.download` 要下载引擎）、会话保存这些在该宿主里确实没有实现，现在会明说而不是静默。
+- 编译验证：`work/build-webview2-host-check.ps1` 直接用 gcc 编 `main.c`（**绝不能跑 `cpp/hosts/webview2/build.ps1`**——它会把 `work/edge-ui` 覆盖到 `work/webview2/ui`，毁掉正在用的 UI），`-m64 -O2 -w -s -municode -static -std=c99` → compile exit=0，产物 `work/webview2-host-check.exe` 66,560 B。**运行时不验**：它要开可见窗口，违无窗口硬约束，且该宿主不随包发。
+- `work/audit-bridge.mjs` 扩成三端对照，新增扫描 `main.c` 的分支：`webview2-host handled=4: shell.devtools, shell.ready, shell.window, viewer.apps`；`WEBVIEW2-HOST-MISSING` 仍列出 13 条（`shell.activate-tab/back/content-rect/favorite/forward/locale/open/reload/session-restored/session-save/theme`、`viewer.app`、`viewer.download`）——这些在 Electron 外壳里都有真实现，只是该宿主没有，属已知降级面。
+- 契约第 15 节 7 条 → **SELFTEST PASS pass=128 fail=0**。
+
+### 四·C-8、外壳不再自述错误、构建树能自己开机（2026-11-14）
+
+继续按「页面说的话必须和实际一致」审计，这一轮抓到四件事：
+
+- **版本号说谎**：`work/webview2/ui/assets/js/shell.js` 里 `var VERSION = "0.1.0"`，而 `shell/package.json` 是 `1.0.0`——About 与菜单都印 v0.1.0。改为 `1.0.0`。
+- **自称演示**：新标签页页脚与静态 HTML 都写着「演示外壳」。改为「InfinityViewer · Infinity.Inc 外壳 / Infinity.Inc shell」，两语言各一条；菜单宿主徽标原来静态写「演示模式」，改成「—」，实际值由 `applyI18n` 写入。
+- **裸键上屏**：`work/audit-i18n.mjs` 把页面所有 `t("key")` / `data-i18n` 与 `i18n.js` 两段字典对照（keys used=200、zh=231、en=231），`status.demo` / `status.host` 两侧都不存在，而菜单宿主徽标正是用它——会显示 `status.host` 这串键。补两键（演示模式/Demo、宿主/Host）后 **I18N-AUDIT PASS**（脚本另校验 `dl.status.*` 六个状态键）。
+- **页脚印的是桥内部函数名**：`.ntp-engine` 原本 `textContent = host.api`，装出来的外壳页脚就写着 `window.__INFINITY_HOST__.postMessage`。改成给人看的 `Chromium Trim`，API 名挪到 `title`（悬停可见）。
+
+同时发现两个「验不了 / 跑不起来」的结构问题：
+
+- **新标签页永远验不到**：Electron 外壳 `shell/main.js` 启动时把 `?url=http://127.0.0.1:<port>/` 传给页面，首个标签页永远是本机 Cloud 页面，NTP 只能点「+」才有——探针因此 `ntpNodes=0`、页脚恒空。加 `INFINITY_SHELL_PROBE_NTP=1`：快照前先 `window.__InfinityShell.open("about:home","newTab")`，等 600 ms 再取。另给探针链加 `.catch` 落 `.err` 并退出——探针抛异常时宁可留下证据，也不要挂成隐藏窗口。
+- **`node shell/build.mjs` 产出的树开不了机**：`build.mjs` 会先 `rmSync(build/)`，而它只拷 `main.js`/`preload.js`/`downloads.js`/`ui/`，从不放 `<prefix>_cli.exe`；`main.js` 的 `findServer()` 找不到 CLI 就走 `showFatal`，窗口永远停在「找不到 …_cli.exe」。之前能用是因为打包脚本（`cpp/tools/package.mjs`）事后补了 CLI，重新构建一次就把它抹掉了。现在 `build.mjs` 加 `stageCli()`：按 `cpp/out/<product>/<prefix>_cli.exe` 拷到可执行文件旁，`inx` 的 CLI 在 `cpp/out/inc/`（管理版），缺失时打 `MISSING` 而不是静默跳过。
+
+验收（全部无窗口）：
+
+- `work/probe-chrome-truth.ps1`（带 NTP 钩子）→ **CHROME-TRUTH PASS**：`menuVersion=v1.0.0`、`hostPill=宿主 · bridge`、`ntpNodes=1`、`ntpFooter=InfinityViewer · Infinity.Inc 外壳|Chromium Trim`。
+- 契约新增第 16 节（版本与 package.json 一致、页面不再自称演示）、第 17 节（两语言有 status.demo/status.host）、第 18 节（页脚不印桥 API、NTP 钩子存在）、第 19 节（构建阶段 CLI 到位、管理版目录映射、缺失要报）→ **SELFTEST PASS pass=144 fail=0**。
+- 18 个外壳重建（3 架构 × 6 产品，win32-x64 每个 188,784,128 B），每个目录旁都带了对应 CLI（inc/inx 1,584,640 B、ipm/ipmx 685,056 B、int/intx 693,760 B）。
+
+### 四·C-9、印出来的快捷键必须真的存在（2026-11-14）
+
+同一套「页面说的话必须和实际一致」的标准继续往下查，这一轮抓到的都不是样式问题，而是**印给用户看、但按下去没有反应**的东西：
+
+- **菜单印了 Ctrl+J / Ctrl+N，键盘里没有这两个分支**：`work/webview2/ui/index.html` 的菜单项「下载」印 `Ctrl+J`、「新建窗口」印 `Ctrl+N`，而 `work/webview2/ui/assets/js/shell.js` 的 `onKeydown`（L1947 起）里根本没有 `j` / `n` 分支——按下去什么也不发生。补上两条：`Ctrl+J → menuAction("downloads")`、`Ctrl+N → menuAction("new-window")`。
+- **「新建窗口」只弹了一条调试提示**：原分支是 `send("shell.window", {action:"new"}); toast("shell.window · new")`——宿主确实会开第二个窗口（`shell/main.js` 的 `windowCommand('new')`），但页面上给用户的反馈是把内部消息名印出来，属于「用占位冒充反馈」。删掉该 toast。
+- **页脚把桥的内部函数名印给用户**：`.ntp-engine` 原本直接写 `host.api`，装出来的外壳页脚印着 `window.__INFINITY_HOST__.postMessage`。改为 `Chromium Trim`，API 名放进 `title`。
+- **静态菜单版本还是旧值**：`index.html` 里 `<span id="menuVersion">v0.1.0</span>`，脚本没跑到时页面会说谎；改为 `v1.0.0`。
+
+新增两把可复跑的尺子（都不是「看一眼觉得对」）：
+
+- `work/audit-shortcuts.mjs`：把 `index.html` 里所有 `.mi-k` 加速键标签读出来（只认 `Ctrl/Alt/Shift/F数字` 形状，`menuVersion` 那种不算），逐个到 `shell.js` 里找对应的 `key === "x"` 分支，并校验 `Ctrl+Shift+…` 那一行确实带 `shiftKey`、`Ctrl+…` 确实带 `ctrl`。首跑 **MISS 3**（Ctrl+J、Ctrl+N、以及误把 v1.0.0 当标签），修完 → **AUDIT-SHORTCUTS PASS labels=10**（Ctrl+T/Ctrl+N/Ctrl+H/Ctrl+Shift+O/Ctrl+J/Ctrl+Shift+Y/Ctrl+Shift+G/F12/Ctrl+Shift+P/Ctrl+P 全部有分支）。
+- `work/audit-hardcoded.mjs`：`audit-i18n.mjs` 只能证明每个 `t("key")` 有译文，看不见直接写进 DOM 的字面量。新脚本遮掉 `//` 注释后扫 `toast/textContent/innerHTML/title/alert/confirm` 里含中文的字面量（`shell.js` **hits=0**，38 处中文全在注释里），再扫 `index.html` 里没有 `data-i18n` 的中文文本节点 → 只报出两处语言按钮的「中文」。语言自称（endonym）不该翻译：给两处按钮加 `data-i18n-fixed="endonym"` 让审计**显式豁免**，而不是假装通过 → **AUDIT-HARDCODED PASS**（untranslated=0）。
+
+探针从「读文字」升级到「按按键」：`shell/main.js` 新增 `INFINITY_SHELL_PROBE_KEYS=1`，在真实窗口里向 `document` 派发 `KeyboardEvent`（Ctrl+J 两次看面板开/关、Ctrl+H 看活动标签 kind），并把结果放进快照的 `keyProbe`。`work/probe-chrome-truth.ps1` 相应增加三条断言。
+
+验收（全部无窗口）：
+
+- `work/probe-chrome-truth.ps1` → **CHROME-TRUTH PASS**（8 条）：`menuVersion=v1.0.0`、`hostPill=宿主 · bridge`、`ntpNodes=1`、`ntpFooter=InfinityViewer · Infinity.Inc 外壳|Chromium Trim`、`ctrlJOpens=True`、`ctrlJCloses=True`、`ctrlHHistory=True`。
+- 契约新增第 20 节（硬编码文本审计可复跑、endonym 显式标记、静态菜单版本与包一致）、第 21 节（Ctrl+J/Ctrl+N 分支存在、调试 toast 已删）、第 22 节（探针能按加速键并回读结果）→ **SELFTEST PASS pass=156 fail=0**。
+- 18 个外壳重建（3 架构 × 6 产品，win32-x64 每个 188,784,128 B，每目录带 CLI）。
+
+踩到的两个坑记在这里，省下次的时间：
+
+- **探针先按 Ctrl+H 再开新标签页会把 NTP 冲掉**：`Ctrl+H` 在当前活动标签内导航，若先开 `about:home` 再按，`.ntp` 节点就没了，`ntpNodes=0`。顺序必须反过来——先按键、后开 NTP。
+- **打包与 UI 修改的竞态**：`cpp/tools/package.mjs` 在流程早期就把 `shell/build/` 拷进安装包，先起打包再改 UI，出来的包是旧的。两次中止重来后固定顺序：**改完 → `node shell/build.mjs` → 探针 → 再打包**。
 
 ## 五、无窗口验收（硬约束）
 

@@ -121,6 +121,28 @@ function writeApp(dir, app) {
   }, null, 2), 'utf8');
 }
 
+/* The window cannot start without its own CLI: main.js spawns
+ * <prefix>_cli.exe --serve-ui from beside the executable and shows a fatal
+ * page when it is absent. Packaging staged the CLI, so a tree built by this
+ * script alone booted into "找不到 ..._cli.exe" - a build that produces an
+ * unrunnable tree is a defect, not a missing prerequisite. The compiled CLI
+ * lives in cpp/out/<product>/; stage it when it exists and say so when it
+ * does not, instead of shipping a window that can never open. */
+function stageCli(dir, name) {
+  const prefix = name.replace(/_gui$/, '');
+  const outRoot = path.join(HERE, '..', 'cpp', 'out');
+  const ext = '.exe';
+  /* inx is the admin build of inc, so its CLI sits in cpp/out/inc/; the other
+   * admin builds drop the trailing x to find their product directory. */
+  const dirName = prefix === 'inx' ? 'inc' : prefix.replace(/x$/, '');
+  const cand = path.join(outRoot, dirName, prefix + '_cli' + ext);
+  const src = fs.existsSync(cand) ? cand : null;
+  if (!src) { log('  cli  ' + name + '  MISSING (' + cand + ')'); return false; }
+  fs.copyFileSync(src, path.join(dir, prefix + '_cli' + ext));
+  log('  cli  ' + name + '  ' + fs.statSync(src).size + ' B');
+  return true;
+}
+
 function copyAs(srcDir, srcExe, newName, arch) {
   const dstDir = path.join(OUT, newName + '-win32-' + arch);
   fs.rmSync(dstDir, { recursive: true, force: true });
@@ -167,6 +189,9 @@ function main() {
         const exe = path.join(dir, name + '.exe');
         const size = fs.existsSync(exe) ? fs.statSync(exe).size : 0;
         log(name.padEnd(12) + arch.padEnd(6) + size + ' B');
+        /* The CLI travels with the window it serves, exactly where main.js
+         * looks for it (next to the executable). */
+        stageCli(dir, name);
         made.push({ name: name, arch: arch, dir: dir, exe: exe, app: t.app });
       }
     }

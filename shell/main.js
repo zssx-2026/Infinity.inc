@@ -1005,10 +1005,40 @@ async function boot() {
    * being bitmap-stretched. */
   if (process.env.INFINITY_SHELL_PROBE) {
     win.webContents.once('did-finish-load', function () {
+      /* The shipped window boots on the local Infinity Cloud page, so the new
+       * tab page is only ever one click away. INFINITY_SHELL_PROBE_NTP opens
+       * it before the snapshot, otherwise the footer can never be verified
+       * end to end (the snapshot would report an empty .ntp set). */
+      const probeNtp = process.env.INFINITY_SHELL_PROBE_NTP ? '1' : '0';
+      /* The menu prints accelerators, so the probe can press them: a printed
+       * shortcut that no branch handles is a promise the chrome breaks. */
+      const probeKeys = process.env.INFINITY_SHELL_PROBE_KEYS ? '1' : '0';
       win.webContents.executeJavaScript(
         /* The inventory comes back over the bridge, so the snapshot waits for
          * it instead of racing the host and reporting an empty object. */
-        '(async function(){await new Promise(function(r){setTimeout(r,1500);});return ' +
+        '(async function(){await new Promise(function(r){setTimeout(r,1500);});' +
+        /* Keys first, then the new-tab page: Ctrl+H navigates the active tab,
+         * and doing that after opening the NTP would leave no .ntp to read. */
+        'var keyProbe={};' +
+        'if ("' + probeKeys + '" === "1") {' +
+        'var fire=function(k,ctrl){document.dispatchEvent(new KeyboardEvent("keydown",' +
+        '{key:k,ctrlKey:!!ctrl,bubbles:true,cancelable:true}));};' +
+        'var dlp=function(){return (document.getElementById("dlpanel")||{}).hidden===false;};' +
+        'var activeKind=function(){var st=window.__InfinityShell.state,act=null;' +
+        'for(var i=0;i<st.tabs.length;i++){if(st.tabs[i].id===st.activeTab){act=st.tabs[i];}}' +
+        'return act?act.kind:"";};' +
+        'fire("j",true);await new Promise(function(r){setTimeout(r,180);});' +
+        'keyProbe.ctrlJOpens=dlp();' +
+        'fire("j",true);await new Promise(function(r){setTimeout(r,180);});' +
+        'keyProbe.ctrlJCloses=!dlp();' +
+        'fire("h",true);await new Promise(function(r){setTimeout(r,250);});' +
+        'keyProbe.ctrlHKind=activeKind();' +
+        'keyProbe.ctrlHHistory=keyProbe.ctrlHKind==="history";' +
+        '}' +
+        'if ("' + probeNtp + '" === "1" && window.__InfinityShell && window.__InfinityShell.open) {' +
+        'try{window.__InfinityShell.open("about:home","newTab");}catch(e){}' +
+        'await new Promise(function(r){setTimeout(r,600);});}' +
+        'return ' +
         '({dpr:window.devicePixelRatio,cssW:window.innerWidth,cssH:window.innerHeight,' +
         'screenW:screen.width,screenH:screen.height,availH:screen.availHeight,' +
         'title:document.title,origin:location.origin,' +
@@ -1022,8 +1052,28 @@ async function boot() {
         'dlItems:document.querySelectorAll(".dl-item").length,' +
         'dlText:((document.getElementById("dlList")||{}).innerText||"").slice(0,160),' +
         'dlBadge:((document.getElementById("dlBadge")||{}).textContent||""),' +
+        /* The chrome has to tell the truth about itself: the menu prints its
+         * version, the host pill prints a translated state, and the new-tab
+         * footer used to call the shipped build a demo. */
+        'menuVersion:((document.getElementById("menuVersion")||{}).textContent||""),' +
+        'hostPill:((document.getElementById("menuHostPill")||{}).textContent||""),' +
+        'ntpFooter:[].map.call(document.querySelectorAll(".ntp-foot-text"),function(e){return e.textContent;}).join("|"),' +
+        'ntpNodes:document.querySelectorAll(".ntp").length,' +
+        'ntpFootNodes:document.querySelectorAll(".ntp-foot").length,' +
+        'viewClasses:[].map.call(document.querySelectorAll("#views > *"),function(e){return e.className;}).join("|"),' +
+        'keyProbe:keyProbe,' +
         'bodyText:(document.body.innerText||"").slice(0,80)});})()'
-      ).then(function (info) {
+      ).catch(function (err) {
+        /* A probe that throws must still end: a hung hidden window is worse
+         * than a failed assertion, and the caller only sees a timeout. */
+        try {
+          fs.writeFileSync((process.env.INFINITY_SHELL_PROBE_FILE || 'probe.err') + '.err',
+            String((err && err.stack) || err), 'utf8');
+        } catch (_) {}
+        shutdown(); app.quit();
+        return null;
+      }).then(function (info) {
+        if (!info) { return; }
         info.scaleFactor = screen.getPrimaryDisplay().scaleFactor;
         info.bounds = win.getBounds();
         info.contentSize = win.getContentSize();

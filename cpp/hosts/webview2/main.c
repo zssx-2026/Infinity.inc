@@ -161,6 +161,53 @@ static int jsonStr(const wchar_t *json, const wchar_t *key, wchar_t *out, size_t
   return 1;
 }
 
+/* A boolean field in a small flat JSON object (jsonStr only reads strings). */
+static int jsonBool(const wchar_t *json, const wchar_t *key, int dflt) {
+  wchar_t pat[64];
+  const wchar_t *p;
+  if (!json || !key || !key[0]) return dflt;
+  _snwprintf(pat, 64, L"\"%ls\":", key);
+  p = wcsstr(json, pat);
+  if (!p) return dflt;
+  p += wcslen(pat);
+  while (*p == L' ') p++;
+  if (!wcsncmp(p, L"true", 4)) return 1;
+  if (!wcsncmp(p, L"false", 5)) return 0;
+  return dflt;
+}
+
+static int dirExistsW(const wchar_t *p) {
+  DWORD a = GetFileAttributesW(p);
+  return a != INVALID_FILE_ATTRIBUTES && (a & FILE_ATTRIBUTE_DIRECTORY);
+}
+
+/* Which products the installers actually put on this machine. The page labels a
+ * card "not installed" from this answer instead of letting the click fail, so
+ * the list has to come from the disk, not from a constant. */
+static void appsJson(wchar_t *out, size_t cap) {
+  static const struct { const wchar_t *prefix, *dir; } P[] = {
+    {L"inc", L"Infinity Cloud"},
+    {L"ipm", L"InfinityPackageManager"},
+    {L"int", L"InfinityToolbox"},
+    {L"ifm", L"InfinityFileManager"},
+  };
+  wchar_t local[MAXP], root[MAXP];
+  size_t o = 0;
+  DWORD n = GetEnvironmentVariableW(L"LOCALAPPDATA", local, MAXP);
+  if (!n || n >= MAXP) local[0] = 0;
+  joinW(root, MAXP, local, L"Programs\\Infinity.Inc");
+  out[0] = 0;
+  for (size_t i = 0; i < sizeof(P) / sizeof(P[0]); i++) {
+    wchar_t d[MAXP], one[128];
+    joinW(d, MAXP, root, P[i].dir);
+    _snwprintf(one, 128, L"%ls\"%ls\":{\"installed\":%ls}",
+               o ? L"," : L"", P[i].prefix,
+               dirExistsW(d) ? L"true" : L"false");
+    one[127] = 0;
+    if (o + wcslen(one) + 1 < cap) { wcscat(out, one); o += wcslen(one); }
+  }
+}
+
 /* A second window is a second host process pointed at the same UI server: the
  * page asks for it from its own tab-strip menu, so the child must not start a
  * second server (--spawn/--port are deliberately left out). */
@@ -570,6 +617,46 @@ static HRESULT STDMETHODCALLTYPE MsgReceived_Invoke(ICoreWebView2WebMessageRecei
           g.webview->lpVtbl->PostWebMessageAsJson(g.webview, reply);
         }
       }
+    } else if (g.webview && wcsstr(json, L"\"viewer.apps\"")) {
+      /* The page asks once per start; answer from the disk so a card can say
+       * "not installed" instead of letting the click fail. */
+      wchar_t apps[1024], reply[2048];
+      appsJson(apps, 1024);
+      _snwprintf(reply, 2048,
+        L"{\"channel\":\"infinity-shell\",\"v\":1,\"dir\":\"to-shell\",\"type\":\"host.apps\","
+        L"\"payload\":{\"apps\":{%ls}},\"ts\":%lu,\"id\":\"host-apps\"}",
+        apps, (unsigned long)GetTickCount64());
+      reply[2047] = 0;
+      g.webview->lpVtbl->PostWebMessageAsJson(g.webview, reply);
+      logLine(L"[host] host.apps reply apps=%ls", apps);
+    } else if (g.webview && wcsstr(json, L"\"shell.devtools\"")) {
+      /* WebView2 has no scriptable "close inspector", so open for real and say
+       * plainly that closing is not supported here instead of faking a toggle. */
+      int open = jsonBool(json, L"open", 1);
+      wchar_t reply[400];
+      if (open) g.webview->lpVtbl->OpenDevToolsWindow(g.webview);
+      _snwprintf(reply, 400,
+        L"{\"channel\":\"infinity-shell\",\"v\":1,\"dir\":\"to-shell\",\"type\":\"host.devtools\","
+        L"\"payload\":{\"open\":%ls,\"target\":\"webview\",\"error\":\"%ls\"},\"ts\":%lu,\"id\":\"host-devtools\"}",
+        open ? L"true" : L"false",
+        open ? L"" : L"close is not scriptable in the WebView2 host",
+        (unsigned long)GetTickCount64());
+      reply[399] = 0;
+      g.webview->lpVtbl->PostWebMessageAsJson(g.webview, reply);
+      logLine(L"[host] shell.devtools open=%d", open);
+    } else if (g.webview) {
+      /* Anything this host cannot do (product launch, downloads, session save)
+       * is answered instead of dropped: a silent drop makes the page look
+       * broken, while host.unsupported lets it say so out loud. */
+      wchar_t type[64], reply[400];
+      jsonStr(json, L"type", type, 64);
+      _snwprintf(reply, 400,
+        L"{\"channel\":\"infinity-shell\",\"v\":1,\"dir\":\"to-shell\",\"type\":\"host.unsupported\","
+        L"\"payload\":{\"type\":\"%ls\",\"host\":\"webview2\"},\"ts\":%lu,\"id\":\"host-unsupported\"}",
+        type, (unsigned long)GetTickCount64());
+      reply[399] = 0;
+      g.webview->lpVtbl->PostWebMessageAsJson(g.webview, reply);
+      logLine(L"[host] unsupported type=%ls", type);
     }
     CoTaskMemFree(json);
   }

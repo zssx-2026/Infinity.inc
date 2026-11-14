@@ -1,5 +1,48 @@
 # Infinity.Inc 任务清单（队列：先到先做，用户新需求排最后）
 
+## 2026-11-14 印出来的快捷键必须真的存在（用户「真正实现所有功能」+「快速消耗token并高质量工作」）
+- [x] `work/audit-shortcuts.mjs`（新建）：读 `index.html` 全部 `.mi-k` 加速键标签（只认 Ctrl/Alt/Shift/F 数字），逐个到 `shell.js` 找 `key === "x"` 分支并校验 shiftKey/ctrl 同行 → 首跑 **MISS 3**（Ctrl+J、Ctrl+N、误把 v1.0.0 当标签）。
+- [x] 真缺陷 1：菜单印 `Ctrl+J`（下载）却无 `j` 分支 → 补 `menuAction("downloads")`；真缺陷 2：菜单印 `Ctrl+N`（新建窗口）却无 `n` 分支 → 补 `menuAction("new-window")`；`node --check` exit 0 → **AUDIT-SHORTCUTS PASS labels=10**。
+- [x] 真缺陷 3：`new-window` 分支原为 `send("shell.window",{action:"new"}); toast("shell.window · new")`，把内部消息名当用户反馈 → 删 toast（宿主 `windowCommand('new')` 真开会第二个窗口）。
+- [x] 真缺陷 4：`index.html` 静态 `<span id="menuVersion">v0.1.0</span>` 与包版本不符 → 改 `v1.0.0`。
+- [x] `work/audit-hardcoded.mjs`（新建）：扫 `shell.js` 里 `toast/textContent/innerHTML/title/alert/confirm` 含中文的字面量 → **hits=0**（38 处中文全在注释）；扫 `index.html` 无 `data-i18n` 的中文文本节点 → 只报两处语言按钮「中文」。
+- [x] 语言自称（endonym）显式豁免：两处按钮加 `data-i18n-fixed="endonym"`，审计 `if (/data-i18n-fixed=/.test(attrs)) continue` 并写理由 → **AUDIT-HARDCODED PASS**（untranslated=0）。
+- [x] 探针升级为「按按键」：`shell/main.js` 加 `INFINITY_SHELL_PROBE_KEYS=1`，在真实窗口派发 `KeyboardEvent`（Ctrl+J 两次看面板开/关、Ctrl+H 看活动标签 kind），结果进快照 `keyProbe`。
+- [x] 顺序坑：先按 Ctrl+H 再开 NTP 会把 `.ntp` 冲掉（Ctrl+H 在当前标签内导航）→ 探针改为**先按键、后开 about:home**。
+- [x] 竞态坑：`cpp/tools/package.mjs` 早期就拷 `shell/build/`，先起打包再改 UI 会打出旧包；两次中止后固定顺序**改完 → build → 探针 → 打包**。
+- [x] `work/probe-chrome-truth.ps1` 增 3 条断言 → **CHROME-TRUTH PASS**（8 条）：`ctrlJOpens=True`、`ctrlJCloses=True`、`ctrlHHistory=True`。
+- [x] 契约新增第 20/21/22 节共 12 条 → **SELFTEST PASS pass=156 fail=0**。
+- [x] `docs/DOWNLOADS-v1.0pre8.md` 新增「四·C-9、印出来的快捷键必须真的存在（2026-11-14）」。
+- [x] 第九次重打包（job `pwsh-970f80cbdb224a30` exit 0）：InfinityCloud **84,188,040 B / `5e035cf6fbcd991e28fe39336721b9e7f8d914b7c2377a8cb6f2c96c842e70a4`**、InfinityPackageManager **84,440,992 B / `068a1ca5240a08b68d9dd8de9f8e10b8b3d9ecdf655f3807146a9be4e929ac55`**、InfinityToolbox **84,416,216 B / `87995fa9649faeeb39932a4a1e346f4575cfb7b0ce8eedbcf5e187d1f4cb31fa`**；三包签名 attempt=1 即 Valid。
+- [x] 重发（job `pwsh-cf98ef7f8766424c` exit 0）：删旧 746635863 / 746636620 / 746637327，上传 **746977455 / 746978254 / 746978794**，digest 与本地 sha256 逐字一致；`work/components-update.mjs` 更新 COMPONENTS 表。
+- [x] 部署（job `pwsh-3a65b5de013a45e9` exit 0）：deployment `976d8548`，`/api/components` 回读 84,188,040 `5e035cf6fbcd` 2 / 84,440,992 `068a1ca5240a` 2 / 84,416,216 `87995fa9649f` 2。
+- [x] 安装态复验 `work/qa-viewer-apps.ps1`（本轮加 `INFINITY_SHELL_PROBE_KEYS=1` 与三条快捷键断言）→ **VIEWER-APPS PASS**：`apps=inc,ipm,int,ifm`、inc 装其余未装、`ctrlJOpens=True ctrlJCloses=True ctrlHKind=history`、install/uninstall exit=0、目录消失。
+- [x] `work/audit-uistale.mjs`（新建）：对比 `work/webview2/ui` 与 `shell/build/inc_gui-win32-x64/resources/app/ui` 的 6 个文件 sha256 → **UISTALE PASS**（drift=0）；契约第 23 节 2 条 → **SELFTEST PASS pass=158 fail=0**。
+- [x] `docs/DOWNLOADS-v1.0pre8.md` 组件表换成第九次数字（84,188,040 / 84,440,992 / 84,416,216）+ 注记（资产 id 746977455 / 746978254 / 746978794、部署 976d8548）。
+## 2026-11-14 外壳自述求真 + 构建树可开机（用户「真正实现所有功能」+「快速消耗token并高质量工作」）
+- [x] `work/audit-i18n.mjs`（新建）：页面 200 个 `t()` 键 + `data-i18n` 对照 `i18n.js` 两段字典（zh=231 / en=231），查出 `status.demo` / `status.host` 两侧都不存在而菜单宿主徽标正用它 → 补两键 → **I18N-AUDIT PASS**。
+- [x] 版本自述：`shell.js` `VERSION` 由 `0.1.0` 改 `1.0.0`（与 `shell/package.json` 一致）；菜单徽标默认文本「演示模式」改「—」。
+- [x] 页脚自述：`i18n.js` 两语言 `ntp.footer` 与 `index.html` 静态页脚由「演示外壳」改「InfinityViewer · Infinity.Inc 外壳 / Infinity.Inc shell」。
+- [x] 页脚不再印桥内部名：`.ntp-engine` 由 `textContent = host.api`（会印出 `window.__INFINITY_HOST__.postMessage`）改为 `Chromium Trim`，API 名放 `title`。
+- [x] NTP 验不到的结构原因：`shell/main.js` 启动固定传 `?url=http://127.0.0.1:<port>/`，首标签永远是本机 Cloud 页；加 `INFINITY_SHELL_PROBE_NTP=1` 快照前 `open("about:home","newTab")` 等 600 ms；探针链加 `.catch` 落 `.err` 并 `app.quit()`，不再挂成隐藏窗口。
+- [x] **构建树开不了机**（真缺陷）：`shell/build.mjs` 先 `rmSync(build/)` 却从不放 `<prefix>_cli.exe`，`findServer()` 找不到就 `showFatal`；加 `stageCli()`（`cpp/out/<product>/<prefix>_cli.exe`，`inx` 走 `cpp/out/inc/`，缺失打 `MISSING`）。此前能跑只因打包脚本事后补了 CLI。
+- [x] 18 个外壳重建（3 架构 × 6 产品，x64 每个 188,784,128 B），每目录带 CLI：inc/inx 1,584,640 B、ipm/ipmx 685,056 B、int/intx 693,760 B。
+- [x] `work/probe-chrome-truth.ps1` 重写为断言版 → **CHROME-TRUTH PASS**：`menuVersion=v1.0.0`、`hostPill=宿主 · bridge`、`ntpNodes=1`、`ntpFooter=InfinityViewer · Infinity.Inc 外壳|Chromium Trim`。
+- [x] 契约新增第 16/17/18/19 节共 16 条 → **SELFTEST PASS pass=144 fail=0**（第 19 节首次因 `buildSrc` 重复声明编译失败，删掉重复的 `const` 后通过）。
+- [x] `docs/DOWNLOADS-v1.0pre8.md` 新增「四·C-8、外壳不再自述错误、构建树能自己开机（2026-11-14）」。
+- [ ] 第九次重打包 → 重发 → COMPONENTS → 部署 → 安装态复验（脚本 `work/package-components9.ps1` / `work/publish-components-pre9.ps1` 已备；内存门禁不足时暂缓）。
+
+## 2026-11-14 降级宿主不再沉默（用户「真正实现所有功能」）
+- [x] 事实核定：`work/package-pre8-components.ps1` 设 `INC_SHELL='electron'`，pre8 三包走 Electron 外壳；`cpp/hosts/webview2/main.c` 是未随包发布的降级/开发宿主（`cpp/tools/package.mjs:29-43,109,142,147,250-259` 仅在 `INC_SHELL=webview2` 时打 `<prefix>_window.exe` + `WebView2Loader.dll` + `ui/`）。
+- [x] 缺口：该宿主只应答 `shell.ready`（main.c:528）与 `shell.window`（main.c:537），页面发的 `viewer.apps` / `shell.devtools` 静默死掉。
+- [x] `cpp/hosts/webview2/main.c` 新增 `jsonBool` / `dirExistsW` / `appsJson`（查 `%LOCALAPPDATA%\\Programs\\Infinity.Inc\\` 四目录）→ `host.apps`；`shell.devtools` → `OpenDevToolsWindow()` + `host.devtools {open,target:"webview",error}`（`open=false` 时 error 明写 close is not scriptable）。
+- [x] 消息链末尾 `else if (g.webview)` 兜底回 `host.unsupported {type,host:"webview2"}`：做不到的事也有应答。
+- [x] `work/webview2/ui/assets/js/shell.js` 加 `case "host.unsupported"` → `toast(t("toast.hostUnsupported",{what}))`；i18n zh/en 各加 `toast.hostUnsupported`（当前宿主不支持 {what} / This host does not support {what}）；`node --check` exit 0。
+- [x] `work/build-webview2-host-check.ps1`（新建，直接 gcc 编，不跑会覆盖 `work/webview2/ui` 的 build.ps1）→ compile exit=0，产物 66,560 B；运行时不验（要开可见窗口，且不随包发）。
+- [x] `work/audit-bridge.mjs` 扩为三端对照：`webview2-host handled=4`、`WEBVIEW2-HOST-MISSING` 13 条；Electron 侧仍 sent=17 / handled=8（未处理项是通知类）。
+- [x] 契约第 15 节 7 条 → **SELFTEST PASS pass=128 fail=0**（首次 3 条 FAIL 是因为 C 字面量是 `L"\\"viewer.apps\\""`，改成匹配裸键后全绿）。
+- [x] `docs/DOWNLOADS-v1.0pre8.md` 新增「四·C-7、降级宿主不再沉默（2026-11-14）」。
+
 ## 2026-11-14 产品清单与翻译按钮（用户「真正实现所有功能」+「快速消耗token并高质量工作」）
 - [x] 桥两端对照（`work/audit-bridge.mjs`）：页面发 17 个动作 / 宿主有分支 8 个（其余是通知，宿主 `default` 回 `host.ack`）；宿主回 6 种 / 页面处理 18 种——**`host.apps` 是真缺口**：宿主 `case 'viewer.apps'` 会回产品清单，页面从没请求也没渲染。
 - [x] 真缺口 2：`#btn-translate` 仍发 `shell.command {name:"translate"}` 并 toast「已发送」，宿主无此分支——假按钮。

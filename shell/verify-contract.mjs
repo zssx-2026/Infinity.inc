@@ -271,6 +271,99 @@ ok(uiJs.indexOf('send("shell.command"') < 0, 'no button sends a command the host
 ok(uiJs.indexOf('function openTranslator') >= 0, 'the translate button opens a real page');
 ok((i18n.match(/"toast\.translatorOpened"/g) || []).length >= 2, 'both locales say where the translator opened');
 
+/* --- 15. the fallback host states its limits instead of going quiet ---
+ * cpp/hosts/webview2/main.c answers the same page but only implemented two
+ * messages, so viewer.apps and shell.devtools died silently there. It now
+ * answers both, and anything it cannot do comes back as host.unsupported,
+ * which the page turns into a toast - a dead button becomes a stated limit. */
+const hostC = read('cpp/hosts/webview2/main.c');
+/* The C literals carry escaped quotes (L"\"viewer.apps\""), so match the
+ * bare key rather than a quoted token. */
+ok(hostC.indexOf('viewer.apps') >= 0 && hostC.indexOf('appsJson(') >= 0, 'the fallback host answers the app inventory');
+ok(hostC.indexOf('host.devtools') >= 0, 'the fallback host answers the devtools request');
+ok(hostC.indexOf('host.unsupported') >= 0, 'the fallback host names what it cannot do');
+ok(uiJs.indexOf('case "host.unsupported"') >= 0, 'the page shows the host limit instead of nothing');
+ok((i18n.match(/"toast\.hostUnsupported"/g) || []).length >= 2, 'both locales can report an unsupported action');
+ok(read('work/audit-bridge.mjs').indexOf('WEBVIEW2-HOST-MISSING') >= 0, 'the audit keeps tracking the fallback host');
+ok(read('work/build-webview2-host-check.ps1').indexOf('webview2-host-check.exe') >= 0, 'the fallback host can be compiled without staging the live ui');
+
+/* --- 16. the chrome tells the truth about itself ---
+ * The About box and the menu print VERSION, and it read 0.1.0 while the shell
+ * package said 1.0.0 - a wrong version shown to the user. The new-tab footer
+ * also still said "demo shell" in the shipped build. Both are pinned now. */
+const shellPkg = JSON.parse(read('shell/package.json'));
+const uiVersion = (uiJs.match(/var VERSION = "([^"]+)"/) || [])[1] || '';
+ok(uiVersion === shellPkg.version, 'the chrome version matches shell/package.json (' + uiVersion + ' vs ' + shellPkg.version + ')');
+ok(read('work/webview2/ui/index.html').indexOf('演示外壳') < 0, 'the shipped page does not call itself a demo');
+ok(uiJs.indexOf('演示外壳') < 0, 'no script still writes the demo footer');
+ok((i18n.match(/"ntp\.footer"/g) || []).length >= 2, 'both locales name the footer');
+
+/* --- 17. no raw i18n key can reach the user ---
+ * work/audit-i18n.mjs walks every t("key") in the page and every data-i18n in
+ * the markup against both dictionaries; it found status.demo / status.host
+ * missing, so the menu host pill printed "status.host" instead of a word. */
+ok((i18n.match(/"status\.demo"/g) || []).length >= 2, 'both locales translate the demo state');
+ok((i18n.match(/"status\.host"/g) || []).length >= 2, 'both locales translate the host state');
+ok(read('work/audit-i18n.mjs').indexOf('I18N-AUDIT') >= 0, 'the i18n audit keeps watch for missing keys');
+ok(read('work/probe-chrome-truth.ps1').indexOf('CHROME-TRUTH PASS') >= 0, 'the chrome text can be proven headlessly');
+ok(main.indexOf('menuVersion:') >= 0 && main.indexOf('ntpFooter:') >= 0, 'the probe reports what the chrome says');
+
+/* --- 18. the new-tab footer speaks to people ---
+ * .ntp-engine printed host.api, so the shipped footer read
+ * window.__INFINITY_HOST__.postMessage. A user-facing label must not leak
+ * the bridge's internal function name; the API stays in the tooltip. */
+ok(uiJs.indexOf('engine.textContent') >= 0, 'the engine label is written as a label');
+ok(uiJs.indexOf('engine.title = host.api') >= 0, 'the bridge API stays available as a tooltip');
+ok(main.indexOf('INFINITY_SHELL_PROBE_NTP') >= 0, 'the probe can open the new-tab page before it snapshots');
+ok(read('work/probe-chrome-truth.ps1').indexOf('ntp-footer-not-demo') >= 0, 'the probe asserts the footer text');
+
+/* --- 19. a built tree can boot ---
+ * shell/build.mjs wiped build/ and never staged <prefix>_cli.exe, so the
+ * window it produced showed a fatal page forever; a build that emits an
+ * unrunnable tree is a defect, not a prerequisite someone forgot. */
+ok(buildSrc.indexOf('function stageCli(') >= 0, 'the build stages the CLI the window spawns');
+ok(buildSrc.indexOf("'inx' ? 'inc'") >= 0, 'the admin build finds its CLI under the base product');
+ok(buildSrc.indexOf('MISSING') >= 0, 'a missing CLI is reported instead of silently skipped');
+
+
+/* --- 20. no user-visible text escapes the dictionaries ---
+ * audit-i18n.mjs proves every key resolves; it cannot see a string written
+ * straight into the markup. The static menu also still printed v0.1.0 in the
+ * shipped page, so a page that never ran its script would lie about the build. */
+const hard = read('work/audit-hardcoded.mjs');
+ok(hard.indexOf('AUDIT-HARDCODED') >= 0, 'the hardcoded-text audit can be rerun');
+ok(hard.indexOf('data-i18n-fixed') >= 0, 'the audit exempts language endonyms by marking, not by guessing');
+ok(read('work/webview2/ui/index.html').indexOf('data-i18n-fixed="endonym"') >= 0, 'the language buttons are marked as endonyms');
+ok(read('work/webview2/ui/index.html').indexOf('id="menuVersion">v' + shellPkg.version + '<') >= 0, 'the static menu version matches the package');
+
+
+/* --- 21. a printed shortcut is a promise ---
+ * The menu printed Ctrl+J and Ctrl+N with no keydown branch behind them, so
+ * the chrome advertised keys that did nothing. audit-shortcuts.mjs reads the
+ * printed labels and demands a branch for each one. */
+ok(read('work/audit-shortcuts.mjs').indexOf('AUDIT-SHORTCUTS') >= 0, 'the shortcut audit can be rerun');
+ok(uiJs.indexOf('key === "j"') >= 0, 'Ctrl+J opens the downloads panel');
+ok(uiJs.indexOf('key === "n"') >= 0, 'Ctrl+N asks the host for a new window');
+ok(uiJs.indexOf('toast("shell.window · new")') < 0, 'the new-window action no longer prints its own message name');
+
+
+/* --- 22. the probe presses the printed keys ---
+ * audit-shortcuts proves a branch exists; only a real window proves the
+ * branch fires. The probe dispatches the accelerator in the shipped page and
+ * reads what the chrome did, so Ctrl+J is verified by the panel opening. */
+ok(main.indexOf('INFINITY_SHELL_PROBE_KEYS') >= 0, 'the probe can press accelerators');
+ok(main.indexOf('keyProbe.ctrlJOpens') >= 0, 'the probe reads the downloads panel after Ctrl+J');
+ok(main.indexOf('keyProbe.ctrlHKind') >= 0, 'the probe reads the active tab kind after Ctrl+H');
+ok(read('work/probe-chrome-truth.ps1').indexOf('shortcut-ctrl-j-opens') >= 0, 'the probe asserts the printed shortcut');
+
+
+/* --- 23. the packaged chrome is the chrome in the tree ---
+ * shell/build.mjs copies work/webview2/ui into every built app dir, so editing
+ * the source after a build leaves an installer with old chrome. That happened
+ * twice while fixing shortcuts; the drift is now measured instead of hoped for. */
+ok(read('work/audit-uistale.mjs').indexOf('UISTALE') >= 0, 'the UI drift audit can be rerun');
+ok(read('work/audit-uistale.mjs').indexOf('shell/build/inc_gui-win32-x64/resources/app/ui') >= 0, 'the audit compares against a real built tree');
+
 console.log('');
 console.log((fail === 0 ? 'SELFTEST PASS' : 'SELFTEST FAIL') + '  pass=' + pass + ' fail=' + fail);
 process.exit(fail === 0 ? 0 : 1);
