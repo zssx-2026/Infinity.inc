@@ -176,6 +176,19 @@ ok(uiJs.indexOf('guest.reload') >= 0 || uiJs.indexOf('.reload()') >= 0, 'reload 
 ok(main.indexOf('INFINITY_SHELL_PROBE_WEB') >= 0, 'the shell can prove webview navigation headlessly');
 ok(read('work/webview2/ui/assets/css/shell.css').indexOf('.view webview') >= 0, 'the guest fills the view area');
 
+/* --- 9. a download started inside a guest page is the viewer's download too ---
+ * A download manager that only handles the URL typed into its own box is a toy:
+ * the real case is a file offered by a page the user is reading. Chromium hands
+ * guest downloads to the same session, so will-download is the single place the
+ * takeover has to happen - and the probe has to click the page's own link, not
+ * call the panel, or it proves nothing. */
+ok(main.indexOf('INFINITY_SHELL_PROBE_GUEST_DL') >= 0, 'the shell can prove guest downloads headlessly');
+ok(main.indexOf('function probeGuestDownload') >= 0, 'the guest-download probe exists');
+ok(/content-disposition/.test(main) && /filename="guest.bin"/.test(main), 'the probe page offers the file as an attachment');
+ok(/downloads\.command\("remove"/.test(main) || main.indexOf('downloads.command("remove"') >= 0, 'the probe clears the queue first, so a stale item cannot fake a pass');
+ok(main.indexOf("state.onDisk") >= 0, 'the probe checks the file really landed on disk');
+ok(uiJs.indexOf('state: downloads') >= 0, 'the downloads namespace exposes its state object');
+
 console.log('');
 console.log((fail === 0 ? 'SELFTEST PASS' : 'SELFTEST FAIL') + '  pass=' + pass + ' fail=' + fail);
 process.exit(fail === 0 ? 0 : 1);

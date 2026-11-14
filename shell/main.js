@@ -492,6 +492,81 @@ function probeWebPage(done) {
   });
 }
 
+/* INFINITY_SHELL_PROBE_GUEST_DL answers the question a "built-in download
+ * manager" has to answer: does a download started inside a real web page reach
+ * our panel, or only the one typed into it by hand? The page is served from
+ * loopback with Content-Disposition: attachment, the guest clicks its own link,
+ * and the panel is read afterwards. */
+function probeGuestDownload(done) {
+  const http = require('node:http');
+  const body = Buffer.alloc(2 * 1024 * 1024, 7);
+  const page = '<!doctype html><meta charset="utf-8"><title>Guest Download</title>' +
+    '<a id="dl" href="/file.bin">download the file</a>';
+  const srv = http.createServer(function (req, res) {
+    if (req.url.indexOf('/file.bin') === 0) {
+      res.writeHead(200, {
+        'content-type': 'application/octet-stream',
+        'content-length': String(body.length),
+        'content-disposition': 'attachment; filename="guest.bin"'
+      });
+      res.end(body);
+      return;
+    }
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+    res.end(page);
+  });
+  const fail = function (e) {
+    try { srv.close(); } catch (err) { }
+    done({ error: String((e && e.message) || e) });
+  };
+  srv.on('error', fail);
+  srv.listen(0, '127.0.0.1', function () {
+    const url = 'http://127.0.0.1:' + srv.address().port + '/page.html';
+    /* 上一轮探针留下的队列项会让「刚点的这一下进了面板吗」这个断言失去意义，
+     * 所以先把队列清空再点。 */
+    win.webContents.executeJavaScript(
+      '(function(){var st=window.__InfinityShell.downloads.state;' +
+      '(st.items||[]).slice().forEach(function(i){window.__InfinityShell.downloads.command("remove",{id:i.id});});' +
+      'return (st.items||[]).length;})()'
+    ).then(function () {
+      win.webContents.executeJavaScript(
+        'window.__InfinityShell.open(' + JSON.stringify(url) + ',"current"); true'
+      ).then(function () {
+      setTimeout(function () {
+        win.webContents.executeJavaScript(
+          '(function(){var w=document.querySelector("webview");' +
+          'if(!w||!w.executeJavaScript) return "no guest";' +
+          'w.executeJavaScript("document.getElementById(\'dl\').click(); true");' +
+          'return "clicked " + (w.getURL?w.getURL():"");})()'
+        ).then(function (clicked) {
+          setTimeout(function () {
+            win.webContents.executeJavaScript(
+              '(function(){var st=window.__InfinityShell.downloads.state;' +
+              'var p=document.getElementById("dlpanel");' +
+              'return {items:(st.items||[]).length,' +
+              'names:(st.items||[]).map(function(i){return i.name;}),' +
+              'bytes:(st.items||[]).map(function(i){return i.received;}),' +
+              'text:p?String(p.textContent||"").slice(0,200):""};})()'
+            ).then(function (state) {
+              state.clicked = clicked;
+              /* 面板说有，磁盘上也得真有，否则「下载完成」只是一行字。 */
+              try {
+                const fsx = require('node:fs');
+                const target = path.join(app.getPath('downloads'), 'InfinityViewer', 'guest.bin');
+                state.file = target;
+                state.onDisk = fsx.existsSync(target) ? fsx.statSync(target).size : -1;
+              } catch (err) { state.onDisk = -2; }
+              try { srv.close(); } catch (err) { }
+              done(state);
+            }).catch(fail);
+          }, 4000);
+        }).catch(fail);
+      }, 2500);
+    }).catch(fail);
+    }).catch(fail);
+  });
+}
+
 /* INFINITY_SHELL_PROBE_DL proves the built-in download manager end to end:
  * the page's own toolbar button and URL box drive it, the frame crosses the
  * bridge, main.js queues the transfer, and a real file lands on disk. A value
@@ -692,6 +767,15 @@ async function boot() {
          * it. The states are recorded after each command. */
         /* The download probe drives the real toolbar, so it also proves the
          * panel is wired to the host rather than only present in the markup. */
+        if (process.env.INFINITY_SHELL_PROBE_GUEST_DL) {
+          probeGuestDownload(function (state) {
+            info.guestDownload = state;
+            writeProbe();
+            finishProbe();
+          });
+          return;
+        }
+
         if (process.env.INFINITY_SHELL_PROBE_WEB) {
           probeWebPage(function (state) {
             info.web = state;

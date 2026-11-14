@@ -92,16 +92,16 @@ Studio 的「在线安装」页不经过浏览器验证：桌面程序直接读�
 
 | 资产 | 名称 | 字节 | sha256 |
 |---|---|---|---|
-| `InfinityCloud-setup` | Infinity Cloud | 84,194,352 | `ca846507d6b3…1a0b` |
-| `InfinityPackageManager-setup` | Infinity Package Manager | 84,004,072 | `33a4f7351189…c9a4` |
-| `InfinityToolbox-setup` | Infinity Toolbox | 83,946,304 | `7980a89b52e6…0089` |
+| `InfinityCloud-setup` | Infinity Cloud | 84,199,784 | `b8d526f61118…1e6a` |
+| `InfinityPackageManager-setup` | Infinity Package Manager | 83,989,016 | `6991d9fd7b58…5fbd` |
+| `InfinityToolbox-setup` | Infinity Toolbox | 83,943,776 | `25fbe5b92533…c04d` |
 
-上表是 2026-11-14 **第二次**重打包（外壳加了「真浏览」，见四·C）：资产 id 746075520 / 746076061 / 746077030，digest 与本地 sha256 逐字符一致；旧一版（84,202,296 / 83,957,264 / 83,963,224）已被同名替换。
+上表是 2026-11-14 **第三次**重打包（外壳加了「网页内下载也接管」，见四·C-1）：资产 id 746159042 / 746160144 / 746161492，digest 与本地 sha256 逐字符一致，部署 020f6806；前两版（84,194,352 / 84,004,072 / 83,946,304 与 84,202,296 / 83,957,264 / 83,963,224）已被同名替换。
 
 - 重打包的理由：pre8 的三个 C++ 安装包是 InfinityViewer 更名（无框窗口 + 内置下载管理器）**之前**打的，直接拿来发等于把旧外壳塞给用户。重打包只换外壳载荷，命令行二进制不变；
 - 客户端不用重编就能看到新组件：`fetchCatalog` 拉完公开目录后再拉 `/api/components` 合并，读不到组件门也不算失败（旧门照常只给两个 setup）；
 - 「安装全部」按钮会把 5 个包一起装（Studio 自身除外），单个组件也可以只点自己那一行。
-- 镜像也认组件：`/cdn/<asset>` 先查 `ASSETS` 再查 `COMPONENTS`，所以 Studio 在发布主机和公共代理都不可用时还有自己的一条路；但 **`/dl` 只认 `ASSETS`**，`GET /dl/InfinityCloud-setup` 实测仍回 404 `unknown_asset`——组件不可能从公开门被领走，只有已经知道资产名的 Studio 能取字节（实测 `/cdn/InfinityCloud-setup` HEAD → 200 / 84,202,296 B / `accept-ranges: bytes`）。
+- 镜像也认组件：`/cdn/<asset>` 先查 `ASSETS` 再查 `COMPONENTS`，所以 Studio 在发布主机和公共代理都不可用时还有自己的一条路；但 **`/dl` 只认 `ASSETS`**，`GET /dl/InfinityCloud-setup` 实测仍回 404 `unknown_asset`——组件不可能从公开门被领走，只有已经知道资产名的 Studio 能取字节（实测 `/cdn/InfinityCloud-setup` HEAD → 200 / 84,199,784 B / `accept-ranges: bytes`）。
 - **卸载也在同一条路上**：`InfinityStudio/src/uninstall.js` 按产品名（去空格、忽略大小写）在 `%LOCALAPPDATA%\Programs\Infinity.Inc\*` 里找目录，跑该目录的 `Uninstall.exe /S _?=<dir>`（`_?=` 让 NSIS 不再把自己复制到 %TEMP%，退出码才代表"卸完了"），然后以**目录真的消失**作为成功判据，不只看退出码。`POST /v1/remote/uninstall {ids:["cloud"]}` 返回 `{ok, results:[{asset,dir,code,removed}]}`；空 id 列表回 400，卸载正在运行的安装器本身被拒绝（`refusing to uninstall the running installer`）。`GET /v1/remote` 现在多一个 `installed` 数组，页面据此把行标成「已安装」并给「卸载」按钮。
 
 最终发布的 Studio 为 **83,807,192 B / sha256 `d5dd3415968f1dc121abce519fb3b656fbd4c334dd87eff27c5772a124798b03`**（sig=Valid，`/api/catalog` 同步，部署 18c68e6f），卸载通道就是在这一版上复跑的。
@@ -128,7 +128,22 @@ search={url:"https://www.bing.com/search?q=probe%20search%20query", kind:"web"}
 
 截图 `work/shell-web.png`（73,838 B）OCR 能读到 guest 页正文「probe web page rendered inside a webview guest」，说明是真渲染而不是只建了节点。
 
-装好的组件也复验过（`work/qa-viewer-web.ps1` → **VIEWER-WEB PASS**）：从线上目录装 Infinity Cloud（97 文件 / 292,476,947 B），装出来的 `inc_shell\resources\app\main.js`（31,865 B）含 `webviewTag: true`、`ui\assets\js\shell.js`（95,740 B）含 `function buildWebview` 与 bing 搜索前缀；用这个装好的 `inc_window.exe` 跑同一探针，同样得到 `webviews=1 / title=Probe Web Page / kind=web` 与 bing 搜索 URL。契约自检 `node shell/verify-contract.mjs` → **SELFTEST PASS pass=67 fail=0**（新增第 8 节 8 条）。内置下载器在 `webviewTag` 打开后回归通过：`work/probe-shell-dl.ps1` 慢速 24 MB 下载显示「6.5 MB / 24.0 MB · 2.9 MB/s · 8 连接」、角标 1。
+装好的组件也复验过（`work/qa-viewer-web.ps1` → **VIEWER-WEB PASS**）：从线上目录装 Infinity Cloud（97 文件 / 292,476,947 B），装出来的 `inc_shell\resources\app\main.js`（31,865 B）含 `webviewTag: true`、`ui\assets\js\shell.js`（95,740 B）含 `function buildWebview` 与 bing 搜索前缀；用这个装好的 `inc_window.exe` 跑同一探针，同样得到 `webviews=1 / title=Probe Web Page / kind=web` 与 bing 搜索 URL。内置下载器在 `webviewTag` 打开后回归通过：`work/probe-shell-dl.ps1` 慢速 24 MB 下载显示「6.5 MB / 24.0 MB · 2.9 MB/s · 8 连接」、角标 1。
+
+### 四·C-1、网页里点的下载也归内置下载器（2026-11-14）
+
+只接管「面板里手输的 URL」是玩具：真实的下载是**用户正在看的那个页面**给出的。Chromium 把 guest 页的下载交给同一个 session，所以接管点只有一处——`will-download`（`shell/main.js`：`item.cancel()` 后 `downloadManager().start(url, item.getFilename())`）。
+
+探针 `INFINITY_SHELL_PROBE_GUEST_DL=1`（`work/probe-guest-dl.ps1`，窗口 `show:false`）流程：本地 http 服务回一个只有 `<a id="dl" href="/file.bin">` 的页面，`/file.bin` 是 2 MiB 且带 `content-disposition: attachment; filename="guest.bin"` → 打开页面 → 在 guest 里执行 `document.getElementById('dl').click()` → 4 s 后读面板。实测：
+
+```
+clicked = "clicked http://127.0.0.1:53532/page.html"
+items=1  names={guest.bin}  bytes={2097152}  onDisk=2097152
+```
+
+面板文本「guest.bin 已完成 2.0 MB / 2.0 MB」、计数「1 个任务」，磁盘上 `%USERPROFILE%\Downloads\InfinityViewer\guest.bin` 正好 2,097,152 B。**探针必须先把队列清空**（`downloads.command("remove",{id})` 遍历 `downloads.state.items`），否则上一轮的残留项会让「刚点的这一下进了面板吗」这个断言失去意义——第一版探针就是这么假通过的（items=3，两个 guest.bin 加一个历史 probe.bin）；也不能用 `downloads.state()`，`state` 是对象不是函数。
+
+契约自检补第 9 节 6 条（探针存在、附件头、先清队列、检查磁盘落盘、namespace 暴露 state）→ **SELFTEST PASS pass=73 fail=0**。
 
 ## 五、无窗口验收（硬约束）
 

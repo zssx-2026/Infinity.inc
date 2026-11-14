@@ -1,5 +1,22 @@
 # Infinity.Inc 任务清单（队列：先到先做，用户新需求排最后）
 
+## 2026-11-14 网页内下载也进内置下载器（用户「真正实现所有功能」）
+- [x] 动机：只接管「面板里手输的 URL」是玩具，真实下载是**用户正在看的页面**给出的；Chromium 把 guest 页下载交给同一 session，接管点只有 `will-download`。
+- [x] `shell/main.js` 新增 `probeGuestDownload(done)` + `INFINITY_SHELL_PROBE_GUEST_DL`：本地 http 页只有 `<a id="dl" href="/file.bin">`，`/file.bin` 是 2 MiB + `content-disposition: attachment; filename="guest.bin"`；流程 open → 2.5 s → guest 内 `document.getElementById('dl').click()` → 4 s 读面板与磁盘。
+- [x] **两个探针自身 bug**：(1) 写成 `downloads.state()` —— `state` 是对象不是函数（`work/webview2/ui/assets/js/shell.js:2106-2111`）；(2) 在探针函数体内写 `info.guestClick`，`info` 只在外层分支作用域 → `info is not defined` 被 catch 成 `{error}`，改为挂到返回的 state 上。
+- [x] **假通过风险（已消除）**：第一版没清队列，items=3（两个 guest.bin + 上一轮残留 `probe.bin 已暂停 0 B`），「刚点的这一下进了面板」根本不成立；改为探针开头 `downloads.command("remove",{id})` 遍历 `downloads.state.items` 清空，并加 `state.onDisk`（`fs.existsSync(path.join(app.getPath('downloads'),'InfinityViewer','guest.bin'))` 的真实字节数）。
+- [x] 实证（`work/probe-guest-dl.ps1`，窗口 `show:false`）：`clicked "clicked http://127.0.0.1:53532/page.html"`、**items=1 / names={guest.bin} / bytes={2097152} / onDisk=2097152**，面板「guest.bin 已完成 2.0 MB / 2.0 MB」「1 个任务」。
+- [x] 契约自检补第 9 节 6 条（探针存在、附件头、先清队列、检查磁盘落盘、namespace 暴露 state）→ **SELFTEST PASS pass=73 fail=0**。
+- [x] 构建坑：`shell/build` 被上一轮残留 `inc_gui.exe`（pid 19068 / 27624）占住 → `node shell/build.mjs` 报 `EPERM: Permission denied ... shell\build`；按路径前缀杀掉本仓进程后重建成功（不要按进程名杀，避免动到用户程序）。
+- [x] `docs/DOWNLOADS-v1.0pre8.md` 新增「四·C-1、网页里点的下载也归内置下载器」。
+- [x] 三个组件用带该探针的外壳重打包（`work/package-pre8-components.ps1`，job `pwsh-0b8ef0780e8245b0` exit 0，三包 attempt=1 即 Valid）：InfinityCloud **84,199,784 B / `b8d526f61118…1e6a`**、InfinityPackageManager **83,989,016 B / `6991d9fd7b58…5fbd`**、InfinityToolbox **83,943,776 B / `25fbe5b92533…c04d`**。
+- [x] 重发（job `pwsh-c1fda5b42fae4554` exit 0）：删旧资产 746075520 / 746076061 / 746077030，上传 **746159042 / 746160144 / 746161492**，digest 与本地一致；`work/components-update.mjs` 重写 `COMPONENTS` 后部署（020f6806），`/api/components` 实测三条新 size/sha、各 2 个 mirrors。
+- [x] 装出来的组件复验（`work/qa-viewer-guestdl.ps1`）→ **VIEWER-GUESTDL PASS**：静默装 InfinityCloud（97 文件 / 292,480,762 B，staged main.js 35,477 B 含 `INFINITY_SHELL_PROBE_GUEST_DL` 与 `webviewTag: true`）→ 用装好的 `inc_window.exe` 跑 guest 下载探针 → **items=1 / guest.bin / 2,097,152 B / onDisk=2,097,152** → `/S` 卸载 exit 0、目录消失。
+- [x] 全量回归：`SELFTEST PASS pass=73 fail=0`、`HIDDEN-WINDOWS PASS files=166 problems=0`、`STUDIO-CLEAN 16/16`、`REMOTE-DOWNLOAD 21/21`、`REMOTE-UNINSTALL 10/10`、`SERVER-PAGE 11/11`、int 冒烟 `PASS 9/9`。
+- [x] 线上安装复跑（`work/qa-studio-component.ps1`）→ **STUDIO-HEADLESS PASS / STUDIO-COMPONENT PASS**：Studio 从线上目录装新组件，下载 84,199,784 B / 128 s，sha256 `b8d526f6…1e6a` 与目录一致，装上 97 文件 / 292,480,762 B（staged shell 35,572 B 含 `InfinityViewer`），两个卸载器 /S exit 0、目录全清。
+- [x] 边界未破：`GET /dl/InfinityCloud-setup` 仍 404（公开门只认 ASSETS）、`GET /dl/InfinityStudio-setup` HTML 200、`/api/catalog` 仍只有两条公开产品。
+- [ ] **GitHub 二级限流挡住源码快照**：`ghsync-source.mjs --push` 连续三次 `blob failed ... 403 API rate limit exceeded`（core 配额 remaining=4935，挡的是「内容创建」这一类，每小时 500 次；本轮发布会话已用完）。已给 blob 上传加 700 ms 间隔 + 403 等 60 s 重试 6 次（仍不够，需等小时窗口），定时任务 `pwsh-5690ca4e34d3432b` 睡 1800 s 后自动重推。
+
 ## 2026-11-14 InfinityViewer 真浏览（用户「真正实现所有功能」）
 - [x] 问题：外壳此前只能渲染自家产品页，地址栏非网址输入落到 i18n 的「演示模式不联网」卡片——一个叫浏览器的程序搜不了东西，等于半个功能。
 - [x] `work/webview2/ui/assets/js/shell.js`：新增 `SEARCH_BASE = "https://www.bing.com/search?q="`、`canWebview()`、`buildWebview(tab)`（`<webview>` + did-start/did-stop/page-title-updated/did-navigate/did-fail-load，-3 与非主框架错误忽略），`buildFrame` 在 `tab.kind === "web"` 时走 webview（本地产品页仍 iframe）；`resolveTarget` 在能建 guest 时返回真搜索 URL + `kind:"web"`；`reload()` 优先 guest.reload()；过渡页显示 `errorText`。
@@ -11,6 +28,7 @@
 - [x] 三个组件用新外壳重打包并重发：InfinityCloud **84,194,352 B / `ca846507d6b3…1a0b`**、InfinityPackageManager **84,004,072 B / `33a4f7351189…c9a4`**、InfinityToolbox **83,946,304 B / `7980a89b52e6…0089`**，sig=Valid；asset id 746075520 / 746076061 / 746077030，digest 与本地一致；`work/components-update.mjs` 更新 `COMPONENTS` 并部署（f674f048），`/api/components` 实测三条与上表一致、各 2 个 mirrors。
 - [x] 装出来的组件也验：`work/qa-viewer-web.ps1` → **VIEWER-WEB PASS**（装 Infinity Cloud 97 文件 / 292,476,947 B；staged main.js 31,865 B 含 `webviewTag: true`，ui shell.js 95,740 B 含 `function buildWebview` 与 bing 前缀；用装好的 `inc_window.exe` 跑同一探针得 webviews=1 / Probe Web Page / kind=web + bing 搜索 URL；两个卸载器 /S exit 0、目录清空）。首轮 ConvertFrom-Json 抛 ArgumentException 是 PS 5.1 按 ANSI 读 UTF-8 的老坑，改 `[System.IO.File]::ReadAllText(...,UTF8)`。
 - [x] 文档：docs/DOWNLOADS-v1.0pre8.md 新增「四·C、InfinityViewer 是真浏览器」整节，组件字节表更新为第二次重打包的数字。
+- [x] 回归与快照：HIDDEN-WINDOWS PASS files=164 problems=0、SELFTEST 67/67；ghsync old_head `0539b47a` → **new_head `3c6df2d5f714c2e79218f5830d8b395fdb7818a3`**（changed=14 / 1,167 文件）。
 
 ## 2026-11-14 组件渠道（Studio 装自己的子产品，用户「真正实现所有功能」）
 - [x] **动机**：公开站按 m02647 只给 Studio / Server 两个入口，但 Studio 在干净机器上只能远程装 Server——一个叫 Installer 的程序装不了自己的子产品，等于半个下载页。

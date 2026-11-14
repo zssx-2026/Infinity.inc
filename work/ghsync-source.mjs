@@ -192,8 +192,20 @@ async function main() {
     for (const f of chunk) {
       const buf = fs.readFileSync(path.join(ROOT, f.rel));
       if (blobSha(buf) !== f.sha) { console.error('local file changed under us: ' + f.rel); process.exit(4); }
-      const b = api('POST', '/repos/' + OWNER + '/' + REPO + '/git/blobs', { content: buf.toString('base64'), encoding: 'base64' });
+      /* GitHub 的二级限流按「每分钟内容创建请求数」算，一个快照几百个 blob
+       * 一口气打过去就会被 403 rate limit 挡住（core 配额还剩四千多也一样挡）。
+       * 所以这里既限速也退避：每 blob 之间留 700 ms（约 85 个/分钟以内），
+       * 真被挡就等 60 s 再来，最多 6 次。 */
+      let b = api('POST', '/repos/' + OWNER + '/' + REPO + '/git/blobs', { content: buf.toString('base64'), encoding: 'base64' }, 1);
+      for (let attempt = 1; attempt <= 6 && (b.status === 403 || b.status === 429); attempt++) {
+        console.log('   blob throttled for ' + f.rel + ' (' + b.status + '), waiting 60s, retry ' + attempt);
+        execFileSync(process.platform === 'win32' ? 'powershell' : 'sleep',
+          process.platform === 'win32' ? ['-NoProfile', '-Command', 'Start-Sleep -Seconds 60'] : ['60'], { stdio: 'ignore' });
+        b = api('POST', '/repos/' + OWNER + '/' + REPO + '/git/blobs', { content: buf.toString('base64'), encoding: 'base64' }, 1);
+      }
       if (b.status !== 201 || !b.data || !b.data.sha) { console.error('blob failed for ' + f.rel + ': ' + b.status + ' ' + b.error); process.exit(5); }
+      execFileSync(process.platform === 'win32' ? 'powershell' : 'sleep',
+        process.platform === 'win32' ? ['-NoProfile', '-Command', 'Start-Sleep -Milliseconds 700'] : ['0.7'], { stdio: 'ignore' });
       entries.push({ path: f.rel, mode: '100644', type: 'blob', sha: b.data.sha });
     }
     const t = api('POST', '/repos/' + OWNER + '/' + REPO + '/git/trees', { base_tree: curTree, tree: entries });

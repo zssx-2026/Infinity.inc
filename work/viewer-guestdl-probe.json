@@ -1,0 +1,44 @@
+{
+  "dpr": 1.5,
+  "cssW": 1180,
+  "cssH": 752,
+  "screenW": 1280,
+  "screenH": 800,
+  "availH": 752,
+  "title": "InfinityViewer",
+  "origin": "infinity-shell://ui",
+  "lsKeys": "infinity-shell-state",
+  "hasSession": false,
+  "tabCount": 1,
+  "audioElements": 0,
+  "frameSrc": "",
+  "dlOpen": false,
+  "dlItems": 0,
+  "dlText": "",
+  "dlBadge": "0",
+  "bodyText": "127.0.0.1:7621\nhttp://\nII\n侧栏\n应用\nINC\nInfinity 云\nITB\nInfinity 工具箱\nIIM\nInfinity 安装管",
+  "scaleFactor": 1.5,
+  "bounds": {
+    "x": 50,
+    "y": 0,
+    "width": 1180,
+    "height": 752
+  },
+  "contentSize": [
+    1180,
+    752
+  ],
+  "guestDownload": {
+    "items": 1,
+    "names": [
+      "guest.bin"
+    ],
+    "bytes": [
+      2097152
+    ],
+    "text": "\n    \n      \n      下载C:\\Users\\REDMI\\Downloads\\InfinityViewer\n      \n      \n    \n    \n      \n      下载\n    \n    guest.bin已完成2.0 MB / 2.0 MB打开位置移除\n    \n      1 个任务 · —\n      清除已完成\n    \n  ",
+    "clicked": "clicked http://127.0.0.1:55467/page.html",
+    "file": "C:\\Users\\REDMI\\Downloads\\InfinityViewer\\guest.bin",
+    "onDisk": 2097152
+  }
+}
