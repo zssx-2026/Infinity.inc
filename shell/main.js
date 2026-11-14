@@ -567,6 +567,88 @@ function probeGuestDownload(done) {
   });
 }
 
+/* INFINITY_SHELL_PROBE_INTERNAL checks the three internal pages that used to be
+ * fake menu entries: history has to have recorded the pages the probe really
+ * opened, a favorite has to survive a toggle, and a collection has to hold the
+ * window's tabs and restore them. The pages are read through the DOM, so this
+ * fails if the markup stops rendering even when the stores are fine. */
+function probeInternal(done) {
+  const http = require('node:http');
+  const srv = http.createServer(function (req, res) {
+    const name = req.url.indexOf('/b.html') === 0 ? 'Second Page' : 'First Page';
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+    res.end('<!doctype html><meta charset="utf-8"><title>' + name + '</title><h1>' + name + '</h1>');
+  });
+  const fail = function (e) {
+    try { srv.close(); } catch (err) { }
+    done({ error: String((e && e.message) || e) });
+  };
+  srv.on('error', fail);
+  srv.listen(0, '127.0.0.1', function () {
+    const base = 'http://127.0.0.1:' + srv.address().port;
+    const a = base + '/a.html';
+    const b = base + '/b.html';
+    const run = function (js) { return win.webContents.executeJavaScript(js); };
+    run('window.__InfinityShell.history.clear(); window.__InfinityShell.open(' + JSON.stringify(a) + ',"current"); true')
+      .then(function () { return new Promise(function (r) { setTimeout(r, 1600); }); })
+      .then(function () { return run('window.__InfinityShell.open(' + JSON.stringify(b) + ',"current"); true'); })
+      .then(function () { return new Promise(function (r) { setTimeout(r, 1600); }); })
+      .then(function () {
+        return run(
+          '(function(){var s=window.__InfinityShell;' +
+          'var h=s.history.list();' +
+          'var favBefore=s.favorites.list().length;' +
+          's.favorites.toggle(' + JSON.stringify(a) + ');' +
+          'var favAfter=s.favorites.list().length;' +
+          'var col=s.collections.save("probe collection");' +
+          's.open("about:history","current");' +
+          'return {history:h.map(function(x){return x.url;}),' +
+          'favBefore:favBefore,favAfter:favAfter,' +
+          'colId:col?col.id:"",colTabs:col?col.tabs.length:0,' +
+          'collections:s.collections.list().length};})()'
+        );
+      })
+      .then(function (state) { return new Promise(function (r) { setTimeout(function () { r(state); }, 700); }); })
+      .then(function (state) {
+        return run(
+          '(function(){var root=document.querySelector(".view:not([hidden]) .internal");' +
+          'return {page:!!root,' +
+          'title:root?String((root.querySelector("h1")||{}).textContent||""):"",' +
+          'rows:root?root.querySelectorAll(".internal-row").length:0,' +
+          'count:root?String((root.querySelector(".internal-count")||{}).textContent||""):"",' +
+          'body:root?String(root.textContent||"").slice(0,240):""};})()'
+        ).then(function (dom) {
+          state.historyPage = dom;
+          return run('window.__InfinityShell.open("about:favorites","current"); true')
+            .then(function () { return new Promise(function (r) { setTimeout(r, 600); }); })
+            .then(function () {
+              return run(
+                '(function(){var root=document.querySelector(".view:not([hidden]) .internal");' +
+                'return {page:!!root,rows:root?root.querySelectorAll(".internal-row").length:0};})()'
+              );
+            })
+            .then(function (favDom) {
+              state.favoritesPage = favDom;
+              return run('window.__InfinityShell.open("about:collections","current"); true')
+                .then(function () { return new Promise(function (r) { setTimeout(r, 600); }); })
+                .then(function () {
+                  return run(
+                    '(function(){var root=document.querySelector(".view:not([hidden]) .internal");' +
+                    'return {page:!!root,rows:root?root.querySelectorAll(".internal-row").length:0};})()'
+                  );
+                });
+            })
+            .then(function (colDom) {
+              state.collectionsPage = colDom;
+              try { srv.close(); } catch (err) { }
+              done(state);
+            });
+        });
+      })
+      .catch(fail);
+  });
+}
+
 /* INFINITY_SHELL_PROBE_DL proves the built-in download manager end to end:
  * the page's own toolbar button and URL box drive it, the frame crosses the
  * bridge, main.js queues the transfer, and a real file lands on disk. A value
@@ -767,6 +849,15 @@ async function boot() {
          * it. The states are recorded after each command. */
         /* The download probe drives the real toolbar, so it also proves the
          * panel is wired to the host rather than only present in the markup. */
+        if (process.env.INFINITY_SHELL_PROBE_INTERNAL) {
+          probeInternal(function (state) {
+            info.internal = state;
+            writeProbe();
+            finishProbe();
+          });
+          return;
+        }
+
         if (process.env.INFINITY_SHELL_PROBE_GUEST_DL) {
           probeGuestDownload(function (state) {
             info.guestDownload = state;

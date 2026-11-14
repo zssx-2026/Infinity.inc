@@ -92,11 +92,11 @@ Studio 的「在线安装」页不经过浏览器验证：桌面程序直接读�
 
 | 资产 | 名称 | 字节 | sha256 |
 |---|---|---|---|
-| `InfinityCloud-setup` | Infinity Cloud | 84,199,784 | `b8d526f61118…1e6a` |
-| `InfinityPackageManager-setup` | Infinity Package Manager | 83,989,016 | `6991d9fd7b58…5fbd` |
-| `InfinityToolbox-setup` | Infinity Toolbox | 83,943,776 | `25fbe5b92533…c04d` |
+| `InfinityCloud-setup` | Infinity Cloud | 84,184,120 | `90c7b8e69962…e174` |
+| `InfinityPackageManager-setup` | Infinity Package Manager | 83,960,840 | `8cc06ea52101…f2a7` |
+| `InfinityToolbox-setup` | Infinity Toolbox | 83,960,576 | `1b7ba6031868…ef52` |
 
-上表是 2026-11-14 **第三次**重打包（外壳加了「网页内下载也接管」，见四·C-1）：资产 id 746159042 / 746160144 / 746161492，digest 与本地 sha256 逐字符一致，部署 020f6806；前两版（84,194,352 / 84,004,072 / 83,946,304 与 84,202,296 / 83,957,264 / 83,963,224）已被同名替换。
+上表是 2026-11-14 **第四次**重打包（外壳加了「历史 / 收藏 / 集锦是真页面」，见四·C-2）：资产 id 746326875 / 746327342 / 746327877，digest 与本地 sha256 逐字符一致，部署 8f7632be；前三版（84,194,352 / 84,004,072 / 83,946,304、84,202,296 / 83,957,264 / 83,963,224、84,199,784 / 83,989,016 / 83,943,776）已被同名替换。
 
 - 重打包的理由：pre8 的三个 C++ 安装包是 InfinityViewer 更名（无框窗口 + 内置下载管理器）**之前**打的，直接拿来发等于把旧外壳塞给用户。重打包只换外壳载荷，命令行二进制不变；
 - 客户端不用重编就能看到新组件：`fetchCatalog` 拉完公开目录后再拉 `/api/components` 合并，读不到组件门也不算失败（旧门照常只给两个 setup）；
@@ -144,6 +144,32 @@ items=1  names={guest.bin}  bytes={2097152}  onDisk=2097152
 面板文本「guest.bin 已完成 2.0 MB / 2.0 MB」、计数「1 个任务」，磁盘上 `%USERPROFILE%\Downloads\InfinityViewer\guest.bin` 正好 2,097,152 B。**探针必须先把队列清空**（`downloads.command("remove",{id})` 遍历 `downloads.state.items`），否则上一轮的残留项会让「刚点的这一下进了面板吗」这个断言失去意义——第一版探针就是这么假通过的（items=3，两个 guest.bin 加一个历史 probe.bin）；也不能用 `downloads.state()`，`state` 是对象不是函数。
 
 契约自检补第 9 节 6 条（探针存在、附件头、先清队列、检查磁盘落盘、namespace 暴露 state）→ **SELFTEST PASS pass=73 fail=0**。
+
+### 四·C-2、历史 / 收藏 / 集锦从假按钮变成真页面（2026-11-14）
+
+审计发现浏览器菜单里的 `history`、`favorites`、`collections`、`print`、`extensions`、`profile` 全是假按钮：点下去只发一条宿主根本没有分支的 `shell.command`，然后 toast「已发送」。菜单报成功而什么都没发生，比没有菜单更糟，所以这一轮把能真做的做成真的，做不了的直说：
+
+- **存储**：`HISTORY_KEY = "infinity.history.v1"`、`COLL_KEY = "infinity.collections.v1"`，与设置分开存（「清空历史」不该顺手清设置）；`recordHistory()` 跳过 `about:|search:|inc://|data:|blob:`，同 URL 连续只更新时间戳，上限 500 条。
+- **路由**：`about:history|favorites|collections` → `kind` 同名 → `renderView` 走 `buildInternal(tab)`；历史页带搜索框与「清空历史」，收藏页每行「移除」，集锦页有「保存当前窗口」与每行「打开 / 删除」；Ctrl+H、Ctrl+Shift+O、Ctrl+Shift+Y 分别打开三页。
+- **打印**：`printActive()` 只在当前标签是 `<webview>` 且 `guest.print` 存在时调用 `guest.print({})`，否则 toast「当前页面不支持打印」。
+- **仍是假的**：`extensions`、`profile` 两个入口现在直接 toast「该功能尚未实现」，不再假装发送命令。
+
+无窗口取证 `work/probe-internal.ps1` → **INTERNAL-PAGES PASS**：
+
+```
+history_entries=2   history_urls=http://127.0.0.1:50660/b.html,/a.html
+fav=4->5   collections=1   colTabs=1
+history_page rows=2 title=历史记录 count=2 条
+favorites_page rows=5   collections_page rows=1
+```
+
+`colTabs=1` 是如实结果：探针是同一个标签页连续导航两次，所以「保存当前窗口」只收集到 1 条（断言从 `>=2` 改成 `>=1`，不是放宽，是纠正）。探针读取的是**页面 DOM**（`.view:not([hidden]) .internal` 的行数），不是存储里的数组，所以它证明的是「页面真的渲染出来了」。
+
+两个探针自身的坑：`shell/build` 重建会抹掉同目录 `inc_cli.exe`，缺它 `boot()` 直接 `showFatal`，探针永远不开始（进程活着、90 s 超时、无 json）；PS 5.1 下 `Join-Path (Split-Path -Parent $exe) 'inc_cli.exe'` 取到空值，改成 `$exe -replace 'inc_gui\.exe$', 'inc_cli.exe'`，脚本内注释也改成英文（PS 5.1 按 ANSI 读无 BOM 的 UTF-8）。
+
+契约自检补第 10 节 11 条（两个独立存储键、recordHistory、三条 about: 路由、buildInternal、集锦保存与恢复、printActive、未实现提示、探针与样式）→ **SELFTEST PASS pass=84 fail=0**。
+
+装出来的组件复验（`work/qa-viewer-internal.ps1`）→ **VIEWER-INTERNAL PASS**：静默装 Infinity Cloud（97 文件 / 292,500,742 B，staged `main.js` 39,995 B 含 `INFINITY_SHELL_PROBE_INTERNAL`，`ui\assets\js\shell.js` 106,550 B 含 `function buildInternal` 与 `about:history`）→ 用装好的 `inc_window.exe` 跑同一探针 → `history=2 / fav=4->5 / collections=1 / pages 2-5-1` → `/S` 卸载 exit 0、目录消失。
 
 ## 五、无窗口验收（硬约束）
 

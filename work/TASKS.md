@@ -1,5 +1,20 @@
 # Infinity.Inc 任务清单（队列：先到先做，用户新需求排最后）
 
+## 2026-11-14 历史 / 收藏 / 集锦从假按钮变成真页面（用户「真正实现所有功能」）
+- [x] 动机：浏览器菜单里的 `history`、`favorites`、`collections`、`print`、`extensions`、`profile` 全是假按钮——点下去只发一条宿主没有分支的 `shell.command` 再 toast「已发送」。菜单报成功而什么都没发生，比没有菜单更糟。
+- [x] `work/webview2/ui/assets/js/shell.js` 新增存储层：`HISTORY_KEY = "infinity.history.v1"`、`COLL_KEY = "infinity.collections.v1"`、`HISTORY_MAX = 500`、`recordHistory`（跳过 `about:|search:|inc://|data:|blob:`，同 URL 连续只更新时间戳）、`clearHistory`、`saveCollection`、`removeCollection`、`restoreCollection`。
+- [x] 路由与页面：`resolveTarget` 认 `about:history|favorites|collections` → `buildInternal(tab)` 渲染历史（搜索框 + 清空）、收藏（逐行移除）、集锦（保存当前窗口 / 打开 / 删除）；Ctrl+H、Ctrl+Shift+O、Ctrl+Shift+Y 快捷键。
+- [x] `printActive()` 只在当前标签是 `<webview>` 且 `guest.print` 存在时调用 `guest.print({})`，否则 toast「当前页面不支持打印」；`extensions`、`profile` 改为直接 toast「该功能尚未实现」，不再假发 `shell.command`。
+- [x] i18n 两个语言各补 22 条键（hist.* / fav.* / col.* / internal.count / toast.printing / printUnavailable / notImplemented）；`shell.css` 追加 `.internal*` 样式，复用既有变量。
+- [x] 无窗口取证 `work/probe-internal.ps1`（env `INFINITY_SHELL_PROBE_INTERNAL`，读的是页面 DOM 而不是存储数组）→ **INTERNAL-PAGES PASS**：`history_entries=2`、`fav=4->5`、`collections=1`、`colTabs=1`、`history_page rows=2 title=历史记录 count=2 条`、`favorites_page rows=5`、`collections_page rows=1`。`colTabs=1` 是如实结果（探针同一标签页导航两次），断言从 `>=2` 纠正为 `>=1`。
+- [x] 探针两个坑：(1) 重建 `shell/build` 会抹掉同目录 `inc_cli.exe`，缺它 `boot()` 直接 `showFatal` → 探针永不开始（进程活着、90 s 超时、无 json）；(2) PS 5.1 下 `Join-Path (Split-Path -Parent $exe) 'inc_cli.exe'` 取到空值 → 改 `$exe -replace 'inc_gui\.exe$', 'inc_cli.exe'`，脚本内注释改英文（PS 5.1 按 ANSI 读无 BOM UTF-8）。
+- [x] 契约自检补第 10 节 11 条 → **SELFTEST PASS pass=84 fail=0**（首跑 83/84：路由正则写成 `about:history|favorites|collections`，实际源码是三条独立 `/^about:history$/i` 测试，改正后全绿）。
+- [x] 三个组件第四次重打包（job `pwsh-ecceb3b5dbff403a` exit 0，三包 attempt=1 即 Valid）：InfinityCloud **84,184,120 B / `90c7b8e69962…e174`**、InfinityPackageManager **83,960,840 B / `8cc06ea52101…f2a7`**、InfinityToolbox **83,960,576 B / `1b7ba6031868…ef52`**。
+- [x] 重发（job `pwsh-79bda369a6124b86` exit 0）：删旧资产 746159042 / 746160144 / 746161492，上传 **746326875 / 746327342 / 746327877**，digest 与本地一致；`work/components-update.mjs` 重写 COMPONENTS → 部署 **8f7632be**，`/api/components` 实测三条新 size/sha、各 2 mirrors。
+- [x] 装出来的组件复验（`work/qa-viewer-internal.ps1`）→ **VIEWER-INTERNAL PASS**：静默装 InfinityCloud（97 文件 / 292,500,742 B，staged `main.js` 39,995 B 含 `INFINITY_SHELL_PROBE_INTERNAL`，`ui\assets\js\shell.js` 106,550 B 含 `function buildInternal` 与 `about:history`）→ 装好的 `inc_window.exe` 跑同一探针 → `history=2 / fav=4->5 / collections=1 / pages 2-5-1` → `/S` 卸载 exit 0、目录消失。
+- [x] 全量回归（`work/regress-internal.log`）：SELFTEST 84/84、HIDDEN-WINDOWS PASS files=168 problems=0、STUDIO-CLEAN 16/16、REMOTE-DOWNLOAD 21/21、REMOTE-UNINSTALL 10/10、SERVER-PAGE 11/11、int 冒烟 9/9。
+- [x] `docs/DOWNLOADS-v1.0pre8.md` 新增「四·C-2」并把组件表换成第四次重打包数字。
+
 ## 2026-11-14 网页内下载也进内置下载器（用户「真正实现所有功能」）
 - [x] 动机：只接管「面板里手输的 URL」是玩具，真实下载是**用户正在看的页面**给出的；Chromium 把 guest 页下载交给同一 session，接管点只有 `will-download`。
 - [x] `shell/main.js` 新增 `probeGuestDownload(done)` + `INFINITY_SHELL_PROBE_GUEST_DL`：本地 http 页只有 `<a id="dl" href="/file.bin">`，`/file.bin` 是 2 MiB + `content-disposition: attachment; filename="guest.bin"`；流程 open → 2.5 s → guest 内 `document.getElementById('dl').click()` → 4 s 读面板与磁盘。
@@ -15,7 +30,7 @@
 - [x] 全量回归：`SELFTEST PASS pass=73 fail=0`、`HIDDEN-WINDOWS PASS files=166 problems=0`、`STUDIO-CLEAN 16/16`、`REMOTE-DOWNLOAD 21/21`、`REMOTE-UNINSTALL 10/10`、`SERVER-PAGE 11/11`、int 冒烟 `PASS 9/9`。
 - [x] 线上安装复跑（`work/qa-studio-component.ps1`）→ **STUDIO-HEADLESS PASS / STUDIO-COMPONENT PASS**：Studio 从线上目录装新组件，下载 84,199,784 B / 128 s，sha256 `b8d526f6…1e6a` 与目录一致，装上 97 文件 / 292,480,762 B（staged shell 35,572 B 含 `InfinityViewer`），两个卸载器 /S exit 0、目录全清。
 - [x] 边界未破：`GET /dl/InfinityCloud-setup` 仍 404（公开门只认 ASSETS）、`GET /dl/InfinityStudio-setup` HTML 200、`/api/catalog` 仍只有两条公开产品。
-- [ ] **GitHub 二级限流挡住源码快照**：`ghsync-source.mjs --push` 连续三次 `blob failed ... 403 API rate limit exceeded`（core 配额 remaining=4935，挡的是「内容创建」这一类，每小时 500 次；本轮发布会话已用完）。已给 blob 上传加 700 ms 间隔 + 403 等 60 s 重试 6 次（仍不够，需等小时窗口），定时任务 `pwsh-5690ca4e34d3432b` 睡 1800 s 后自动重推。
+- [x] **GitHub 二级限流挡住源码快照（已解决）**：`ghsync-source.mjs --push` 连续三次 `blob failed ... 403 API rate limit exceeded`（core 配额 remaining=4935，挡的是「内容创建」这一类，每小时 500 次；本轮发布会话已用完）。给 blob 上传加 700 ms 间隔 + 403 等 60 s 重试 6 次，等满小时窗口后自动重推成功：old_head `3c6df2d5` → **new_head `dd429d5ce5187ff3184419a94e138509c80c274e`**，changed=11 / snapshot 1,172 文件 / 139,787,236 B / verify_blobs=1274，elapsed 36 s（job `pwsh-5690ca4e34d3432b` exit 0）。
 
 ## 2026-11-14 InfinityViewer 真浏览（用户「真正实现所有功能」）
 - [x] 问题：外壳此前只能渲染自家产品页，地址栏非网址输入落到 i18n 的「演示模式不联网」卡片——一个叫浏览器的程序搜不了东西，等于半个功能。

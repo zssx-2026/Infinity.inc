@@ -1,0 +1,57 @@
+{
+  "dpr": 1.5,
+  "cssW": 1180,
+  "cssH": 752,
+  "screenW": 1280,
+  "screenH": 800,
+  "availH": 752,
+  "title": "InfinityViewer",
+  "origin": "infinity-shell://ui",
+  "lsKeys": "infinity-shell-state",
+  "hasSession": false,
+  "tabCount": 1,
+  "audioElements": 0,
+  "frameSrc": "",
+  "dlOpen": false,
+  "dlItems": 0,
+  "dlText": "",
+  "dlBadge": "0",
+  "bodyText": "127.0.0.1:7621\nhttp://\nII\n侧栏\n应用\nINC\nInfinity 云\nITB\nInfinity 工具箱\nIIM\nInfinity 安装管",
+  "scaleFactor": 1.5,
+  "bounds": {
+    "x": 50,
+    "y": 0,
+    "width": 1180,
+    "height": 752
+  },
+  "contentSize": [
+    1180,
+    752
+  ],
+  "internal": {
+    "history": [
+      "http://127.0.0.1:50660/b.html",
+      "http://127.0.0.1:50660/a.html"
+    ],
+    "favBefore": 4,
+    "favAfter": 5,
+    "colId": "col-bubz5",
+    "colTabs": 1,
+    "collections": 1,
+    "historyPage": {
+      "page": true,
+      "title": "历史记录",
+      "rows": 2,
+      "count": "2 条",
+      "body": "历史记录2 条清空历史Second Pagehttp://127.0.0.1:50660/b.html11/14 12:34First Pagehttp://127.0.0.1:50660/a.html11/14 12:34"
+    },
+    "favoritesPage": {
+      "page": true,
+      "rows": 5
+    },
+    "collectionsPage": {
+      "page": true,
+      "rows": 1
+    }
+  }
+}

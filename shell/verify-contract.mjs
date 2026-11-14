@@ -189,6 +189,25 @@ ok(/downloads\.command\("remove"/.test(main) || main.indexOf('downloads.command(
 ok(main.indexOf("state.onDisk") >= 0, 'the probe checks the file really landed on disk');
 ok(uiJs.indexOf('state: downloads') >= 0, 'the downloads namespace exposes its state object');
 
+/* --- 10. the browser menu is not decoration: history, favorites and collections
+ * are real pages backed by real storage ---
+ * These three used to send "shell.command" to a host that had no branch for it
+ * and then toast "sent". A menu that reports success while nothing happens is
+ * worse than a missing menu, so the contract now demands the stores, the routes,
+ * the rendered pages, and a probe that reads the DOM instead of the stores. */
+ok(uiJs.indexOf('HISTORY_KEY = "infinity.history.v1"') >= 0, 'history has its own storage key, separate from settings');
+ok(uiJs.indexOf('COLL_KEY = "infinity.collections.v1"') >= 0, 'collections have their own storage key');
+ok(uiJs.indexOf('function recordHistory') >= 0, 'navigation records history');
+ok(/\^about:history\$/i.test(uiJs) && /\^about:favorites\$/i.test(uiJs) && /\^about:collections\$/i.test(uiJs),
+  'the about: routes resolve to the three internal pages');
+ok(uiJs.indexOf('function buildInternal') >= 0, 'shell.js renders the internal pages');
+ok(uiJs.indexOf('function saveCollection') >= 0 && uiJs.indexOf('function restoreCollection') >= 0, 'a collection can be saved and restored');
+ok(uiJs.indexOf('function printActive') >= 0, 'print reaches the guest instead of faking it');
+ok(uiJs.indexOf('toast.notImplemented') >= 0, 'the entries that are still unimplemented say so plainly');
+ok(main.indexOf('INFINITY_SHELL_PROBE_INTERNAL') >= 0, 'the shell can prove the internal pages headlessly');
+ok(read('work/probe-internal.ps1').indexOf('INTERNAL-PAGES PASS') >= 0, 'the internal-pages probe prints its verdict');
+ok(read('work/webview2/ui/assets/css/shell.css').indexOf('.internal-row') >= 0, 'the internal pages have their own styling');
+
 console.log('');
 console.log((fail === 0 ? 'SELFTEST PASS' : 'SELFTEST FAIL') + '  pass=' + pass + ' fail=' + fail);
 process.exit(fail === 0 ? 0 : 1);
