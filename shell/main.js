@@ -466,6 +466,22 @@ function shellFrame(frame) {
       replyShell('host.apps', { apps: known });
       break;
     }
+    case 'viewer.open-external': {
+      /* shell.open is already the page's "I opened a tab" notice, so asking the
+       * host to hand a url to the system browser needs its own name. The toast
+       * waits for this reply instead of claiming success up front. */
+      const target = String(p.url || '');
+      if (!/^https?:/i.test(target)) {
+        replyShell('host.openExternal', { ok: false, url: target, error: 'only http(s) urls can be opened' });
+        break;
+      }
+      shell.openExternal(target).then(function () {
+        replyShell('host.openExternal', { ok: true, url: target, error: '' });
+      }).catch(function (e) {
+        replyShell('host.openExternal', { ok: false, url: target, error: String((e && e.message) || e) });
+      });
+      break;
+    }
     case 'shell.devtools': {
       replyShell('host.devtools', openDevtools(p.open !== false, String(p.tab || '')));
       break;
@@ -1013,6 +1029,10 @@ async function boot() {
       /* The menu prints accelerators, so the probe can press them: a printed
        * shortcut that no branch handles is a promise the chrome breaks. */
       const probeKeys = process.env.INFINITY_SHELL_PROBE_KEYS ? '1' : '0';
+      /* History is the one internal page that can only be believed if a real
+       * visit shows up in it: the store is written on navigation, so opening the
+       * page and counting rows proves the wiring end to end. */
+      const probeHist = process.env.INFINITY_SHELL_PROBE_HISTORY ? '1' : '0';
       win.webContents.executeJavaScript(
         /* The inventory comes back over the bridge, so the snapshot waits for
          * it instead of racing the host and reporting an empty object. */
@@ -1038,6 +1058,14 @@ async function boot() {
         'if ("' + probeNtp + '" === "1" && window.__InfinityShell && window.__InfinityShell.open) {' +
         'try{window.__InfinityShell.open("about:home","newTab");}catch(e){}' +
         'await new Promise(function(r){setTimeout(r,600);});}' +
+        'var histProbe={};' +
+        'if ("' + probeHist + '" === "1" && window.__InfinityShell && window.__InfinityShell.open) {' +
+        'try{window.__InfinityShell.open("about:history","newTab");}catch(e){}' +
+        'await new Promise(function(r){setTimeout(r,700);});' +
+        'histProbe.rows=document.querySelectorAll(".internal-row").length;' +
+        'histProbe.count=((document.querySelector(".internal-count")||{}).textContent||"");' +
+        'histProbe.empty=!!document.querySelector(".internal-empty");' +
+        '}' +
         'return ' +
         '({dpr:window.devicePixelRatio,cssW:window.innerWidth,cssH:window.innerHeight,' +
         'screenW:screen.width,screenH:screen.height,availH:screen.availHeight,' +
@@ -1062,6 +1090,7 @@ async function boot() {
         'ntpFootNodes:document.querySelectorAll(".ntp-foot").length,' +
         'viewClasses:[].map.call(document.querySelectorAll("#views > *"),function(e){return e.className;}).join("|"),' +
         'keyProbe:keyProbe,' +
+        'histProbe:histProbe,' +
         'bodyText:(document.body.innerText||"").slice(0,80)});})()'
       ).catch(function (err) {
         /* A probe that throws must still end: a hung hidden window is worse

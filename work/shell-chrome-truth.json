@@ -9,7 +9,7 @@
   "origin": "infinity-shell://ui",
   "lsKeys": "infinity-shell-session,infinity-shell-state,infinity.history.v1",
   "hasSession": true,
-  "tabCount": 2,
+  "tabCount": 3,
   "apps": {
     "inc": {
       "name": "Infinity Cloud",
@@ -43,14 +43,19 @@
   "ntpFooter": "InfinityViewer · Infinity.Inc 外壳|Chromium Trim",
   "ntpNodes": 1,
   "ntpFootNodes": 1,
-  "viewClasses": "view|view",
+  "viewClasses": "view|view|view",
   "keyProbe": {
     "ctrlJOpens": true,
     "ctrlJCloses": true,
     "ctrlHKind": "history",
     "ctrlHHistory": true
   },
-  "bodyText": "历史记录\n新建标签页\nII\n侧栏\n应用\nINC\nInfinity 云\nITB\nInfinity 工具箱\nIIM\nInfinity 安装管理器\nIFM\nInfin",
+  "histProbe": {
+    "rows": 2,
+    "count": "1 条",
+    "empty": false
+  },
+  "bodyText": "历史记录\n新建标签页\n历史记录\nII\n侧栏\n应用\nINC\nInfinity 云\nITB\nInfinity 工具箱\nIIM\nInfinity 安装管理器\nIFM\n",
   "scaleFactor": 1.5,
   "bounds": {
     "x": 50,

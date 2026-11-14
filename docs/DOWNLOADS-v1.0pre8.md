@@ -92,11 +92,11 @@ Studio 的「在线安装」页不经过浏览器验证：桌面程序直接读�
 
 | 资产 | 名称 | 字节 | sha256 |
 |---|---|---|---|
-| `InfinityCloud-setup` | Infinity Cloud | 84,188,040 | `5e035cf6fbcd…70a4` |
-| `InfinityPackageManager-setup` | Infinity Package Manager | 84,440,992 | `068a1ca5240a…ac55` |
-| `InfinityToolbox-setup` | Infinity Toolbox | 84,416,216 | `87995fa9649f…31fa` |
+| `InfinityCloud-setup` | Infinity Cloud | 84,229,152 | `dc05546a9efa…b7dd` |
+| `InfinityPackageManager-setup` | Infinity Package Manager | 84,419,152 | `7be59d5983fb…47fe` |
+| `InfinityToolbox-setup` | Infinity Toolbox | 84,420,080 | `6df13d8a09d9…953a` |
 
-上表是 2026-11-14 **第九次**重打包（快捷键与硬编码文本审计，见四·C-9）：三包 attempt=1 即 Valid，重发资产 id **746977455 / 746978254 / 746978794**，部署 `976d8548`，`/api/components` 回读三条 size/sha 各 2 个镜像；安装态 `work/qa-viewer-apps.ps1` 复验 **VIEWER-APPS PASS**（含 Ctrl+J/Ctrl+H 实测）。前八版（84,240,824 / 83,992,880 / 83,990,216 及更早七组）已被同名替换。
+上表是 2026-11-14 **第十次**重打包（「在宿主中打开」真实现，见四·C-10）：三包 attempt=1 即 Valid，重发资产 id **747228355 / 747228968 / 747229562**，部署 `e121fa63`，`/api/components` 回读三条 size/sha 各 2 个镜像；安装态 `work/qa-viewer-apps.ps1` 复验 **VIEWER-APPS PASS**（含 Ctrl+J/Ctrl+H 实测）。前九版（84,188,040 / 84,440,992 / 84,416,216 及更早八组）已被同名替换。
 
 - 重打包的理由：pre8 的三个 C++ 安装包是 InfinityViewer 更名（无框窗口 + 内置下载管理器）**之前**打的，直接拿来发等于把旧外壳塞给用户。重打包只换外壳载荷，命令行二进制不变；
 - 客户端不用重编就能看到新组件：`fetchCatalog` 拉完公开目录后再拉 `/api/components` 合并，读不到组件门也不算失败（旧门照常只给两个 setup）；
@@ -286,6 +286,24 @@ pre8 的三个安装包走的是 Electron 外壳（`work/package-pre8-components
 
 - **探针先按 Ctrl+H 再开新标签页会把 NTP 冲掉**：`Ctrl+H` 在当前活动标签内导航，若先开 `about:home` 再按，`.ntp` 节点就没了，`ntpNodes=0`。顺序必须反过来——先按键、后开 NTP。
 - **打包与 UI 修改的竞态**：`cpp/tools/package.mjs` 在流程早期就把 `shell/build/` 拷进安装包，先起打包再改 UI，出来的包是旧的。两次中止重来后固定顺序：**改完 → `node shell/build.mjs` → 探针 → 再打包**。
+
+### 四·C-10、「在宿主中打开」真的打开了，且不再谎报（2026-11-14）
+
+顺着「按钮点下去有没有反应」继续查，抓到的是**报错信息正确、行为完全不存在**的一类：
+
+- **「在宿主中打开」是个空按钮**：`work/webview2/ui/assets/js/shell.js` 的 `buildInterstitial()`（搜索页 / 无法渲染的页面用这个内页）按钮发 `shell.search` 或 `shell.open`，而 `shell/main.js` 的消息链里**没有这两个分支**——落到 `default: replyShell('host.ack')`，即宿主只说一声「收到」，什么也不做。
+- **它还谎报了动作**：同一段代码紧跟一条 `toast(isSearch ? t("toast.searchSent", {q}) : t("toast.favAdded"))`——打开网页的分支会弹「已添加到收藏夹」。复制粘贴留下的错句，用户会以为收藏成功。
+- 修法：宿主新增 `case 'viewer.open-external'`，只接受 http(s)，交给 `shell.openExternal()`，回 `host.openExternal {ok,url,error}`；页面发这条消息后**不再自己弹 toast**，改由 `handleHostMessage` 的 `case "host.openExternal"` 按宿主回执决定提示成功还是失败（新增两语言键 `toast.openedExternal` / `toast.openExternalFailed`）。
+- **差点造成的回归**：第一版把宿主分支写成 `case 'shell.open'`，但 `shell.open` 在页面里早就是「我开了一个标签页」的通知（`openUrl()` 的 `newTab` 分支，`shell.js:1288`）。真按那样发版，**每开一个新标签页都会弹出系统浏览器**。发现后立即中止当次打包（job `pwsh-91e36de0fade40e9`），改用独立消息名 `viewer.open-external`，并在契约里加一条「`shell.open` 不得变成启动浏览器」的反向断言。
+
+顺带把「历史记录」从「有代码」验成「真记录」：`recordHistory()` 在导航与打开产品时被调用（`shell.js:461/769/775/1502`），但只有真打开 `about:history` 数行数才算证据。探针加 `INFINITY_SHELL_PROBE_HISTORY=1`：新标签打开 `about:history`，读 `.internal-row` 行数与 `.internal-count` 文本 → 实测 `rows=2 count=1 条`、`empty=False`（两行是同一次历史在两个 history 视图里各渲染一行：Ctrl+H 已把当前标签导航成历史页，探针又新开一个）。
+
+验收（全部无窗口）：
+
+- `work/probe-chrome-truth.ps1` → **CHROME-TRUTH PASS**（10 条，新增 `history-records-visit`、`history-not-empty-page`）。
+- 审计全绿：`I18N-AUDIT PASS`（used=201 / zh=233 / en=233）、`AUDIT-HARDCODED PASS`（hits=0 / untranslated=0）、`AUDIT-SHORTCUTS PASS`、`UISTALE PASS`（drift=0）。
+- `work/audit-bridge.mjs`：`replied=6 uiHandles=19`，`REPLIED-BUT-UNHANDLED-IN-UI` 只剩 `host.ack`（纯确认，不需要 UI 反应）。
+- 契约新增第 24 节 7 条（含 `shell.open` 反向断言）→ **SELFTEST PASS pass=165 fail=0**。
 
 ## 五、无窗口验收（硬约束）
 

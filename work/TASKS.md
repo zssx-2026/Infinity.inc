@@ -1,5 +1,20 @@
 # Infinity.Inc 任务清单（队列：先到先做，用户新需求排最后）
 
+## 2026-11-14 「在宿主中打开」真的打开了，且不再谎报（用户「真正实现所有功能」）
+- [x] 真缺陷：`buildInterstitial()`（`shell.js:859-862`）的按钮发 `shell.search` / `shell.open`，宿主无这两个分支 → 落 `default: replyShell('host.ack')`，什么都不做。
+- [x] 真缺陷：同段紧跟 `toast(isSearch ? toast.searchSent : toast.favAdded)`——打开网页会弹「已添加到收藏夹」。
+- [x] 宿主新增 `case 'viewer.open-external'`（仅 http(s) → `shell.openExternal` → 回 `host.openExternal {ok,url,error}`）；页面改发该消息，toast 改由 `case "host.openExternal"` 按回执决定。
+- [x] i18n 两语言新增 `toast.openedExternal` / `toast.openExternalFailed`。
+- [x] **险情**：第一版宿主分支写成 `case 'shell.open'`，而 `shell.open` 是页面「开了新标签」的通知（`shell.js:1288`），照发会让每个新标签都弹出系统浏览器 → 中止打包 job `pwsh-91e36de0fade40e9`，改独立消息名，并加反向断言。
+- [x] 历史记录验成真：探针加 `INFINITY_SHELL_PROBE_HISTORY=1`（开 `about:history` 读 `.internal-row`）→ `rows=2 count=1 条 empty=False`。
+- [x] 审计全绿：`I18N-AUDIT PASS`（used=201 zh=233 en=233）、`AUDIT-HARDCODED PASS`、`AUDIT-SHORTCUTS PASS`、`UISTALE PASS`、`audit-bridge replied=6 uiHandles=19`。
+- [x] 契约第 24 节 7 条（含 `shell.open` 反向断言）→ **SELFTEST PASS pass=165 fail=0**。
+- [x] `work/probe-chrome-truth.ps1` 10 条 → **CHROME-TRUTH PASS**。
+- [x] `docs/DOWNLOADS-v1.0pre8.md` 新增「四·C-10、『在宿主中打开』真的打开了，且不再谎报（2026-11-14）」。
+- [x] 第十次重打包（job `pwsh-f87337430d124198` exit 0）：InfinityCloud **84,229,152 B / `dc05546a9efa428b69fdb302fecfe62d18d8f163e31101159f51781c4093b7dd`**、InfinityPackageManager **84,419,152 B / `7be59d5983fbf823e2d1975c3dc666eac39f003059385fadb20790ee252347fe`**、InfinityToolbox **84,420,080 B / `6df13d8a09d920385132b498c6ef554fc49cc3e70dc5a2f60ae54d287f7b953a`**，三包 attempt=1 Valid。
+- [x] 重发（job `pwsh-2e284910410a4d2c` exit 0）：删旧 746977455 / 746978254 / 746978794，上传 **747228355 / 747228968 / 747229562**，digest 与本地一致；部署（job `pwsh-d98bba71f08a45e5`）deployment `e121fa63`，`/api/components` 回读 84,229,152 `dc05546a9efa` 2 / 84,419,152 `7be59d5983fb` 2 / 84,420,080 `6df13d8a09d9` 2。
+- [x] 安装态复验 → **VIEWER-APPS PASS**（`apps=inc,ipm,int,ifm`、`ctrlJOpens/Closes=True`、`ctrlHKind=history`、install/uninstall exit=0）。
+- [x] `docs/DOWNLOADS-v1.0pre8.md` 组件表换第十次数字（84,229,152 / 84,419,152 / 84,420,080，资产 id 747228355/747228968/747229562、部署 e121fa63）。
 ## 2026-11-14 印出来的快捷键必须真的存在（用户「真正实现所有功能」+「快速消耗token并高质量工作」）
 - [x] `work/audit-shortcuts.mjs`（新建）：读 `index.html` 全部 `.mi-k` 加速键标签（只认 Ctrl/Alt/Shift/F 数字），逐个到 `shell.js` 找 `key === "x"` 分支并校验 shiftKey/ctrl 同行 → 首跑 **MISS 3**（Ctrl+J、Ctrl+N、误把 v1.0.0 当标签）。
 - [x] 真缺陷 1：菜单印 `Ctrl+J`（下载）却无 `j` 分支 → 补 `menuAction("downloads")`；真缺陷 2：菜单印 `Ctrl+N`（新建窗口）却无 `n` 分支 → 补 `menuAction("new-window")`；`node --check` exit 0 → **AUDIT-SHORTCUTS PASS labels=10**。

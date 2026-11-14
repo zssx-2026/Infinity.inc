@@ -364,6 +364,20 @@ ok(read('work/probe-chrome-truth.ps1').indexOf('shortcut-ctrl-j-opens') >= 0, 't
 ok(read('work/audit-uistale.mjs').indexOf('UISTALE') >= 0, 'the UI drift audit can be rerun');
 ok(read('work/audit-uistale.mjs').indexOf('shell/build/inc_gui-win32-x64/resources/app/ui') >= 0, 'the audit compares against a real built tree');
 
+
+/* --- 24. "open in host" opens something ---
+ * The interstitial button said "open in host" but sent a message no host
+ * branch handled, then toasted "added to favorites" - a wrong claim about an
+ * action that never happened. The host now opens the system browser and the
+ * toast waits for its reply. */
+ok(main.indexOf("case 'viewer.open-external'") >= 0, 'the host handles viewer.open-external');
+ok(main.indexOf('shell.openExternal(target)') >= 0, 'the host opens the system browser');
+ok(main.indexOf("case 'shell.open':") < 0, 'shell.open stays a tab notice, not a browser launch');
+ok(uiJs.indexOf('toast(t("toast.favAdded"))') >= 0, 'adding a favorite still says so');
+ok(uiJs.indexOf('send("viewer.open-external", { url: isSearch') >= 0, 'the interstitial sends a real url');
+ok(uiJs.indexOf('case "host.openExternal"') >= 0, 'the page handles the host reply');
+ok(i18n.indexOf('"toast.openedExternal"') >= 0, 'both languages can report the open');
+
 console.log('');
 console.log((fail === 0 ? 'SELFTEST PASS' : 'SELFTEST FAIL') + '  pass=' + pass + ' fail=' + fail);
 process.exit(fail === 0 ? 0 : 1);
