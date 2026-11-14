@@ -92,11 +92,11 @@ Studio 的「在线安装」页不经过浏览器验证：桌面程序直接读�
 
 | 资产 | 名称 | 字节 | sha256 |
 |---|---|---|---|
-| `InfinityCloud-setup` | Infinity Cloud | 84,258,520 | `7bd16a812b1a…7eb4` |
-| `InfinityPackageManager-setup` | Infinity Package Manager | 83,967,968 | `3b7858886ab1…76d8` |
-| `InfinityToolbox-setup` | Infinity Toolbox | 84,022,320 | `59c2659183f4…ab55` |
+| `InfinityCloud-setup` | Infinity Cloud | 84,240,824 | `af870f039885…48e8` |
+| `InfinityPackageManager-setup` | Infinity Package Manager | 83,992,880 | `601ca886f229…4883` |
+| `InfinityToolbox-setup` | Infinity Toolbox | 83,990,216 | `798a53b60b33…9b1b` |
 
-上表是 2026-11-14 **第七次**重打包（开发者工具交给宿主，见四·C-5）：三包 attempt=1 即 Valid；前六版（84,194,352 / 84,004,072 / 83,946,304、84,202,296 / 83,957,264 / 83,963,224、84,199,784 / 83,989,016 / 83,943,776、84,184,120 / 83,960,840 / 83,960,576、84,194,040 / 83,940,752 / 83,953,688、84,188,232 / 83,950,168 / 83,959,656）已被同名替换。
+上表是 2026-11-14 **第八次**重打包（产品清单与翻译按钮，见四·C-6）：三包 attempt=1 即 Valid，重发资产 id **746635563 / 746636620 / 746637327**，部署 `1df2975f`，`/api/components` 回读三条 size/sha 各 2 个镜像；前七版（84,258,520 / 83,967,968 / 84,022,320 及更早六组）已被同名替换。
 
 - 重打包的理由：pre8 的三个 C++ 安装包是 InfinityViewer 更名（无框窗口 + 内置下载管理器）**之前**打的，直接拿来发等于把旧外壳塞给用户。重打包只换外壳载荷，命令行二进制不变；
 - 客户端不用重编就能看到新组件：`fetchCatalog` 拉完公开目录后再拉 `/api/components` 合并，读不到组件门也不算失败（旧门照常只给两个 setup）；
@@ -218,6 +218,16 @@ extensions_page rows=6 title=扩展
 - 探针 `INFINITY_SHELL_PROBE_DEVTOOLS` **只发 `{open:false}`**：detached 检查器是真窗口，自动化不许弹窗，所以探针验证的是「请求过桥并被真函数应答」，不是「窗口出现」。`work/probe-devtools.ps1` → **DEVTOOLS-BRIDGE PASS**：`devtools open=False target=webview error=`（当时前台有 guest，所以目标正是网页）。
 - 契约补第 13 节 10 条 → **SELFTEST PASS pass=114 fail=0**。
 - 装出来的组件复验（`work/qa-viewer-devtools.ps1`）→ **VIEWER-DEVTOOLS PASS**：静默装 Infinity Cloud，用装好的 `inc_window.exe` 跑同一探针，`open=False / target` 合法，`/S` 卸载 exit 0、目录消失。
+
+### 四·C-6、产品清单与翻译按钮（2026-11-14）
+
+把桥的两端对照着数了一遍（`work/audit-bridge.mjs`：页面发出的动作 17 个、宿主有分支的 8 个；宿主回的 6 种、页面处理 18 种），找到两个真缺口：
+
+- **产品清单只发不收**：宿主 `case 'viewer.apps'` 会回每个产品装没装（`{inc:{installed:true}, ifm:{installed:false}, …}`），但页面从来没请求过、也没渲染过。现在 boot 在 `shell.ready` 之后发一次 `viewer.apps`，`host.apps` 落到 `state.apps`，新标签页的卡片在该产品 `installed === false` 时把地址换成「未安装 / Not installed」——点之前就知道起不来。
+- **翻译是假按钮**：`#btn-translate` 原来发 `shell.command {name:"translate"}`，宿主没有这个分支，然后 toast「已发送」。现在改成真的在新标签页打开 `bing.com/translator`（`openTranslator()`），假发送整条删掉。
+- 探针原先同步取快照，清单过桥是异步的，于是读到空对象报 FAIL；改成 `async` 等 1.5 s 再取，并加 `apps` 字段。`work/probe-apps-inventory.ps1` → **APPS-INVENTORY PASS**：`apps=inc,ipm,int,ifm`，inc/ipm/int 装、ifm 未装。
+- 契约第 14 节 7 条 → **SELFTEST PASS pass=121 fail=0**。
+- 装出来的组件复验（`work/qa-viewer-apps.ps1`）→ **VIEWER-APPS PASS**：静默装 Infinity Cloud，装好的 `inc_window.exe` 探针回 `apps=inc,ipm,int,ifm`（此时只有 inc 装），`/S` 卸载 exit 0、目录消失。
 
 ## 五、无窗口验收（硬约束）
 

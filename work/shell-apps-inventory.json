@@ -1,0 +1,53 @@
+{
+  "dpr": 1.5,
+  "cssW": 1180,
+  "cssH": 752,
+  "screenW": 1280,
+  "screenH": 800,
+  "availH": 752,
+  "title": "InfinityViewer",
+  "origin": "infinity-shell://ui",
+  "lsKeys": "infinity-shell-state,infinity.history.v1",
+  "hasSession": false,
+  "tabCount": 1,
+  "apps": {
+    "inc": {
+      "name": "Infinity Cloud",
+      "url": "",
+      "installed": true
+    },
+    "ipm": {
+      "name": "InfinityPackageManager",
+      "url": "",
+      "installed": true
+    },
+    "int": {
+      "name": "Infinity Toolbox",
+      "url": "",
+      "installed": true
+    },
+    "ifm": {
+      "name": "Infinity File Manager",
+      "url": "",
+      "installed": false
+    }
+  },
+  "audioElements": 0,
+  "frameSrc": "",
+  "dlOpen": false,
+  "dlItems": 0,
+  "dlText": "还没有下载。粘贴一个地址，或让页面里的链接开始下载。",
+  "dlBadge": "0",
+  "bodyText": "Infinity Cloud\nhttp://\nII\n侧栏\n应用\nINC\nInfinity 云\nITB\nInfinity 工具箱\nIIM\nInfinity 安装管",
+  "scaleFactor": 1.5,
+  "bounds": {
+    "x": 50,
+    "y": 0,
+    "width": 1180,
+    "height": 752
+  },
+  "contentSize": [
+    1180,
+    752
+  ]
+}

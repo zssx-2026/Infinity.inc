@@ -34,24 +34,24 @@ export const COMPONENTS = {
     name: 'Infinity Cloud',
     repo: 'Infinity-Studio',
     file: 'InfinityCloud_1.0.0-pre8_win64_setup.exe',
-    size: 84258520,
-    sha256: '7bd16a812b1ae9fe4ba860ec1af74e48db1ee4fabdad7529b58e541054507eb4'
+    size: 84240824,
+    sha256: 'af870f039885347e686533111213823cbef71737abb662ae9c7b5972ef6948e8'
   },
   'InfinityPackageManager-setup': {
     id: 'ipm',
     name: 'Infinity Package Manager',
     repo: 'Infinity-Studio',
     file: 'InfinityPackageManager_1.0.0-pre8_win64_setup.exe',
-    size: 83967968,
-    sha256: '3b7858886ab142c29fffd50ad1b8b329841714dbb18ff6b506eec5a92ae176d8'
+    size: 83992880,
+    sha256: '601ca886f22993a38979482b862627b42188a8de54e613ef9ef82dfad7454883'
   },
   'InfinityToolbox-setup': {
     id: 'int',
     name: 'Infinity Toolbox',
     repo: 'Infinity-Studio',
     file: 'InfinityToolbox_1.0.0-pre8_win64_setup.exe',
-    size: 84022320,
-    sha256: '59c2659183f430a0bff64b0b5d20da3aacfdb21ca70f8ac8dd52f441dfeeab55'
+    size: 83990216,
+    sha256: '798a53b60b33e4fdb8a293d219a0ff035cab197a9210fe67e2efc82cd4199b1b'
   }
 };
 

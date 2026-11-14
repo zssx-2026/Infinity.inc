@@ -1,5 +1,19 @@
 # Infinity.Inc 任务清单（队列：先到先做，用户新需求排最后）
 
+## 2026-11-14 产品清单与翻译按钮（用户「真正实现所有功能」+「快速消耗token并高质量工作」）
+- [x] 桥两端对照（`work/audit-bridge.mjs`）：页面发 17 个动作 / 宿主有分支 8 个（其余是通知，宿主 `default` 回 `host.ack`）；宿主回 6 种 / 页面处理 18 种——**`host.apps` 是真缺口**：宿主 `case 'viewer.apps'` 会回产品清单，页面从没请求也没渲染。
+- [x] 真缺口 2：`#btn-translate` 仍发 `shell.command {name:"translate"}` 并 toast「已发送」，宿主无此分支——假按钮。
+- [x] `work/webview2/ui/assets/js/shell.js`：删假发送，新增 `openTranslator()` → `openUrl("https://www.bing.com/translator/","newTab")` + `toast(t("toast.translatorOpened"))`；`state` 增 `apps:{}`；`handleHostMessage` 加 `case "host.apps"`；boot 发 `send("viewer.apps", {})`；NTP 卡片在该产品 `installed === false` 时显示 `t("app.notInstalled")` 而不是地址。
+- [x] i18n zh/en 各加 `app.notInstalled`（未安装 / Not installed）、`toast.translatorOpened`（已在新标签页打开翻译站点 / Translator opened in a new tab）；两文件 `node --check` exit 0。
+- [x] 基础探针改异步：快照包进 `(async function(){await new Promise(r=>setTimeout(r,1500));return {...};})()` 并加 `apps` 字段——原先同步取快照，清单过桥是异步的，读到空对象误报 FAIL。
+- [x] `work/probe-apps-inventory.ps1` → **APPS-INVENTORY PASS**：`apps=inc,ipm,int,ifm`，inc/ipm/int `installed=True`、ifm `installed=False`。
+- [x] 契约第 14 节 7 条 → **SELFTEST PASS pass=121 fail=0**。
+- [x] 按钮接线审计 `work/audit-buttons.mjs`：index.html 21 个 `btn-*` 全部有监听，`unwired=none`。
+- [x] 三个组件第八次重打包（job `pwsh-fbd11732b7324840` exit 0，attempt=1 即 Valid）：InfinityCloud **84,240,824 B / `af870f039885…48e8`**、InfinityPackageManager **83,992,880 B / `601ca886f229…4883`**、InfinityToolbox **83,990,216 B / `798a53b60b33…9b1b`**。
+- [x] 重发（job `pwsh-1497146065024184` exit 0）：删旧 746574384 / 746574921 / 746575753，上传 **746635563 / 746636620 / 746637327**，digest 与本地一致；COMPONENTS 更新后部署 `1df2975f`，`/api/components` 回读三条新 size/sha 各 2 mirrors。
+- [x] 装出来的组件复验（`work/qa-viewer-apps.ps1`）→ **VIEWER-APPS PASS**：静默装 Infinity Cloud，装好的 `inc_window.exe` 探针回 `apps=inc,ipm,int,ifm`（只有 inc 装）、`/S` 卸载 exit 0、目录消失。
+- [x] `docs/DOWNLOADS-v1.0pre8.md` 新增「四·C-6」并把组件表换成第八次数字。
+
 ## 2026-11-14 开发者工具交给宿主（用户「真正实现所有功能」）
 - [x] 动机：菜单与 F12 的「开发者工具」只打开页面自绘的协议日志面板，看着像 DevTools 却什么也检查不了。
 - [x] `shell/main.js` 加 `function openDevtools(open, which)`：优先 `webContents.getAllWebContents()` 里 `getType() === 'webview'` 的 guest 的 `openDevTools({mode:'detach'})`，否则开外壳自己的；返回 `{open, target, error}`；`shellFrame` 加 `case 'shell.devtools'`。

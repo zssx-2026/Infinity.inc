@@ -1006,19 +1006,23 @@ async function boot() {
   if (process.env.INFINITY_SHELL_PROBE) {
     win.webContents.once('did-finish-load', function () {
       win.webContents.executeJavaScript(
+        /* The inventory comes back over the bridge, so the snapshot waits for
+         * it instead of racing the host and reporting an empty object. */
+        '(async function(){await new Promise(function(r){setTimeout(r,1500);});return ' +
         '({dpr:window.devicePixelRatio,cssW:window.innerWidth,cssH:window.innerHeight,' +
         'screenW:screen.width,screenH:screen.height,availH:screen.availHeight,' +
         'title:document.title,origin:location.origin,' +
         'lsKeys:Object.keys(localStorage).sort().join(","),' +
         'hasSession:!!localStorage.getItem("infinity-shell-session"),' +
         'tabCount:document.querySelectorAll(".tab").length,' +
+        'apps:(window.__InfinityShell&&window.__InfinityShell.state.apps)||{},' +
           'audioElements:document.querySelectorAll("audio").length,' +
         'frameSrc:(document.querySelector("iframe")||{}).src||"",' +
         'dlOpen:(document.getElementById("dlpanel")||{}).hidden===false,' +
         'dlItems:document.querySelectorAll(".dl-item").length,' +
         'dlText:((document.getElementById("dlList")||{}).innerText||"").slice(0,160),' +
         'dlBadge:((document.getElementById("dlBadge")||{}).textContent||""),' +
-        'bodyText:(document.body.innerText||"").slice(0,80)})'
+        'bodyText:(document.body.innerText||"").slice(0,80)});})()'
       ).then(function (info) {
         info.scaleFactor = screen.getPrimaryDisplay().scaleFactor;
         info.bounds = win.getBounds();

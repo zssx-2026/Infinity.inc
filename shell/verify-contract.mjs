@@ -258,6 +258,19 @@ ok(main.indexOf('INFINITY_SHELL_PROBE_DEVTOOLS') >= 0, 'the devtools bridge can 
 ok(read('work/probe-devtools.ps1').indexOf('DEVTOOLS-BRIDGE PASS') >= 0, 'the devtools probe prints its verdict');
 ok(main.indexOf('openDevtools(p.open !== false') >= 0, 'the request is answered by the real function, not a stub');
 
+/* --- 14. the app inventory and the translator are real ---
+ * host.apps was answered by the host and dropped by the page, so nothing ever
+ * showed which products exist on this machine; and the translate button still
+ * sent a shell.command the host has no branch for, then toasted "sent". Both
+ * are gone: the inventory is rendered, the button opens a real translator. */
+ok(main.indexOf("case 'viewer.apps'") >= 0, 'the host answers the app inventory');
+ok(uiJs.indexOf('case "host.apps"') >= 0, 'the page records the app inventory');
+ok(uiJs.indexOf('send("viewer.apps"') >= 0, 'the page asks for the inventory once the host is ready');
+ok(uiJs.indexOf('"app.notInstalled"') >= 0 || uiJs.indexOf('t("app.notInstalled")') >= 0, 'a product that is not installed is labelled, not silently dead');
+ok(uiJs.indexOf('send("shell.command"') < 0, 'no button sends a command the host never handles');
+ok(uiJs.indexOf('function openTranslator') >= 0, 'the translate button opens a real page');
+ok((i18n.match(/"toast\.translatorOpened"/g) || []).length >= 2, 'both locales say where the translator opened');
+
 console.log('');
 console.log((fail === 0 ? 'SELFTEST PASS' : 'SELFTEST FAIL') + '  pass=' + pass + ' fail=' + fail);
 process.exit(fail === 0 ? 0 : 1);
