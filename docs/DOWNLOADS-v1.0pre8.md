@@ -92,9 +92,11 @@ Studio 的「在线安装」页不经过浏览器验证：桌面程序直接读�
 
 | 资产 | 名称 | 字节 | sha256 |
 |---|---|---|---|
-| `InfinityCloud-setup` | Infinity Cloud | 84,202,296 | `117227717b6b…3d65` |
-| `InfinityPackageManager-setup` | Infinity Package Manager | 83,957,264 | `d10d48e6e57d…093a` |
-| `InfinityToolbox-setup` | Infinity Toolbox | 83,963,224 | `ecac7213acb1…4874` |
+| `InfinityCloud-setup` | Infinity Cloud | 84,194,352 | `ca846507d6b3…1a0b` |
+| `InfinityPackageManager-setup` | Infinity Package Manager | 84,004,072 | `33a4f7351189…c9a4` |
+| `InfinityToolbox-setup` | Infinity Toolbox | 83,946,304 | `7980a89b52e6…0089` |
+
+上表是 2026-11-14 **第二次**重打包（外壳加了「真浏览」，见四·C）：资产 id 746075520 / 746076061 / 746077030，digest 与本地 sha256 逐字符一致；旧一版（84,202,296 / 83,957,264 / 83,963,224）已被同名替换。
 
 - 重打包的理由：pre8 的三个 C++ 安装包是 InfinityViewer 更名（无框窗口 + 内置下载管理器）**之前**打的，直接拿来发等于把旧外壳塞给用户。重打包只换外壳载荷，命令行二进制不变；
 - 客户端不用重编就能看到新组件：`fetchCatalog` 拉完公开目录后再拉 `/api/components` 合并，读不到组件门也不算失败（旧门照常只给两个 setup）；
@@ -107,6 +109,26 @@ Studio 的「在线安装」页不经过浏览器验证：桌面程序直接读�
 卸载通道的端到端实测（`work/qa-studio-uninstall.ps1` + `.mjs`）→ **STUDIO-UNINSTALL PASS 11/11 / STUDIO-UNINSTALL-CHANNEL PASS**：静默装 Studio → 起 `cli.js 7801` → 基线 `installed` 只有 `studio`（安装器自己就在这个目录里）→ `POST /v1/remote/install {ids:["InfinityCloud-setup"]}` → `phase=done`、`installed` 变 `["studio","inc"]` 并带出目录 → 拒绝卸载运行中的安装器 → 空 ids 回 400 → `POST /v1/remote/uninstall {ids:["InfinityCloud-setup"]}` 回 200 `{code:0, removed:true}` → 目录真的消失、`installed` 回到 `["studio"]`；最后 Studio 自身 `Uninstall.exe /S` exit 0、`dirs_left=False`。产品 id 是 `inc`/`ipm`/`int`，资产名是 `InfinityCloud-setup` 这类，路由现在三者（id、资产名、显示名）都接受。
 
 无窗口端到端（`work/qa-studio-component.ps1`，job `pwsh-61028a568856414a`）→ **STUDIO-COMPONENT PASS**：装好的 Studio `GET /v1/remote` 列出 **5 个产品**（Studio 83,752,488 / Server 83,716,680 / 三个组件），`POST /v1/remote/install {ids:['InfinityCloud-setup']}` → 下载 84 s（84,202,296 B，sha256 与目录一致）→ 安装 → `phase=done ok=true`，全程 **118 s**；装上的 Infinity Cloud 为 **97 文件 / 292,469,926 B**，`inc_cli.exe`、`inc_shell\inc_window.exe`、`inc_shell\resources\app\main.js`（27,993 B，含 `InfinityViewer`）与 `downloads.js` 全在位，两个卸载器 `/S` exit 0、目录清空。首轮该脚本打印 FAIL 是脚本自己的错（PASS 条件在卸载后才求值），不是产品问题。
+
+## 四·C、InfinityViewer 是真浏览器（2026-11-14）
+
+外壳从「只渲染自家产品页的 kiosk」变成真浏览器，两件事必须同时成立：
+
+- **外部页进 `<webview>`，本地产品页仍用 iframe**。产品页同机同源（127.0.0.1:<port>），iframe 少一个渲染进程；外部网址要自己的渲染进程与网络栈，所以 `shell.js` 新增 `buildWebview(tab)`，`buildFrame` 在 `tab.kind === "web"` 且 `canWebview()` 时走它。`main.js` 的 webPreferences 相应加 `webviewTag: true`（chrome 页本身仍只有 preload 一条通路）。
+- **地址栏不是网址的输入变成真搜索**：`resolveTarget()` 在能建 guest 时返回 `https://www.bing.com/search?q=<encodeURIComponent(q)>`，kind 记 `web`，并保留 `query` 供标签标题用；只有 demo 宿主（没有 webview 能力）才保留原来那张「演示模式不联网」的卡片。
+
+其它配套：`reload()` 先找 webview 调 guest.reload()；`did-fail-load` 忽略 `-3`（ABORTED，正常导航打断）与非主框架错误，其余把标签置 `error` 并把 `errorText` 显示在过渡页；`shell.css` 给 `.view webview` 满幅白底。
+
+无窗口取证（探针窗口 `show: false`，不占用户屏幕）：`work/probe-shell-web.ps1` 起本地 http 页 → `window.__InfinityShell.open(url,"current")` → 2.5 s 后读 DOM：
+
+```
+web={webviews:1, url:"http://127.0.0.1:51003/probe.html", title:"Probe Web Page", kind:"web"}
+search={url:"https://www.bing.com/search?q=probe%20search%20query", kind:"web"}
+```
+
+截图 `work/shell-web.png`（73,838 B）OCR 能读到 guest 页正文「probe web page rendered inside a webview guest」，说明是真渲染而不是只建了节点。
+
+装好的组件也复验过（`work/qa-viewer-web.ps1` → **VIEWER-WEB PASS**）：从线上目录装 Infinity Cloud（97 文件 / 292,476,947 B），装出来的 `inc_shell\resources\app\main.js`（31,865 B）含 `webviewTag: true`、`ui\assets\js\shell.js`（95,740 B）含 `function buildWebview` 与 bing 搜索前缀；用这个装好的 `inc_window.exe` 跑同一探针，同样得到 `webviews=1 / title=Probe Web Page / kind=web` 与 bing 搜索 URL。契约自检 `node shell/verify-contract.mjs` → **SELFTEST PASS pass=67 fail=0**（新增第 8 节 8 条）。内置下载器在 `webviewTag` 打开后回归通过：`work/probe-shell-dl.ps1` 慢速 24 MB 下载显示「6.5 MB / 24.0 MB · 2.9 MB/s · 8 连接」、角标 1。
 
 ## 五、无窗口验收（硬约束）
 
@@ -124,6 +146,7 @@ Studio 的「在线安装」页不经过浏览器验证：桌面程序直接读�
 
 - GitHub 资产下载在本机被限速（实测单流 10 s 内 0 字节、Node 单流约 16 KiB/s），80 MB 的安装包可能很久；Studio 侧已用 8 路 Range 并发缓解，但仍没有镜像，链路本身仍在 GitHub。
 - 本地验证码可被点阵模板匹配破解（验收脚本自己就是这么过的）。
+- 外部网页走系统代理/直连，取决于本机网络；被墙的站点会在标签里显示 error 过渡页而不是空白。
 - 落地页/验证页/下载门三个域名都在 Cloudflare 与 GitHub 免费层上，没有自定义域名。
 
 ## 七、相关文件

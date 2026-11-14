@@ -1,5 +1,17 @@
 # Infinity.Inc 任务清单（队列：先到先做，用户新需求排最后）
 
+## 2026-11-14 InfinityViewer 真浏览（用户「真正实现所有功能」）
+- [x] 问题：外壳此前只能渲染自家产品页，地址栏非网址输入落到 i18n 的「演示模式不联网」卡片——一个叫浏览器的程序搜不了东西，等于半个功能。
+- [x] `work/webview2/ui/assets/js/shell.js`：新增 `SEARCH_BASE = "https://www.bing.com/search?q="`、`canWebview()`、`buildWebview(tab)`（`<webview>` + did-start/did-stop/page-title-updated/did-navigate/did-fail-load，-3 与非主框架错误忽略），`buildFrame` 在 `tab.kind === "web"` 时走 webview（本地产品页仍 iframe）；`resolveTarget` 在能建 guest 时返回真搜索 URL + `kind:"web"`；`reload()` 优先 guest.reload()；过渡页显示 `errorText`。
+- [x] `shell/main.js`：webPreferences 加 `webviewTag: true`；探针窗口 `show: !INFINITY_SHELL_PROBE`（不占用户屏幕，删掉 `win.show()`）；新增 `probeWebPage()` 与 `INFINITY_SHELL_PROBE_WEB` 分支（本地 http 页 + 读 webview getURL/getTitle/kind + 搜索解析）。
+- [x] `shell.css`：`.view webview` 满幅白底（dark 主题另给底色）。
+- [x] 实证（`work/probe-shell-web.ps1`，窗口不显示）：`web={webviews:1,url:"http://127.0.0.1:51003/probe.html",title:"Probe Web Page",kind:"web"}`、`search={url:"https://www.bing.com/search?q=probe%20search%20query",kind:"web"}`；截图 `work/shell-web.png` 73,838 B，OCR 读到 guest 正文。
+- [x] 契约自检加第 8 节 8 条（webviewTag、buildWebview、web 分支、bing 前缀、demo 占位只在无 guest 时保留、reload、探针、CSS）→ **SELFTEST PASS pass=67 fail=0**。
+- [x] 下载器回归（webviewTag 打开后）：`work/probe-shell-dl.ps1` 慢速 24 MB → 面板「6.5 MB / 24.0 MB · 2.9 MB/s · 8 连接」、角标 1，未受影响。
+- [x] 三个组件用新外壳重打包并重发：InfinityCloud **84,194,352 B / `ca846507d6b3…1a0b`**、InfinityPackageManager **84,004,072 B / `33a4f7351189…c9a4`**、InfinityToolbox **83,946,304 B / `7980a89b52e6…0089`**，sig=Valid；asset id 746075520 / 746076061 / 746077030，digest 与本地一致；`work/components-update.mjs` 更新 `COMPONENTS` 并部署（f674f048），`/api/components` 实测三条与上表一致、各 2 个 mirrors。
+- [x] 装出来的组件也验：`work/qa-viewer-web.ps1` → **VIEWER-WEB PASS**（装 Infinity Cloud 97 文件 / 292,476,947 B；staged main.js 31,865 B 含 `webviewTag: true`，ui shell.js 95,740 B 含 `function buildWebview` 与 bing 前缀；用装好的 `inc_window.exe` 跑同一探针得 webviews=1 / Probe Web Page / kind=web + bing 搜索 URL；两个卸载器 /S exit 0、目录清空）。首轮 ConvertFrom-Json 抛 ArgumentException 是 PS 5.1 按 ANSI 读 UTF-8 的老坑，改 `[System.IO.File]::ReadAllText(...,UTF8)`。
+- [x] 文档：docs/DOWNLOADS-v1.0pre8.md 新增「四·C、InfinityViewer 是真浏览器」整节，组件字节表更新为第二次重打包的数字。
+
 ## 2026-11-14 组件渠道（Studio 装自己的子产品，用户「真正实现所有功能」）
 - [x] **动机**：公开站按 m02647 只给 Studio / Server 两个入口，但 Studio 在干净机器上只能远程装 Server——一个叫 Installer 的程序装不了自己的子产品，等于半个下载页。
 - [x] 三个子产品用**当前 InfinityViewer 外壳**重打包（pre8 的三个 C++ 包是更名与无框窗口之前打的，直接发等于把旧外壳塞给用户）：`work/package-pre8-components.ps1`（只签这三个，避免误签已发布的 Studio/Server 包）→ InfinityCloud **84,202,296 B / `117227717b6b…3d65`**、InfinityPackageManager **83,957,264 B / `d10d48e6e57d…093a`**、InfinityToolbox **83,963,224 B / `ecac7213acb1…4874`**，三个 sig=Valid。
@@ -18,6 +30,8 @@
 - [x] 卸载通道端到端（`work/qa-studio-uninstall.ps1` + `.mjs`）→ **STUDIO-UNINSTALL PASS 11/11 / STUDIO-UNINSTALL-CHANNEL PASS**：静默装 Studio → 起 `cli.js 7801` → `POST /v1/remote/install {ids:["InfinityCloud-setup"]}` → `phase=done` → `installed` 变 `["studio","inc"]` 且带目录 → 拒绝卸载运行中的安装器（`refusing to uninstall the running installer`）→ 空 ids 回 400 → `POST /v1/remote/uninstall {ids:["InfinityCloud-setup"]}` 回 200 `{code:0, removed:true}` → 目录真的消失、`installed` 回到 `["studio"]`；最后 Studio 自身 Uninstall.exe /S exit 0、`dirs_left=False`。
 - [x] 两次 FAIL 都是**断言写错**：一次按 `cloud` 找产品（目录里的 id 是 `inc`），一次把「安装器自己」当成不该存在的条目；改完才 PASS，产品侧只有一处健壮性增强（路由现在同时接受 id / 资产名 / 显示名）。
 - [x] 最终发布（含 id/资产名/显示名三路匹配）：**83,807,192 B / sha256 `d5dd3415968f1dc121abce519fb3b656fbd4c334dd87eff27c5772a124798b03`**，sig=Valid、verify=Valid；`assets.js` 与 `/api/catalog` 实测同步（Studio 83,807,192 / `d5dd3415968f`），部署 18c68e6f；staged `server.js` 含 `ids.indexOf(x.name)`。
+- [x] 全量回归（最终构建）：`HIDDEN-WINDOWS PASS files=160 problems=0`、`STUDIO-CLEAN PASS 16/16`、`REMOTE-DOWNLOAD-TEST PASS 21/21`、`REMOTE-UNINSTALL-TEST PASS 10/10`、`SERVER-PAGE PASS 11/11`、int 冒烟 `PASS 9/9`；安装根目录已清空、无残留进程。
+- [x] 卸载通道在最终构建上复跑 → **STUDIO-UNINSTALL PASS 11/11 / CHANNEL PASS**；源码快照 old_head `7c5bdd75` → **new_head `0539b47ad59a25669820e01fd490f364407fb233`**（changed=20 / 1,158 文件 / 139,547,474 B，verify_blobs=1260 全 match，29 s）。
 
 ## 2026-11-13 无窗口化 + 并行下载抗崩（用户硬约束，本轮）
 - [x] 用户指令 m03838「真正做到什么窗口都不要弹！CMD和报错窗口都不要弹！」→ 立规矩并落地守卫，见 `docs/NO-WINDOWS.md`。

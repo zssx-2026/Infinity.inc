@@ -163,6 +163,10 @@ function windowOptions(meta) {
     title: 'InfinityViewer',
     backgroundColor: '#0e1116',
     autoHideMenuBar: true,
+    /* A probe must not put a window on the user's screen: the renderer still
+     * paints while hidden (paintWhenInitiallyHidden defaults to true), so the
+     * capture and the DOM reads are unaffected. */
+    show: !process.env.INFINITY_SHELL_PROBE,
     /* The chrome page draws its own title bar, tab strip and caption buttons
      * (shell.css keeps a drag region for them). A native frame on top of that
      * would show two title bars and two sets of window buttons. */
@@ -173,6 +177,8 @@ function windowOptions(meta) {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      /* 外部网页装在 <webview> 里，chrome 页本身仍然只有 preload 这一条通路。 */
+      webviewTag: true,
       preload: path.join(__dirname, 'preload.js')
     }
   };
@@ -434,6 +440,58 @@ function probeWindowActions(done) {
   next();
 }
 
+/* INFINITY_SHELL_PROBE_WEB proves the browsing half of the shell: an http URL
+ * opened in the chrome becomes a real <webview> guest (own renderer, own
+ * network stack), not the iframe card the demo host draws. The page is served
+ * from a loopback server so the check needs no network. */
+function probeWebPage(done) {
+  const http = require('node:http');
+  const page = '<!doctype html><meta charset="utf-8"><title>Probe Web Page</title>' +
+    '<style>body{font:16px sans-serif;background:#102030;color:#eee;padding:24px}</style>' +
+    '<h1>probe web page</h1><p>rendered inside a webview guest</p>';
+  const srv = http.createServer(function (req, res) {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+    res.end(page);
+  });
+  const fail = function (e) {
+    try { srv.close(); } catch (err) { }
+    done({ error: String((e && e.message) || e) });
+  };
+  srv.on('error', fail);
+  srv.listen(0, '127.0.0.1', function () {
+    const url = 'http://127.0.0.1:' + srv.address().port + '/probe.html';
+    win.webContents.executeJavaScript(
+      'window.__InfinityShell.open(' + JSON.stringify(url) + ',"current"); true'
+    ).then(function () {
+      setTimeout(function () {
+        win.webContents.executeJavaScript(
+          '(function(){var w=document.querySelector("webview");var st=window.__InfinityShell.state;' +
+          'var t=st.tabs.filter(function(x){return x.id===st.activeTab;})[0]||{};' +
+          'return {webviews:document.querySelectorAll("webview").length,' +
+          'url:(w&&w.getURL)?w.getURL():"",title:(w&&w.getTitle)?w.getTitle():"",' +
+          'kind:t.kind||"",tabUrl:t.url||"",body:((w&&w.executeJavaScript)?"guest":"none")};})()'
+        ).then(function (state) {
+          /* 地址栏里不是网址的输入必须变成真搜索，而不是一张"演示模式"卡片。 */
+          win.webContents.executeJavaScript(
+            'window.__InfinityShell.open("probe search query","current");' +
+            '(function(){var st=window.__InfinityShell.state;' +
+            'var t=st.tabs.filter(function(x){return x.id===st.activeTab;})[0]||{};' +
+            'return {url:t.url||"",kind:t.kind||"",query:t.query||""};})()'
+          ).then(function (search) {
+            state.search = search;
+            try { srv.close(); } catch (err) { }
+            done(state);
+          }).catch(function (e) {
+            state.search = { error: String((e && e.message) || e) };
+            try { srv.close(); } catch (err) { }
+            done(state);
+          });
+        }).catch(fail);
+      }, 2500);
+    }).catch(fail);
+  });
+}
+
 /* INFINITY_SHELL_PROBE_DL proves the built-in download manager end to end:
  * the page's own toolbar button and URL box drive it, the frame crosses the
  * bridge, main.js queues the transfer, and a real file lands on disk. A value
@@ -625,7 +683,7 @@ async function boot() {
           };
           /* A page that has just brought up its own HTTP server can paint a
            * little later than the load event; the grab waits and retries. */
-          win.show();
+          /* No win.show(): a probe window stays off the user's screen. */
           setTimeout(grab, 1500);
         };
 
@@ -634,6 +692,15 @@ async function boot() {
          * it. The states are recorded after each command. */
         /* The download probe drives the real toolbar, so it also proves the
          * panel is wired to the host rather than only present in the markup. */
+        if (process.env.INFINITY_SHELL_PROBE_WEB) {
+          probeWebPage(function (state) {
+            info.web = state;
+            writeProbe();
+            finishProbe();
+          });
+          return;
+        }
+
         const dlTarget = process.env.INFINITY_SHELL_PROBE_DL;
         if (dlTarget) {
           const startWith = function (url) {

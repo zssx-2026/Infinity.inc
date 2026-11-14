@@ -160,6 +160,22 @@ ok(uiJs.indexOf('viewer.download') >= 0, 'shell.js speaks viewer.download');
 ok(uiJs.indexOf('case "host.download"') >= 0, 'shell.js renders host.download snapshots');
 ok((i18n.match(/"dl\.status\.done"/g) || []).length >= 2, 'both locales name the download states');
 
+/* --- 8. InfinityViewer actually browses: external pages are guests, and the
+ * address bar searches instead of drawing a "demo mode" card ---
+ * A browser that can only render its own product pages is a kiosk. The split
+ * matters: local product pages stay iframes (same machine, same origin, one
+ * fewer process), anything else goes into a <webview> with its own renderer and
+ * its own network stack. Both halves are asserted here because the failure mode
+ * of getting it wrong is silent - the card just looks empty. */
+ok(main.indexOf('webviewTag: true') >= 0, 'the shell window enables the webview tag');
+ok(uiJs.indexOf('function buildWebview') >= 0, 'shell.js builds a webview for external pages');
+ok(uiJs.indexOf('buildWebview(tab)') >= 0 && uiJs.indexOf('tab.kind === "web"') >= 0, 'external tabs take the webview path');
+ok(uiJs.indexOf('https://www.bing.com/search?q=') >= 0, 'a search query resolves to a real search URL');
+ok(uiJs.indexOf('"search:" + encodeURIComponent') < 0 || uiJs.indexOf('canWebview()') >= 0, 'the demo search placeholder only survives when a guest cannot be created');
+ok(uiJs.indexOf('guest.reload') >= 0 || uiJs.indexOf('.reload()') >= 0, 'reload reaches the guest page');
+ok(main.indexOf('INFINITY_SHELL_PROBE_WEB') >= 0, 'the shell can prove webview navigation headlessly');
+ok(read('work/webview2/ui/assets/css/shell.css').indexOf('.view webview') >= 0, 'the guest fills the view area');
+
 console.log('');
 console.log((fail === 0 ? 'SELFTEST PASS' : 'SELFTEST FAIL') + '  pass=' + pass + ' fail=' + fail);
 process.exit(fail === 0 ? 0 : 1);
